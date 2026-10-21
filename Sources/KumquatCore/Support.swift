@@ -95,8 +95,51 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
     public init() {}
 }
 
+/// Names handed out but not yet written, so parallel jobs never pick the same file name.
+private final class ReservedNames: @unchecked Sendable {
+    static let shared = ReservedNames()
+    private let lock = NSLock()
+    private var paths = Set<String>()
+
+    func reserve(_ make: (_ isTaken: (URL) -> Bool) -> URL) -> URL {
+        lock.lock()
+        defer { lock.unlock() }
+        let url = make { self.paths.contains($0.standardizedFileURL.path) }
+        paths.insert(url.standardizedFileURL.path)
+        return url
+    }
+
+    func release(_ url: URL) {
+        lock.lock()
+        paths.remove(url.standardizedFileURL.path)
+        lock.unlock()
+    }
+}
+
 /// Picks non-clobbering destinations for results.
 public enum OutputNamer {
+    /// Like `uniqueURL`, but also skips names other jobs in this process have reserved. Call
+    /// `release(_:)` once the file is in place (or the move failed).
+    public static func reserveUniqueURL(in directory: URL, baseName: String, extension ext: String?) -> URL {
+        ReservedNames.shared.reserve { isTaken in
+            func make(_ base: String) -> URL {
+                let name = (ext?.isEmpty ?? true) ? base : "\(base).\(ext!)"
+                return directory.appendingPathComponent(name)
+            }
+            var candidate = make(baseName)
+            var counter = 2
+            while FileManager.default.fileExists(atPath: candidate.path) || isTaken(candidate) {
+                candidate = make("\(baseName) \(counter)")
+                counter += 1
+            }
+            return candidate
+        }
+    }
+
+    public static func release(_ url: URL) {
+        ReservedNames.shared.release(url)
+    }
+
     /// `dir/base.ext`, or `dir/base 2.ext`, `dir/base 3.ext`… if taken.
     public static func uniqueURL(in directory: URL, baseName: String, extension ext: String?, fileManager: FileManager = .default) -> URL {
         func make(_ base: String) -> URL {

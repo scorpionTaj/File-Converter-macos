@@ -63,7 +63,13 @@ private final class ProcessBox: @unchecked Sendable {
         lock.lock()
         didTimeOut = true
         lock.unlock()
-        if process.isRunning { process.terminate() }
+        // Signal the pid directly: `Process.isRunning`/`terminate()` aren't reliable from a background queue on Linux.
+        let pid = process.processIdentifier
+        guard pid > 0 else { return }
+        kill(pid, SIGTERM)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 3) { [process] in
+            if process.isRunning { kill(pid, SIGKILL) }
+        }
     }
 }
 

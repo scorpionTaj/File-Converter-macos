@@ -141,13 +141,15 @@ public final class Converter: @unchecked Sendable {
             : try Self.moveIntoPlace(current, directory: directory, baseName: base, extension: target.fileExtension)
     }
 
-    /// Moves a finished result to a unique name. Parallel jobs can pick the same name between the check and
-    /// the move (photo.png and photo.jpg → photo.webp), so a collision simply retries with the next number.
+    /// Moves a finished result to a unique name. Names are reserved in-process first, because parallel jobs
+    /// could otherwise pick the same name (photo.png and photo.jpg → photo.webp) and `rename` would silently
+    /// overwrite the first result. A collision with another app retries with the next number.
     static func moveIntoPlace(_ item: URL, directory: URL, baseName: String, extension ext: String?) throws -> URL {
         let fm = FileManager.default
         var lastError: Error?
         for _ in 0..<20 {
-            let destination = OutputNamer.uniqueURL(in: directory, baseName: baseName, extension: ext)
+            let destination = OutputNamer.reserveUniqueURL(in: directory, baseName: baseName, extension: ext)
+            defer { OutputNamer.release(destination) }
             do {
                 try fm.moveItem(at: item, to: destination)
                 return destination
