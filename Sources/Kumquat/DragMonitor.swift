@@ -47,8 +47,12 @@ final class DragMonitor: NSObject {
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
 
-        let urls = dragPasteboard.readObjects(forClasses: [NSURL.self],
+        var urls = dragPasteboard.readObjects(forClasses: [NSURL.self],
                                               options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        if urls.isEmpty {
+            // Photos, Mail, Safari… promise files instead of handing over URLs.
+            urls = PromiseInbox.placeholders(for: dragPasteboard)
+        }
         guard !urls.isEmpty else { return }
         currentURLs = urls
         // Keys already held when the drag started (e.g. ⌘ to move in Finder) don't count as a tap.

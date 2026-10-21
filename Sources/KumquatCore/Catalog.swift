@@ -24,15 +24,17 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
     // Images
     case imageCompress, imageResizeHalf, imageFit1920, imageRotateLeft, imageRotateRight, imageFlip
     case imageGrayscale, imageRemoveBackground, imageExtractText, imagesToPDF
+    case imageAnnotate, imageResizeCustom, imagesToGIF
     // PDF
     case pdfCompress, pdfMerge, pdfSplit, pdfRotate, pdfExtractText, pdfOCR
     case pdfEncrypt, pdfDecrypt, pdfRedactPersonalInfo, pdfRedactText
+    case pdfRemovePages, pdfExtractPages
     // Video
     case videoCompress, video720p, videoMute, videoExtractAudio, videoRotate, videoSpeedUp, videoFirstFrame
     // Audio
     case audioNormalize, audioCompress, audioMono, audioTrimSilence
     // Shared
-    case stripMetadata, extractArchive, compressZip, checksum, wordCount
+    case mediaTrim, stripMetadata, extractArchive, compressZip, checksum, wordCount
 
     public var title: String {
         switch self {
@@ -46,6 +48,12 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageRemoveBackground: return "Remove BG"
         case .imageExtractText: return "Copy Text"
         case .imagesToPDF: return "Make PDF"
+        case .imageAnnotate: return "Annotate…"
+        case .imageResizeCustom: return "Resize…"
+        case .imagesToGIF: return "Make GIF"
+        case .pdfRemovePages: return "Remove Pages…"
+        case .pdfExtractPages: return "Keep Pages…"
+        case .mediaTrim: return "Trim…"
         case .pdfMerge: return "Merge"
         case .pdfSplit: return "Split Pages"
         case .pdfRotate, .videoRotate: return "Rotate"
@@ -84,6 +92,12 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageRemoveBackground: return "Cut out the subject (PNG)"
         case .imageExtractText: return "Recognise text and copy it"
         case .imagesToPDF: return "Combine images into one PDF"
+        case .imageAnnotate: return "Draw, add text, highlight, pixelate, crop"
+        case .imageResizeCustom: return "Choose a size or percentage"
+        case .imagesToGIF: return "Animate the images as a GIF"
+        case .pdfRemovePages: return "Delete a range of pages"
+        case .pdfExtractPages: return "New PDF with only some pages"
+        case .mediaTrim: return "Keep only part of the clip"
         case .pdfCompress: return "Downsample images inside the PDF"
         case .pdfMerge: return "Join PDFs in the order dropped"
         case .pdfSplit: return "One PDF per page"
@@ -125,6 +139,12 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageRemoveBackground: return "wand.and.stars"
         case .imageExtractText, .pdfOCR: return "text.viewfinder"
         case .imagesToPDF: return "doc.richtext"
+        case .imageAnnotate: return "pencil.tip.crop.circle"
+        case .imageResizeCustom: return "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left"
+        case .imagesToGIF: return "square.stack.3d.forward.dottedline"
+        case .pdfRemovePages: return "minus.rectangle"
+        case .pdfExtractPages: return "doc.on.doc"
+        case .mediaTrim: return "timeline.selection"
         case .pdfMerge: return "rectangle.stack"
         case .pdfSplit: return "square.split.2x1"
         case .pdfExtractText: return "text.alignleft"
@@ -169,14 +189,19 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .audioMono: return "mono"
         case .audioTrimSilence: return "trimmed"
         case .stripMetadata: return "clean"
-        case .imagesToPDF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount: return nil
+        case .imageAnnotate: return "annotated"
+        case .imageResizeCustom: return "resized"
+        case .pdfRemovePages: return "edited"
+        case .pdfExtractPages: return "pages"
+        case .mediaTrim: return "trimmed"
+        case .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount: return nil
         }
     }
 
     public var requirements: Set<Dependency> {
         switch self {
         case .videoCompress, .video720p, .videoMute, .videoExtractAudio, .videoRotate, .videoSpeedUp, .videoFirstFrame,
-             .audioNormalize, .audioCompress, .audioMono, .audioTrimSilence:
+             .audioNormalize, .audioCompress, .audioMono, .audioTrimSilence, .mediaTrim:
             return [.ffmpeg]
         default:
             return []
@@ -188,6 +213,10 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfEncrypt: return .password(prompt: "Choose a password for the PDF")
         case .pdfDecrypt: return .password(prompt: "Enter the PDF's current password")
         case .pdfRedactText: return .text(prompt: "Text to black out (case-insensitive)")
+        case .imageResizeCustom: return .text(prompt: "New size: a percentage (50%), a width (1280) or width×height (1280x720)")
+        case .pdfRemovePages: return .text(prompt: "Pages to remove, e.g. 1, 3-5")
+        case .pdfExtractPages: return .text(prompt: "Pages to keep, e.g. 2-4, 7")
+        case .mediaTrim: return .text(prompt: "Part to keep, e.g. 0:05-1:30 (leave the end empty to keep the rest)")
         default: return nil
         }
     }
@@ -199,7 +228,12 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
 
     /// Tools that combine all dropped files into one result.
     public var combinesInputs: Bool {
-        [.imagesToPDF, .pdfMerge, .compressZip].contains(self)
+        [.imagesToPDF, .imagesToGIF, .pdfMerge, .compressZip].contains(self)
+    }
+
+    /// Tools that open a window in the app instead of running in the background.
+    public var isInteractive: Bool {
+        self == .imageAnnotate
     }
 
     /// Whether the tool applies to this drop. `formats` has one entry per dropped item (nil for folders/unknown).
@@ -210,8 +244,16 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageCompress, .imageResizeHalf, .imageFit1920, .imageRotateLeft, .imageRotateRight, .imageFlip,
              .imageGrayscale, .imageRemoveBackground, .imageExtractText:
             return all(.image)
-        case .imagesToPDF:
+        case .imagesToPDF, .imagesToGIF:
             return all(.image) && formats.count > 1
+        case .imageAnnotate:
+            return all(.image) && formats.count == 1
+        case .imageResizeCustom:
+            return all(.image)
+        case .pdfRemovePages, .pdfExtractPages:
+            return all(.pdf)
+        case .mediaTrim:
+            return all(.audio) || all(.video)
         case .pdfMerge:
             return all(.pdf) && formats.count > 1
         case .pdfCompress, .pdfSplit, .pdfRotate, .pdfExtractText, .pdfOCR, .pdfEncrypt, .pdfDecrypt,

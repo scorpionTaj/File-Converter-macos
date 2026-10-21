@@ -119,7 +119,7 @@ installed (with copy-able `brew install` commands).
 | Pandoc | pandoc | → EPUB, EPUB →, high-quality → Markdown |
 | iWork | AppleScript via `osascript` | Pages, Keynote, Numbers import/export |
 
-### 4.4 Tools (Tools wheel, 36)
+### 4.4 Tools (Tools wheel, 43)
 Images: Compress, Resize 50 %, Fit 1920 px, Rotate L/R, Flip, Grayscale, Remove Background (Vision,
 macOS 14), Copy Text (OCR), Make PDF (multi). PDF: Compress, Merge (multi), Split Pages, Rotate, Extract
 Text, OCR Text, Add Password, Unlock, Redact PII (emails, phones, card numbers, SSN, IBAN), Redact
@@ -129,6 +129,21 @@ audio/video stream copy), Extract archive, Zip, SHA-256, Word Count.
 
 Redaction flattens matched pages to images with the matches painted black, so the hidden text is
 removed from the file, not just covered.
+
+Since v0.2 the wheel also offers Annotate… (an editor window: pen, arrow, rectangle, ellipse,
+highlighter, text, pixelate, crop, undo/redo, keys 1–8 to switch tools), Resize… (`50%`, `1280`,
+`1280x720`, `x720`), Make GIF (several images), Remove/Keep Pages… (`1, 3-5, 8-`) and Trim… for audio
+and video (`0:05-1:30`). Trimming re-encodes so cuts are frame-accurate. The editor previews with the
+same `AnnotationRenderer` that writes the file, so what you see is what's saved.
+
+### 4.4b File promises and other entry points
+- **Promises** (Photos, Mail, Safari): the drag pasteboard holds `NSFilePromiseReceiver`s instead of URLs.
+  While dragging, the wheel is built from placeholder URLs carrying each promised UTI's extension. On
+  drop, the files are received into `~/Library/Caches/Kumquat/Drops/<uuid>/` (cleaned up after a day)
+  and results are saved to Downloads, or the custom folder if one is set.
+- **Menu-bar icon** accepts drops (files or promises) and opens the click-mode wheel under the icon.
+- **Services ▸ Open in Kumquat** (`NSServices`, `openFiles:userData:error:`) and **Open With** (a generic
+  `public.item` document type with rank Alternate) open the click-mode wheel at the cursor.
 
 ### 4.5 Actions (Actions wheel, 7)
 AirDrop (`NSSharingService`), Float (always-on-top Quick Look panel), Copy (file to clipboard), Move to…,
@@ -188,16 +203,16 @@ The release build can bundle static `ffmpeg`/`ffprobe` (set `FFMPEG_BIN`/`FFPROB
 - [x] Compress, remove metadata, redact documents
 - [x] AirDrop, Float, Copy, Move, Copy Path, Terminal
 - [x] ≥ 275 conversions (`kumquat-cli count`)
-- [ ] Photo annotation (planned: lightweight markup window, v0.3)
-- [ ] File-promise drags (Photos, Mail) — planned v0.2 via `NSFilePromiseReceiver`
+- [x] Photo annotation: pen, arrow, rectangle, ellipse, highlighter, text, pixelate, crop, undo/redo (v0.2)
+- [x] File-promise drags (Photos, Mail, Safari) via `NSFilePromiseReceiver` (v0.2)
 
 ## 9. Roadmap
 
 | Version | Scope |
 |---|---|
-| **0.1** (this repo) | Everything in §8 that is checked; CLI; CI; signed/zipped/dmg builds |
-| 0.2 | File-promise drags (Photos/Mail/Safari images), drop onto the menu-bar icon, Finder Quick Actions/Services, per-format favourites & ordering, batch progress per file |
-| 0.3 | Annotate (arrows, text, highlight, blur) for images & PDFs; video trim; image crop; PDF page reorder |
+| **0.1** | Everything in §8 except annotation and file promises; CLI; CI; signed/zipped/dmg builds |
+| **0.2** (current) | Annotation editor with crop; file-promise drags; drop onto the menu-bar icon; Services ▸ Open in Kumquat and Open With; Trim…, Resize…, Remove/Keep Pages…, images → animated GIF; parallel batches (3 at a time); Escape closes the click-mode wheel |
+| 0.3 | Annotate PDFs; PDF page reorder; per-format favourites & ordering on the wheel; Finder-selection hotkey |
 | 0.4 | Bundled FFmpeg build, Sparkle auto-updates, notarized releases, localisation |
 | 0.5 | Plugin edges (user-defined shell recipes in `~/Library/Application Support/Kumquat/recipes`) |
 

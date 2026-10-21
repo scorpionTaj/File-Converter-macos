@@ -125,6 +125,24 @@ final class MediaEngineTests: TemporaryDirectoryTestCase {
         }
     }
 
+    func testTrim() async throws {
+        let mp4 = try await makeVideo()
+        let trimmed = try await converter.run(.mediaTrim, inputs: [mp4], parameter: "0.2-0.7")
+        let info = await probe(trimmed.outputs[0])
+        XCTAssertEqual(info?.duration ?? 0, 0.5, accuracy: 0.12)
+        XCTAssertTrue(trimmed.outputs[0].lastPathComponent.contains("(trimmed)"))
+
+        let wav = try await makeAudio()
+        let tail = try await converter.run(.mediaTrim, inputs: [wav], parameter: "0:00.5-")
+        let tailInfo = await probe(tail.outputs[0])
+        XCTAssertEqual(tailInfo?.duration ?? 0, 0.5, accuracy: 0.05)
+
+        do {
+            _ = try await converter.run(.mediaTrim, inputs: [wav], parameter: "5-6")
+            XCTFail("starting after the end should fail")
+        } catch {}
+    }
+
     func testAudioTools() async throws {
         let wav = try await makeAudio()
         for tool in [ToolID.audioNormalize, .audioMono, .audioTrimSilence, .audioCompress, .stripMetadata] {
@@ -229,6 +247,25 @@ final class TextEngineTests: TemporaryDirectoryTestCase {
         let root = try XCTUnwrap(extracted.outputs.first)
         // A single top-level folder is unwrapped, like Archive Utility.
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("b.txt"), encoding: .utf8), "world")
+    }
+
+    func testZipFromSeveralFolders() async throws {
+        guard FileManager.default.isExecutableFile(atPath: "/usr/bin/zip") else { throw XCTSkip("zip not installed") }
+        let one = directory.appendingPathComponent("one", isDirectory: true)
+        let two = directory.appendingPathComponent("two", isDirectory: true)
+        try FileManager.default.createDirectory(at: one, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: two, withIntermediateDirectories: true)
+        let a = one.appendingPathComponent("a.txt"), b = two.appendingPathComponent("b.txt")
+        try "A".write(to: a, atomically: true, encoding: .utf8)
+        try "B".write(to: b, atomically: true, encoding: .utf8)
+
+        let outcome = try await converter.run(.compressZip, inputs: [a, b])
+        let zip = try XCTUnwrap(outcome.outputs.first)
+        XCTAssertEqual(zip.lastPathComponent, "Archive.zip")
+        let unpacked = try await converter.run(.extractArchive, inputs: [zip])
+        let folder = try XCTUnwrap(unpacked.outputs.first)
+        XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent("b.txt"), encoding: .utf8), "B")
+        XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent("a.txt"), encoding: .utf8), "A")
     }
 
     func testChecksum() async throws {

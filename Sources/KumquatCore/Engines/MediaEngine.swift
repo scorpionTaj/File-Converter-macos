@@ -37,9 +37,22 @@ public struct MediaEngine: ConversionEngine {
                                                                                        target: format, quality: quality))
     }
 
-    static func runTool(_ tool: ToolID, input: URL, source: Format, context: EngineContext) async throws -> ToolArtifact {
+    static func runTool(_ tool: ToolID, input: URL, source: Format, parameter: String? = nil,
+                        context: EngineContext) async throws -> ToolArtifact {
         let ffmpeg = try context.tools.require("ffmpeg", .ffmpeg)
         let probe = await Self.probe(input, tools: context.tools)
+        if tool == .mediaTrim {
+            let range = try TimeRange.parse(parameter ?? "")
+            if let duration = probe?.duration, range.start >= duration {
+                throw KumquatError.invalidInput("The clip is only \(Subtitles.formatTimestamp(duration, millisecondSeparator: ".")) long.")
+            }
+            let output = context.scratchURL(FFmpegRecipes.toolOutputFormat(tool, source: source).fileExtension)
+            let args = FFmpegRecipes.trimArguments(input: input.path, output: output.path, source: source, range: range,
+                                                   options: context.options)
+            let length = range.end.map { $0 - range.start } ?? probe?.duration.map { $0 - range.start }
+            try await run(ffmpeg, args, duration: length, context: context)
+            return ToolArtifact(url: output)
+        }
         if tool == .videoExtractAudio, probe?.hasAudio == false {
             throw KumquatError.nothingToDo("\(input.lastPathComponent) has no audio track.")
         }

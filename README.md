@@ -7,7 +7,7 @@ Start dragging any file, then tap a key. A wheel opens around the cursor; drop t
 | Tap while dragging | Wheel | Examples |
 |---|---|---|
 | **⇧ Shift** | **Convert** | HEIC → JPG, MOV → MP4, DOCX → PDF, XLSX → CSV, SRT → VTT, ZIP → TAR.GZ |
-| **⌘ Command** | **Tools** | Compress, resize, rotate, remove background, OCR, merge/split/lock/redact PDFs, mute video, normalize audio |
+| **⌘ Command** | **Tools** | Annotate, compress, resize, rotate, remove background, OCR, make GIFs, merge/split/trim/lock/redact PDFs, trim & mute video, normalize audio |
 | **⌃ Control** | **Actions** | AirDrop, Float on top, Copy, Move to…, Copy to…, Copy Path, open in Terminal |
 
 The result is saved **next to the original**, which is never modified. Nothing is uploaded: Kumquat uses
@@ -22,8 +22,13 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 
 - **600+ conversions** across images, audio, video, PDF, documents, slides, spreadsheets, subtitles, archives and data.
   Run `kumquat-cli count` to see the exact number for your setup.
-- **36 tools** and **7 actions**, filtered to what makes sense for the dragged files.
-- **Multi-file drops**: convert a batch, merge PDFs, combine images into a PDF, zip a selection.
+- **43 tools** and **7 actions**, filtered to what makes sense for the dragged files.
+- **Annotate images**: pen, arrow, rectangle, ellipse, highlighter, text, pixelate (true redaction) and crop, with undo/redo.
+  The edited copy is saved as `photo (annotated).jpg`.
+- **Works with Photos, Mail and Safari**: file-promise drags are received on drop. Results go to Downloads.
+- **More ways in**: drop files on the menu-bar icon, use Finder ▸ Services ▸ **Open in Kumquat**, or **Open With ▸ Kumquat**.
+- **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
+- **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.
 - **Smart routing**: multi-step conversions (e.g. XLSX → CSV → JSON) are found automatically, and stream copy
   (instant, lossless) is used when a video only needs a new container.
 - **No special permissions**: no Accessibility or Input Monitoring prompt.

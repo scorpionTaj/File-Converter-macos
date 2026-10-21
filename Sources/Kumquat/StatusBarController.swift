@@ -12,10 +12,29 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         self.app = app
         super.init()
         statusItem.button?.image = StatusIcon.make()
-        statusItem.button?.toolTip = "Kumquat"
+        statusItem.button?.toolTip = "Kumquat — drop files here, or drag a file and tap a key"
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+
+        if let button = statusItem.button {
+            // Files dropped on the menu bar icon open the click-driven wheel.
+            let dropView = StatusDropView(frame: button.bounds)
+            dropView.autoresizingMask = [.width, .height]
+            dropView.onClick = { [weak self] in self?.statusItem.button?.performClick(nil) }
+            dropView.onDrop = { [weak self] urls in self?.showWheelBelowIcon(for: urls) }
+            dropView.onDropFailed = { [weak app] message in app?.hud.failure("Couldn't receive the file", detail: message) }
+            button.addSubview(dropView)
+        }
+    }
+
+    private func showWheelBelowIcon(for urls: [URL]) {
+        guard let app else { return }
+        var point = NSEvent.mouseLocation
+        if let frame = statusItem.button?.window?.frame {
+            point = NSPoint(x: frame.midX, y: frame.minY - 240)
+        }
+        app.showWheel(for: urls, at: point)
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -88,6 +107,57 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func showSettings() {
         guard let app else { return }
         WindowManager.shared.showSettings(app: app)
+    }
+}
+
+/// Transparent overlay on the status item button that accepts file (and file-promise) drops
+/// and forwards clicks to the button so the menu still opens.
+final class StatusDropView: NSView {
+    var onDrop: (([URL]) -> Void)?
+    var onDropFailed: ((String) -> Void)?
+    var onClick: (() -> Void)?
+    private var isTargeted = false { didSet { needsDisplay = true } }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        registerForDraggedTypes([.fileURL] + PromiseInbox.pasteboardTypes)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard isTargeted else { return }
+        NSColor.systemOrange.withAlphaComponent(0.45).setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 2), xRadius: 4, yRadius: 4).fill()
+    }
+
+    override func mouseDown(with event: NSEvent) { onClick?() }
+    override func rightMouseDown(with event: NSEvent) { onClick?() }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        isTargeted = true
+        return .copy
+    }
+
+    override func draggingExited(_ sender: NSDraggingInfo?) { isTargeted = false }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        isTargeted = false
+        let pasteboard = sender.draggingPasteboard
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        if !urls.isEmpty {
+            Task { @MainActor [weak self] in self?.onDrop?(urls) }
+            return true
+        }
+        guard PromiseInbox.hasPromises(pasteboard) else { return false }
+        PromiseInbox.receive(from: pasteboard) { [weak self] received, message in
+            if received.isEmpty {
+                self?.onDropFailed?(message ?? "The file couldn't be received.")
+            } else {
+                self?.onDrop?(received)
+            }
+        }
+        return true
     }
 }
 

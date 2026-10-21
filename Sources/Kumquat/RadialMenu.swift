@@ -16,9 +16,13 @@ final class RadialMenuPanel: NSPanel {
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .transient, .ignoresCycle]
+        acceptsMouseMovedEvents = true
     }
 
-    override var canBecomeKey: Bool { false }
+    /// Click mode lets the panel take key status so Escape closes it. Drag mode must never steal focus.
+    var allowsKey = false
+
+    override var canBecomeKey: Bool { allowsKey }
     override var canBecomeMain: Bool { false }
 }
 
@@ -42,6 +46,8 @@ final class RadialMenuView: NSView {
     var onCancel: (() -> Void)?
     /// Click on the hub in click mode: switch to the next wheel.
     var onCycleMode: (() -> Void)?
+    /// A file-promise drop couldn't be received.
+    var onDropFailed: ((String) -> Void)?
     private(set) var isPerformingDrop = false
 
     private var rings: [Ring] = []
@@ -53,7 +59,13 @@ final class RadialMenuView: NSView {
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
-        registerForDraggedTypes([.fileURL])
+        registerForDraggedTypes([.fileURL] + PromiseInbox.pasteboardTypes)
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { onCancel?() } else { super.keyDown(with: event) }
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -212,11 +224,6 @@ final class RadialMenuView: NSView {
 
     // MARK: Drag destination
 
-    private func readURLs(_ info: NSDraggingInfo) -> [URL] {
-        let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self],
-                                                       options: [.urlReadingFileURLsOnly: true]) as? [URL]
-        return (urls?.isEmpty ?? true) ? self.urls : urls!
-    }
 
     private func dragOperation(at location: NSPoint) -> NSDragOperation {
         hovered = index(at: convert(location, from: nil))
@@ -244,8 +251,27 @@ final class RadialMenuView: NSView {
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
         guard let hovered, items[hovered].isAvailable else { return false }
         let item = items[hovered]
-        let dropped = readURLs(sender)
+        let pasteboard = sender.draggingPasteboard
+        let fileURLs = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         isPerformingDrop = true
+
+        if fileURLs.isEmpty, PromiseInbox.hasPromises(pasteboard) {
+            PromiseInbox.receive(from: pasteboard) { [weak self] received, message in
+                self?.isPerformingDrop = false
+                if received.isEmpty {
+                    self?.onDropFailed?(message ?? "The file couldn't be received.")
+                } else {
+                    self?.onSelect?(item, received)
+                }
+            }
+            return true
+        }
+
+        let dropped = fileURLs.isEmpty ? urls.filter { !PromiseInbox.isPlaceholder($0) } : fileURLs
+        guard !dropped.isEmpty else {
+            isPerformingDrop = false
+            return false
+        }
         // Run after the drag session finishes so prompts and panels don't block the source app.
         Task { @MainActor [weak self] in
             self?.isPerformingDrop = false
@@ -300,6 +326,7 @@ final class RadialMenuController {
     private var hideTask: Task<Void, Never>?
 
     var onSelect: ((WheelItem, [URL]) -> Void)?
+    var onDropFailed: ((String) -> Void)?
     /// Supplies items when the user cycles wheels in click mode.
     var itemsProvider: ((WheelMode, [URL]) -> [WheelItem])?
 
@@ -313,6 +340,10 @@ final class RadialMenuController {
             self?.onSelect?(item, urls)
         }
         view.onCancel = { [weak self] in self?.hide() }
+        view.onDropFailed = { [weak self] message in
+            self?.hide()
+            self?.onDropFailed?(message)
+        }
         view.onCycleMode = { [weak self] in self?.cycleMode() }
     }
 
@@ -347,6 +378,13 @@ final class RadialMenuController {
         }
         view.frame = NSRect(origin: .zero, size: frame.size)
         view.needsDisplay = true
+
+        panel.allowsKey = interaction == .click
+        if interaction == .click {
+            NSApp.activate(ignoringOtherApps: true)
+            panel.makeKey()
+            panel.makeFirstResponder(view)
+        }
 
         if interaction == .click, outsideClickMonitor == nil {
             outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
@@ -389,6 +427,7 @@ final class RadialMenuController {
         currentMode = nil
         guard panel.isVisible else { return }
         panel.orderOut(nil)
+        panel.allowsKey = false
     }
 }
 

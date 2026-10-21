@@ -125,6 +125,89 @@ final class MacEngineTests: TemporaryDirectoryTestCase {
         XCTAssertEqual(PDFDocument(url: rotated.outputs[0])?.page(at: 0)?.rotation, 90)
     }
 
+    func testCustomResizeAndAnimatedGIF() async throws {
+        let png = try makePNG()
+        let resized = try await converter.run(.imageResizeCustom, inputs: [png], parameter: "120x120")
+        XCTAssertEqual(pixelSize(resized.outputs[0]).map { [$0.0, $0.1] }, [120, 80])
+
+        let second = try makePNG("frame2.png", width: 150, height: 100)
+        let gif = try await converter.run(.imagesToGIF, inputs: [png, second])
+        let source = try XCTUnwrap(CGImageSourceCreateWithURL(gif.outputs[0] as CFURL, nil))
+        XCTAssertEqual(CGImageSourceGetCount(source), 2)
+        XCTAssertEqual(pixelSize(gif.outputs[0])?.0, 300)
+    }
+
+    func testPageSelection() async throws {
+        var pages: [URL] = []
+        for name in ["one", "two", "three"] {
+            pages.append(try await converter.convert(try file("\(name).txt", name.uppercased()), to: .pdf))
+        }
+        let merged = try await converter.run(.pdfMerge, inputs: pages).outputs[0]
+
+        let removed = try await converter.run(.pdfRemovePages, inputs: [merged], parameter: "2")
+        let remaining = try XCTUnwrap(PDFDocument(url: removed.outputs[0]))
+        XCTAssertEqual(remaining.pageCount, 2)
+        XCTAssertTrue(remaining.page(at: 1)?.string?.contains("THREE") ?? false)
+
+        let kept = try await converter.run(.pdfExtractPages, inputs: [merged], parameter: "2-3")
+        let extracted = try XCTUnwrap(PDFDocument(url: kept.outputs[0]))
+        XCTAssertEqual(extracted.pageCount, 2)
+        XCTAssertTrue(extracted.page(at: 0)?.string?.contains("TWO") ?? false)
+
+        do {
+            _ = try await converter.run(.pdfRemovePages, inputs: [merged], parameter: "1-3")
+            XCTFail("removing every page should fail")
+        } catch {}
+    }
+
+    /// Reads one pixel (x, y measured from the bottom-left).
+    func pixel(_ image: CGImage, _ x: Int, _ y: Int) -> (r: Int, g: Int, b: Int) {
+        var data = [UInt8](repeating: 0, count: 4)
+        data.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                    space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+            context.draw(image, in: CGRect(x: -x, y: -y, width: image.width, height: image.height))
+        }
+        return (Int(data[0]), Int(data[1]), Int(data[2]))
+    }
+
+    func testAnnotationRendering() throws {
+        // White 200×100 canvas with a black left half, so pixelation has something to mix.
+        let base = try ImageEngine.render(width: 200, height: 100) { ctx in
+            ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: 200, height: 100))
+            ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
+            ctx.fill(CGRect(x: 0, y: 0, width: 100, height: 100))
+        }
+        let annotations = [
+            Annotation(.rectangle(CGRect(x: 120, y: 20, width: 60, height: 60)), color: .red, lineWidth: 6),
+            Annotation(.pixelate(CGRect(x: 80, y: 0, width: 40, height: 100))),
+            Annotation(.text("Hi", origin: CGPoint(x: 10, y: 10), fontSize: 30), color: .yellow),
+        ]
+        let rendered = try AnnotationRenderer.render(base, annotations: annotations)
+        XCTAssertEqual(rendered.width, 200)
+        let edge = pixel(rendered, 120, 50)
+        XCTAssertGreaterThan(edge.r, 200)
+        XCTAssertLessThan(edge.g, 120)
+        XCTAssertEqual(pixel(rendered, 150, 50).g, 255, "inside the rectangle stays white")
+
+        let cropped = try AnnotationRenderer.render(base, annotations: [], crop: CGRect(x: 100, y: 0, width: 50, height: 40))
+        XCTAssertEqual(cropped.width, 50)
+        XCTAssertEqual(cropped.height, 40)
+        XCTAssertEqual(pixel(cropped, 10, 10).r, 255, "crop keeps the white right half")
+    }
+
+    func testEditableFormatAndSave() async throws {
+        let png = try makePNG()
+        XCTAssertEqual(ImageEngine.editableFormat(for: png), .png)
+        XCTAssertEqual(ImageEngine.editableFormat(for: directory.appendingPathComponent("x.psd")), .png)
+        let image = try await ImageEngine.loadImage(at: png)
+        let output = directory.appendingPathComponent("saved.jpg")
+        try await ImageEngine.save(image, to: output, format: .jpg)
+        XCTAssertEqual(pixelSize(output)?.0, 300)
+    }
+
     func testCatalogOnMac() {
         let catalog = converter.catalog()
         let png = directory.appendingPathComponent("x.png")

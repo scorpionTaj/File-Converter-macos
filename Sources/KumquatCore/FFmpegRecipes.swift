@@ -194,6 +194,23 @@ public enum FFmpegRecipes {
         }
     }
 
+    /// Frame-accurate trim. Re-encodes (fast for audio) because stream copy snaps to keyframes and can
+    /// leave the container reporting the original duration.
+    public static func trimArguments(input: String, output: String, source: Format, range: TimeRange,
+                                     options: ConversionOptions) -> [String] {
+        var args = ["-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-progress", "pipe:1", "-nostats"]
+        if range.start > 0 { args += ["-ss", TimeRange.ffmpegTime(range.start)] }
+        args += ["-i", input]
+        if let end = range.end { args += ["-t", TimeRange.ffmpegTime(end - range.start)] }
+        let out = sameOrFallback(source)
+        if source.kind == .video {
+            args += videoArguments(target: out, probe: nil, options: options)
+        } else {
+            args += ["-map", "0:a:0", "-vn"] + (audioCodecArguments(for: out, bitrate: options.audioBitrateKbps) ?? [])
+        }
+        return args + [output]
+    }
+
     public static func toolArguments(_ tool: ToolID, input: String, output: String, source: Format,
                                      probe: MediaProbe?, options: ConversionOptions) -> [String]? {
         let out = toolOutputFormat(tool, source: source)

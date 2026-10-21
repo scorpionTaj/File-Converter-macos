@@ -208,6 +208,7 @@ public final class Converter: @unchecked Sendable {
 /// Routes each tool to the engine that implements it.
 enum ToolRunner {
     static func run(_ tool: ToolID, input: URL, parameter: String?, context: EngineContext) async throws -> ToolArtifact {
+        try rejectInteractive(tool)
         let kind = FormatRegistry.kind(for: input)
         let format = FormatRegistry.format(for: input)
 
@@ -231,10 +232,10 @@ enum ToolRunner {
         guard let format else { throw KumquatError.unsupportedInput(input.lastPathComponent) }
         switch kind {
         case .audio, .video:
-            return try await MediaEngine.runTool(tool, input: input, source: format, context: context)
+            return try await MediaEngine.runTool(tool, input: input, source: format, parameter: parameter, context: context)
         case .image:
             #if canImport(ImageIO)
-            return try await ImageEngine.runTool(tool, input: input, source: format, context: context)
+            return try await ImageEngine.runTool(tool, input: input, source: format, parameter: parameter, context: context)
             #else
             throw KumquatError.engineUnavailable("Image tools")
             #endif
@@ -256,6 +257,14 @@ enum ToolRunner {
             try await ArchiveEngine.create(items: inputs, format: .zip, output: output)
             let name = inputs.count == 1 ? FormatRegistry.baseName(of: inputs[0]) : "Archive"
             return ToolArtifact(url: output, preferredBaseName: name)
+        case .imagesToGIF:
+            #if canImport(ImageIO)
+            let output = context.scratchURL("gif")
+            try await ImageEngine.makeAnimatedGIF(from: inputs, output: output, context: context)
+            return ToolArtifact(url: output, preferredBaseName: FormatRegistry.baseName(of: inputs[0]))
+            #else
+            throw KumquatError.engineUnavailable("Image tools")
+            #endif
         case .imagesToPDF, .pdfMerge:
             #if canImport(PDFKit) && canImport(AppKit)
             let output = context.scratchURL("pdf")
@@ -271,6 +280,13 @@ enum ToolRunner {
             #endif
         default:
             throw KumquatError.nothingToDo("\(tool.title) works on one file at a time.")
+        }
+    }
+
+    /// Interactive tools are handled by the app, never by the background runner.
+    static func rejectInteractive(_ tool: ToolID) throws {
+        if tool.isInteractive {
+            throw KumquatError.nothingToDo("\(tool.title) opens an editor in the Kumquat app.")
         }
     }
 }

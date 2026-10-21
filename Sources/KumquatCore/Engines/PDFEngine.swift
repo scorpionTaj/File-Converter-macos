@@ -160,6 +160,17 @@ public struct PDFEngine: ConversionEngine {
             }
             return ToolArtifact(url: folder, message: "\(document.pageCount) pages", preferredBaseName: folder.lastPathComponent)
 
+        case .pdfRemovePages, .pdfExtractPages:
+            let selected = Set(try PageRanges.parse(parameter ?? "", pageCount: document.pageCount))
+            let keep = (0..<document.pageCount).filter { tool == .pdfExtractPages ? selected.contains($0) : !selected.contains($0) }
+            guard !keep.isEmpty else { throw KumquatError.nothingToDo("That would remove every page.") }
+            let result = PDFDocument()
+            for index in keep {
+                if let page = document.page(at: index)?.copy() as? PDFPage { result.insert(page, at: result.pageCount) }
+            }
+            guard result.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
+            return ToolArtifact(url: output, message: "\(keep.count) of \(document.pageCount) pages kept")
+
         case .pdfRotate:
             for index in 0..<document.pageCount {
                 if let page = document.page(at: index) { page.rotation = (page.rotation + 90) % 360 }

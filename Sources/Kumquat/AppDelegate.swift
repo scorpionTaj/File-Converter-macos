@@ -11,6 +11,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusBar: StatusBarController?
     private lazy var actions = FileActions(settings: settings, hud: hud)
     private(set) var recentOutputs: [URL] = []
+    /// Per-file progress of the running batch, keyed by HUD job id.
+    private var batchProgress: [Int: [Double]] = [:]
+
+    /// Files converted at the same time in a batch.
+    static let batchConcurrency = 3
 
     /// Rebuilt per use so changed tool paths in Settings apply immediately.
     var converter: Converter { Converter(tools: settings.toolLocator) }
@@ -26,12 +31,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dragMonitor.start()
 
         wheel.onSelect = { [weak self] item, urls in self?.perform(item, urls: urls) }
+        wheel.onDropFailed = { [weak self] message in self?.hud.failure("Couldn't receive the file", detail: message) }
         wheel.itemsProvider = { [weak self] mode, urls in self?.items(for: mode, urls: urls) ?? [] }
+
+        // Finder ▸ Services ▸ "Open in Kumquat".
+        NSApp.servicesProvider = self
+        NSUpdateDynamicServices()
+
+        PromiseInbox.cleanUp()
 
         if !settings.hasSeenWelcome {
             settings.hasSeenWelcome = true
             WindowManager.shared.showWelcome(app: self)
         }
+    }
+
+    /// "Open With ▸ Kumquat", `open -a Kumquat file`, or files dropped on the app icon.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        showWheel(for: urls.filter(\.isFileURL), at: NSEvent.mouseLocation)
+    }
+
+    /// Services menu entry declared in Info.plist (`NSMessage = openFiles`).
+    @objc func openFiles(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
+        let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        guard !urls.isEmpty else {
+            error.pointee = "Select one or more files first." as NSString
+            return
+        }
+        showWheel(for: urls, at: NSEvent.mouseLocation)
     }
 
     func setEnabled(_ enabled: Bool) {
@@ -63,14 +90,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                    scale: CGFloat(settings.wheelScale))
     }
 
-    /// "Convert File…" from the menu bar: pick files, then use the wheel with clicks.
-    func openFilesWithWheel() {
-        let urls = Prompt.chooseFiles()
+    /// Shows the click-driven wheel for files that arrived without a drag (menu, Services, Open With, menu-bar drop).
+    func showWheel(for urls: [URL], at point: NSPoint) {
         guard !urls.isEmpty else { return }
         let mode = WheelMode.allCases.first { !items(for: $0, urls: urls).isEmpty } ?? .actions
+        wheel.show(mode: mode, items: items(for: mode, urls: urls), urls: urls, at: point, interaction: .click,
+                   scale: CGFloat(settings.wheelScale))
+    }
+
+    /// "Convert Files…" from the menu bar.
+    func openFilesWithWheel() {
+        let urls = Prompt.chooseFiles()
         let screen = NSScreen.main?.visibleFrame ?? .zero
-        wheel.show(mode: mode, items: items(for: mode, urls: urls), urls: urls,
-                   at: NSPoint(x: screen.midX, y: screen.midY), interaction: .click, scale: CGFloat(settings.wheelScale))
+        showWheel(for: urls, at: NSPoint(x: screen.midX, y: screen.midY))
     }
 
     // MARK: Running
@@ -86,6 +118,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Options for this drop. Files received from a promise live in a cache folder, so their results go to
+    /// Downloads unless the user picked a custom folder.
+    func options(for urls: [URL]) -> ConversionOptions {
+        var options = settings.options
+        if urls.contains(where: PromiseInbox.contains), options.outputLocation == .besideOriginal {
+            options.outputLocation = .downloads
+        }
+        return options
+    }
+
     private func convert(_ dropped: [URL], to target: Format) {
         let urls = dropped.filter { FormatRegistry.format(for: $0) != target }
         guard !urls.isEmpty else {
@@ -93,29 +135,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         let converter = self.converter
-        let options = settings.options
+        let jobOptions = options(for: urls)
         let title = urls.count == 1
             ? "\(urls[0].lastPathComponent) → \(target.shortName)"
             : "\(urls.count) files → \(target.shortName)"
         let job = hud.begin(title)
+        batchProgress[job] = Array(repeating: 0, count: urls.count)
+
         Task {
-            var outputs: [URL] = []
+            var outputs: [(Int, URL)] = []
             var failures: [String] = []
-            for (index, url) in urls.enumerated() {
-                do {
-                    let output = try await converter.convert(url, to: target, options: options) { [weak self] fraction in
-                        Task { @MainActor in self?.hud.progress((Double(index) + fraction) / Double(urls.count), job: job) }
+            await withTaskGroup(of: (Int, URL?, String?).self) { group in
+                var next = 0
+                func enqueue() {
+                    guard next < urls.count else { return }
+                    let index = next
+                    next += 1
+                    group.addTask {
+                        do {
+                            let output = try await converter.convert(urls[index], to: target, options: jobOptions) { [weak self] fraction in
+                                Task { @MainActor in self?.updateBatch(job: job, index: index, fraction: fraction) }
+                            }
+                            return (index, output, nil)
+                        } catch {
+                            let name = urls[index].lastPathComponent
+                            return (index, nil, urls.count == 1 ? error.localizedDescription : "\(name): \(error.localizedDescription)")
+                        }
                     }
-                    outputs.append(output)
-                } catch {
-                    failures.append(urls.count == 1 ? error.localizedDescription : "\(url.lastPathComponent): \(error.localizedDescription)")
+                }
+                for _ in 0..<min(Self.batchConcurrency, urls.count) { enqueue() }
+                while let result = await group.next() {
+                    let (index, output, failure) = result
+                    if let output { outputs.append((index, output)) }
+                    if let failure { failures.append(failure) }
+                    updateBatch(job: job, index: index, fraction: 1)
+                    enqueue()
                 }
             }
-            finish(outputs: outputs, failures: failures, message: nil)
+            batchProgress[job] = nil
+            finish(outputs: outputs.sorted { $0.0 < $1.0 }.map(\.1), failures: failures, message: nil, job: job)
         }
     }
 
+    private func updateBatch(job: Int, index: Int, fraction: Double) {
+        guard var fractions = batchProgress[job], index < fractions.count else { return }
+        fractions[index] = max(fractions[index], min(fraction, 1))
+        batchProgress[job] = fractions
+        hud.progress(fractions.reduce(0, +) / Double(fractions.count), job: job)
+    }
+
     private func run(_ tool: ToolID, urls: [URL]) {
+        if tool == .imageAnnotate, let url = urls.first {
+            let directory = OutputNamer.destinationDirectory(for: url, location: options(for: urls).outputLocation)
+            AnnotationWindowController.present(url: url, outputDirectory: directory, hud: hud) { [weak self] saved in
+                self?.recordOutputs([saved])
+            }
+            return
+        }
+
         var parameter: String?
         if let input = tool.input {
             switch input {
@@ -126,29 +203,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let toolParameter = parameter
         let converter = self.converter
-        let options = settings.options
+        let jobOptions = options(for: urls)
         let job = hud.begin(tool.title, detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
         Task {
             do {
-                let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: options) { [weak self] fraction in
+                let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions) { [weak self] fraction in
                     Task { @MainActor in self?.hud.progress(fraction, job: job) }
                 }
                 if let text = outcome.clipboardText {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
                 }
-                finish(outputs: outcome.outputs, failures: [], message: outcome.message)
+                finish(outputs: outcome.outputs, failures: [], message: outcome.message, job: job)
             } catch {
-                finish(outputs: [], failures: [error.localizedDescription], message: nil)
+                finish(outputs: [], failures: [error.localizedDescription], message: nil, job: job)
             }
         }
     }
 
-    private func finish(outputs: [URL], failures: [String], message: String?) {
-        if !outputs.isEmpty {
-            recentOutputs = Array((outputs + recentOutputs).prefix(12))
-            if settings.revealInFinder { NSWorkspace.shared.activateFileViewerSelecting(outputs) }
-        }
+    private func recordOutputs(_ outputs: [URL]) {
+        guard !outputs.isEmpty else { return }
+        recentOutputs = Array((outputs + recentOutputs.filter { !outputs.contains($0) }).prefix(12))
+        if settings.revealInFinder { NSWorkspace.shared.activateFileViewerSelecting(outputs) }
+    }
+
+    private func finish(outputs: [URL], failures: [String], message: String?, job: Int) {
+        recordOutputs(outputs)
+        // A newer job owns the HUD; don't replace its progress with this result.
+        guard hud.isCurrent(job) else { return }
         if failures.isEmpty {
             let detail = message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : "\(outputs.count) files saved")
             hud.success(outputs.isEmpty ? "Done" : "Saved", detail: detail, reveal: outputs)
@@ -157,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hud.failure("Couldn't finish", detail: failures.joined(separator: "\n"))
             if settings.playSound { NSSound(named: "Basso")?.play() }
         } else {
-            hud.failure("\(outputs.count) saved, \(failures.count) failed", detail: failures.joined(separator: "\n"))
+            hud.failure("\(outputs.count) saved, \(failures.count) failed", detail: failures.joined(separator: "\n"), reveal: outputs)
         }
     }
 }

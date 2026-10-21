@@ -93,12 +93,16 @@ final class HUDController {
         revealURLs = urls
     }
 
-    func failure(_ title: String, detail: String) {
+    func failure(_ title: String, detail: String, reveal urls: [URL] = []) {
         finish(title: title, detail: detail, symbolName: "xmark.octagon.fill", color: .systemRed, linger: 6)
+        revealURLs = urls
     }
 
+    /// Whether `job` is the most recently started job (older jobs finishing shouldn't hijack the HUD).
+    func isCurrent(_ job: Int) -> Bool { job == activeJob }
+
+    /// A quick notice. Doesn't start a job, so a conversion running in the background still reports its result.
     func info(_ title: String, detail: String) {
-        activeJob += 1
         finish(title: title, detail: detail, symbolName: "info.circle.fill", color: .systemOrange, linger: 2.5)
     }
 

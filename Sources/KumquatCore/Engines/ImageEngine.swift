@@ -227,7 +227,8 @@ public struct ImageEngine: ConversionEngine {
         return source == .raw ? .jpg : .png
     }
 
-    static func runTool(_ tool: ToolID, input: URL, source: Format, context: EngineContext) async throws -> ToolArtifact {
+    static func runTool(_ tool: ToolID, input: URL, source: Format, parameter: String? = nil,
+                        context: EngineContext) async throws -> ToolArtifact {
         let image = try await loadImage(input, source: source, context: context)
         var format = toolOutputFormat(for: source)
         var quality = context.options.imageQuality
@@ -258,6 +259,12 @@ public struct ImageEngine: ConversionEngine {
             result = image
         case .imageResizeHalf:
             result = try resized(image, scale: 0.5)
+        case .imageResizeCustom:
+            let spec = try ResizeSpec.parse(parameter ?? "")
+            let size = spec.size(forWidth: image.width, height: image.height)
+            result = try render(width: size.width, height: size.height) {
+                $0.draw(image, in: CGRect(x: 0, y: 0, width: size.width, height: size.height))
+            }
         case .imageFit1920:
             let longest = max(image.width, image.height)
             guard longest > 1920 else { throw KumquatError.nothingToDo("Already 1920px or smaller.") }
@@ -291,6 +298,59 @@ public struct ImageEngine: ConversionEngine {
         try await write(result, to: output, format: format, quality: quality, context: context)
         let message = tool == .imageCompress ? SizeReport.savings(original: input, result: output) : nil
         return ToolArtifact(url: output, message: message)
+    }
+
+    /// Animated GIF, one frame per image, scaled to fit the first image's size.
+    static func makeAnimatedGIF(from urls: [URL], output: URL, context: EngineContext, frameDelay: Double = 0.6) async throws {
+        var frames: [CGImage] = []
+        for url in urls {
+            try Task.checkCancellation()
+            frames.append(try await loadImage(url, source: FormatRegistry.format(for: url), context: context))
+        }
+        guard let first = frames.first else { throw KumquatError.nothingToDo("No images.") }
+        let maxSide = 1200
+        let scale = min(1, CGFloat(maxSide) / CGFloat(max(first.width, first.height)))
+        let width = Int(CGFloat(first.width) * scale), height = Int(CGFloat(first.height) * scale)
+        guard let destination = CGImageDestinationCreateWithURL(output as CFURL, "com.compuserve.gif" as CFString, frames.count, nil) else {
+            throw KumquatError.engineUnavailable("GIF encoding")
+        }
+        let fileProperties = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary
+        CGImageDestinationSetProperties(destination, fileProperties)
+        let frameProperties = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: frameDelay]] as CFDictionary
+        for frame in frames {
+            let fitted = try render(width: width, height: height) { ctx in
+                ctx.setFillColor(CGColor(red: 1, green: 1, blue: 1, alpha: 1))
+                ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+                let factor = min(CGFloat(width) / CGFloat(frame.width), CGFloat(height) / CGFloat(frame.height))
+                let w = CGFloat(frame.width) * factor, h = CGFloat(frame.height) * factor
+                ctx.draw(frame, in: CGRect(x: (CGFloat(width) - w) / 2, y: (CGFloat(height) - h) / 2, width: w, height: h))
+            }
+            CGImageDestinationAddImage(destination, fitted, frameProperties)
+        }
+        guard CGImageDestinationFinalize(destination) else { throw KumquatError.conversionFailed("Couldn't write the GIF.") }
+    }
+
+    // MARK: Public helpers for the annotation editor
+
+    /// Loads any supported image (including SVG and RAW) with orientation applied.
+    public static func loadImage(at url: URL) async throws -> CGImage {
+        let work = try FileManager.default.makeWorkDirectory()
+        defer { try? FileManager.default.removeItem(at: work) }
+        let context = EngineContext(options: ConversionOptions(), tools: ToolLocator(), workDirectory: work)
+        return try await loadImage(url, source: FormatRegistry.format(for: url), context: context)
+    }
+
+    /// Format edited copies are saved in: the original's when ImageIO can write it, otherwise PNG.
+    public static func editableFormat(for url: URL) -> Format {
+        toolOutputFormat(for: FormatRegistry.format(for: url) ?? .png)
+    }
+
+    /// Writes an image, using FFmpeg for WebP/AVIF when ImageIO can't.
+    public static func save(_ image: CGImage, to url: URL, format: Format, quality: Double = 0.9) async throws {
+        let work = try FileManager.default.makeWorkDirectory()
+        defer { try? FileManager.default.removeItem(at: work) }
+        let context = EngineContext(options: ConversionOptions(), tools: ToolLocator(), workDirectory: work)
+        try await write(image, to: url, format: format, quality: quality, context: context)
     }
 
     /// Copies the image without EXIF/GPS/XMP. Lossless when the format is unchanged.

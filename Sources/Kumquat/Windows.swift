@@ -20,7 +20,7 @@ final class WindowManager {
 
     func showWelcome(app: AppDelegate) {
         if welcomeWindow == nil {
-            welcomeWindow = makeWindow(title: "Welcome to Kumquat", size: NSSize(width: 520, height: 560),
+            welcomeWindow = makeWindow(title: "Welcome to Kumquat", size: NSSize(width: 520, height: 620),
                                        view: WelcomeView(settings: app.settings,
                                                          openSettings: { [weak self, weak app] in
                                                              guard let app else { return }
@@ -244,6 +244,9 @@ struct WelcomeView: View {
             Text("Drop the file on a segment. Results are saved next to the original — your file is never changed or uploaded.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
+            Text("No drag? Drop files on the menu-bar icon, use Finder ▸ right-click ▸ Services ▸ Open in Kumquat, or Open With ▸ Kumquat. Photos, Mail and Safari drags work too.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
             Divider()
             Text("Optional helpers unlock more formats:").font(.headline)
             let locator = settings.toolLocator
@@ -259,7 +262,7 @@ struct WelcomeView: View {
             }
         }
         .padding(24)
-        .frame(width: 520, height: 560)
+        .frame(width: 520, height: 620)
     }
 
     private func step(_ key: ModifierKey, _ title: String, _ detail: String) -> some View {

@@ -51,15 +51,34 @@ public struct ArchiveEngine: ConversionEngine {
 
     static func create(items: [URL], format: Format, output: URL) async throws {
         guard let first = items.first else { return }
-        let parent = first.deletingLastPathComponent()
-        let names = items.map(\.lastPathComponent)
+        let fm = FileManager.default
+        var parent = first.deletingLastPathComponent()
+        var names = items.map(\.lastPathComponent)
+        var followLinks = false
+        var staging: URL?
+        defer { if let staging { try? fm.removeItem(at: staging) } }
+        if items.contains(where: { $0.deletingLastPathComponent().standardizedFileURL != parent.standardizedFileURL }) {
+            // Items from different folders (e.g. a Recents selection): stage symlinks side by side.
+            let stage = try fm.makeWorkDirectory()
+            staging = stage
+            names = []
+            for item in items {
+                let link = OutputNamer.uniqueURL(in: stage, fileName: item.lastPathComponent)
+                try fm.createSymbolicLink(at: link, withDestinationURL: item)
+                names.append(link.lastPathComponent)
+            }
+            parent = stage
+            followLinks = true
+        }
         let environment = ["COPYFILE_DISABLE": "1"]
         switch format {
         case .zip:
             if items.count == 1, SystemTool.exists(SystemTool.ditto) {
                 try await ProcessRunner.runChecked(SystemTool.ditto, ["-c", "-k", "--sequesterRsrc", "--keepParent", first.path, output.path])
             } else {
-                try await ProcessRunner.runChecked(SystemTool.zip, ["-r", "-y", "-q", output.path] + names + ["-x", "*.DS_Store"],
+                // -y stores symlinks as links; staged links must be followed instead.
+                let linkFlag = followLinks ? [] : ["-y"]
+                try await ProcessRunner.runChecked(SystemTool.zip, ["-r", "-q"] + linkFlag + [output.path] + names + ["-x", "*.DS_Store"],
                                                    currentDirectory: parent)
             }
         case .tar, .tgz, .tbz, .txz:
@@ -70,7 +89,8 @@ public struct ArchiveEngine: ConversionEngine {
             case .txz: flag = "-cJf"
             default: flag = "-cf"
             }
-            try await ProcessRunner.runChecked(SystemTool.tar, [flag, output.path, "-C", parent.path] + names,
+            let followFlag = followLinks ? ["-h"] : []
+            try await ProcessRunner.runChecked(SystemTool.tar, followFlag + [flag, output.path, "-C", parent.path] + names,
                                                environment: environment)
         default:
             throw KumquatError.noRoute(from: "files", to: format.name)
