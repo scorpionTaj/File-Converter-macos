@@ -21,6 +21,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   nightly pre-release from `main`. Test summaries and code coverage on every CI run.
 
 ### Fixed
+- OGG and WebP conversions failed with "Encoder not found" on Homebrew's FFmpeg, which ships without
+  libvorbis and libwebp. Kumquat now detects the encoders your FFmpeg has and falls back: OGG → Opus
+  in Ogg, WebP → `cwebp`, AVIF → SVT-AV1 or `avifenc`, H.264 → VideoToolbox, WebM → AV1.
 - Holding ⌘ in Finder (which restricts a drag to "move") made drops on the wheel bounce back.
 - Extracting an archive that holds a single file named it `report.pdf.pdf`.
 - A batch tool that failed on one file lost every other file's result.

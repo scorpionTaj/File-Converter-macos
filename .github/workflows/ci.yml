@@ -49,7 +49,7 @@ jobs:
       - name: Install optional helpers (so their engines are tested too)
         run: |
           export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
-          brew install --quiet ffmpeg pandoc pngquant || brew install --quiet ffmpeg
+          brew install --quiet ffmpeg pandoc pngquant webp libavif || brew install --quiet ffmpeg
       - name: Test (with coverage)
         run: swift test --parallel --enable-code-coverage --xunit-output build/macos-tests.xml
       - name: Test summary

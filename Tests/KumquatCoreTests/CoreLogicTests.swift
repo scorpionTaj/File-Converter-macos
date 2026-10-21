@@ -254,34 +254,34 @@ final class MarkdownTests: XCTestCase {
 }
 
 final class FFmpegRecipeTests: XCTestCase {
-    func testRemuxWhenCompatible() {
+    func testRemuxWhenCompatible() throws {
         let probe = MediaProbe(duration: 3, videoCodec: "h264", audioCodec: "aac")
         XCTAssertTrue(FFmpegRecipes.canRemux(probe, into: .mp4))
-        let args = FFmpegRecipes.conversionArguments(input: "in.mov", output: "out.mp4", source: .mov, target: .mp4,
+        let args = try FFmpegRecipes.conversionArguments(input: "in.mov", output: "out.mp4", source: .mov, target: .mp4,
                                                      probe: probe, options: ConversionOptions())
         XCTAssertTrue(args.contains("copy"))
         XCTAssertFalse(args.contains("libx264"))
     }
 
-    func testReencodesWhenIncompatible() {
+    func testReencodesWhenIncompatible() throws {
         let probe = MediaProbe(videoCodec: "vp9", audioCodec: "opus")
         XCTAssertFalse(FFmpegRecipes.canRemux(probe, into: .mp4))
-        let args = FFmpegRecipes.conversionArguments(input: "in.webm", output: "out.mp4", source: .webm, target: .mp4,
+        let args = try FFmpegRecipes.conversionArguments(input: "in.webm", output: "out.mp4", source: .webm, target: .mp4,
                                                      probe: probe, options: ConversionOptions())
         XCTAssertTrue(args.contains("libx264"))
         XCTAssertEqual(args.last, "out.mp4")
     }
 
-    func testHEVCGetsAppleTag() {
-        let args = FFmpegRecipes.conversionArguments(input: "a.mkv", output: "a.mov", source: .mkv, target: .mov,
+    func testHEVCGetsAppleTag() throws {
+        let args = try FFmpegRecipes.conversionArguments(input: "a.mkv", output: "a.mov", source: .mkv, target: .mov,
                                                      probe: MediaProbe(videoCodec: "hevc", audioCodec: "aac"), options: ConversionOptions())
         XCTAssertTrue(args.contains("hvc1"))
     }
 
-    func testAudioExtraction() {
+    func testAudioExtraction() throws {
         var options = ConversionOptions()
         options.audioBitrateKbps = 256
-        let args = FFmpegRecipes.conversionArguments(input: "v.mp4", output: "a.mp3", source: .mp4, target: .mp3, probe: nil, options: options)
+        let args = try FFmpegRecipes.conversionArguments(input: "v.mp4", output: "a.mp3", source: .mp4, target: .mp3, probe: nil, options: options)
         XCTAssertTrue(args.contains("-vn"))
         XCTAssertTrue(args.contains("256k"))
     }
@@ -295,6 +295,42 @@ final class FFmpegRecipeTests: XCTestCase {
     func testProgressParsing() {
         XCTAssertEqual(FFmpegRecipes.progressSeconds(fromLine: "out_time_us=2500000"), 2.5)
         XCTAssertNil(FFmpegRecipes.progressSeconds(fromLine: "frame=10"))
+    }
+
+    func testEncoderFallbacks() throws {
+        let homebrew = EncoderSet(["aac", "libmp3lame", "libopus", "libx264", "h264_videotoolbox", "libsvtav1", "flac"])
+        // No libvorbis: OGG falls back to Opus in Ogg.
+        XCTAssertEqual(FFmpegRecipes.audioCodecArguments(for: .ogg, bitrate: 192, encoders: homebrew)?[1], "libopus")
+        // No libwebp, no libaom: WebP needs cwebp, AVIF uses SVT-AV1.
+        XCTAssertNil(FFmpegRecipes.stillImageArguments(input: "a.png", output: "a.webp", target: .webp, quality: 0.8, encoders: homebrew))
+        XCTAssertTrue(FFmpegRecipes.stillImageArguments(input: "a.png", output: "a.avif", target: .avif, quality: 0.8,
+                                                        encoders: homebrew)?.contains("libsvtav1") ?? false)
+
+        let minimal = EncoderSet(["aac", "h264_videotoolbox", "mpeg4"])
+        let mp4 = try FFmpegRecipes.conversionArguments(input: "a.mkv", output: "a.mp4", source: .mkv, target: .mp4,
+                                                        probe: nil, options: ConversionOptions(), encoders: minimal)
+        XCTAssertTrue(mp4.contains("h264_videotoolbox"))
+        let webm = try FFmpegRecipes.conversionArguments(input: "a.mp4", output: "a.webm", source: .mp4, target: .webm,
+                                                         probe: nil, options: ConversionOptions(), encoders: minimal)
+        XCTAssertTrue(webm.contains("opus"), "native Opus when libopus is missing")
+        XCTAssertThrowsError(try FFmpegRecipes.conversionArguments(input: "a.wav", output: "a.mp3", source: .wav, target: .mp3,
+                                                                   probe: nil, options: ConversionOptions(), encoders: minimal))
+    }
+
+    func testEncoderListParsing() {
+        let output = """
+        Encoders:
+         V..... = Video
+         A..... = Audio
+         ------
+         V....D libx264              libx264 H.264 / AVC / MPEG-4 AVC (codec h264)
+         A....D libopus              libopus Opus (codec opus)
+         A....D aac                  AAC (Advanced Audio Coding)
+        """
+        let encoders = EncoderSet.parse(output)
+        XCTAssertEqual(encoders.names, ["libx264", "libopus", "aac"])
+        XCTAssertFalse(encoders.has("libvorbis"))
+        XCTAssertTrue(EncoderSet.all.has("anything"))
     }
 
     func testToolOutputFormats() {
