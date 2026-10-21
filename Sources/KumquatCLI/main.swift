@@ -113,6 +113,8 @@ case "tool":
         outcome.outputs.forEach { print("✓ \($0.path)") }
         if let message = outcome.message { print(message) }
         if let text = outcome.clipboardText { print(text) }
+        outcome.failures.forEach { print("✗ \($0)") }
+        if !outcome.failures.isEmpty { exit(1) }
     } catch {
         fail(error.localizedDescription)
     }

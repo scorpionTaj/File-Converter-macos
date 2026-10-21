@@ -136,7 +136,7 @@ final class StatusDropView: NSView {
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         isTargeted = true
-        return .copy
+        return RadialMenuView.acceptedOperation(for: sender.draggingSourceOperationMask)
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) { isTargeted = false }

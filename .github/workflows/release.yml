@@ -3,25 +3,97 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.2.1 (defaults to the VERSION file)"
+        required: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  release:
+  tests:
+    name: Full test suite
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Build & publish
+    needs: tests
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          FILE_VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION="${INPUT_VERSION:-$FILE_VERSION}"
+          fi
+          if [[ "$VERSION" != "$FILE_VERSION" ]]; then
+            echo "::error::Version $VERSION doesn't match the VERSION file ($FILE_VERSION). Bump VERSION first (scripts/release.sh does this)."
+            exit 1
+          fi
+          if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## [$VERSION]' section."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          [[ "$VERSION" == *-* ]] && echo "prerelease=true" >> "$GITHUB_OUTPUT" || echo "prerelease=false" >> "$GITHUB_OUTPUT"
+
       - name: Build universal app
         env:
           UNIVERSAL: "1"
-        run: VERSION="${GITHUB_REF_NAME#v}" scripts/build-app.sh
-      - name: Publish release
+          VERSION: ${{ steps.version.outputs.version }}
+        run: scripts/build-app.sh
+
+      - name: Verify the bundle
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          test "$(defaults read "$PWD/build/Kumquat.app/Contents/Info" CFBundleShortVersionString)" = "$VERSION"
+          lipo -archs build/Kumquat.app/Contents/MacOS/Kumquat | grep -q arm64
+          lipo -archs build/Kumquat.app/Contents/MacOS/Kumquat | grep -q x86_64
+          codesign --verify --strict build/Kumquat.app
+          build/Kumquat.app/Contents/Resources/bin/kumquat-cli count
+
+      - name: Package assets
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p dist
+          cp build/Kumquat.dmg "dist/Kumquat-$VERSION.dmg"
+          cp build/Kumquat.zip "dist/Kumquat-$VERSION.zip"
+          tar -czf "dist/kumquat-cli-$VERSION-macos-universal.tar.gz" -C build/Kumquat.app/Contents/Resources/bin kumquat-cli
+          (cd dist && shasum -a 256 * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          scripts/changelog-section.sh "$VERSION" > dist/RELEASE_NOTES.md
+          cat >> dist/RELEASE_NOTES.md <<'NOTES'
+
+          ---
+          **Install:** open the `.dmg` and drag Kumquat to Applications. Builds are ad-hoc signed, so on first launch right-click → **Open** (or run `xattr -dr com.apple.quarantine /Applications/Kumquat.app`).
+          Optional helpers: `brew install ffmpeg pandoc pngquant` and `brew install --cask libreoffice`.
+          NOTES
+
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ steps.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Kumquat ${{ steps.version.outputs.version }}
+          body_path: dist/RELEASE_NOTES.md
+          prerelease: ${{ steps.version.outputs.prerelease }}
+          make_latest: ${{ steps.version.outputs.prerelease == 'false' }}
           files: |
-            build/Kumquat.zip
-            build/Kumquat.dmg
-          generate_release_notes: true
+            dist/Kumquat-${{ steps.version.outputs.version }}.dmg
+            dist/Kumquat-${{ steps.version.outputs.version }}.zip
+            dist/kumquat-cli-${{ steps.version.outputs.version }}-macos-universal.tar.gz
+            dist/SHA256SUMS.txt

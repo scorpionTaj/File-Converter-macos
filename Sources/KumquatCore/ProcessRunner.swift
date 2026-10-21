@@ -83,7 +83,7 @@ public enum ProcessRunner {
                 let outPipe: Pipe? = stdoutFile == nil ? Pipe() : nil
                 let outFile: FileHandle?
                 if let stdoutFile {
-                    FileManager.default.createFile(atPath: stdoutFile.path, contents: nil)
+                    _ = FileManager.default.createFile(atPath: stdoutFile.path, contents: nil)
                     do {
                         outFile = try FileHandle(forWritingTo: stdoutFile)
                     } catch {

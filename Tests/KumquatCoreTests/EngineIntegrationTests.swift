@@ -268,6 +268,30 @@ final class TextEngineTests: TemporaryDirectoryTestCase {
         XCTAssertEqual(try String(contentsOf: folder.appendingPathComponent("a.txt"), encoding: .utf8), "A")
     }
 
+    func testExtractingASingleFileKeepsItsName() async throws {
+        let report = try file("report.txt", "hello")
+        let archive = directory.appendingPathComponent("bundle.tgz")
+        try await ArchiveEngine.create(items: [report], format: .tgz, output: archive)
+        try FileManager.default.removeItem(at: report)
+
+        let outcome = try await converter.run(.extractArchive, inputs: [archive])
+        XCTAssertEqual(outcome.outputs.first?.lastPathComponent, "report.txt")
+    }
+
+    func testOneBadFileDoesNotLoseTheOthers() async throws {
+        let good = try file("good.txt", "abc")
+        let missing = directory.appendingPathComponent("missing.txt")
+        let outcome = try await converter.run(.checksum, inputs: [good, missing])
+        XCTAssertEqual(outcome.clipboardText?.hasSuffix("good.txt"), true)
+        XCTAssertEqual(outcome.failures.count, 1)
+        XCTAssertTrue(outcome.failures[0].hasPrefix("missing.txt"))
+
+        do {
+            _ = try await converter.run(.checksum, inputs: [missing])
+            XCTFail("a single failing input should throw")
+        } catch {}
+    }
+
     func testChecksum() async throws {
         let url = try file("abc.txt", "abc")
         let outcome = try await converter.run(.checksum, inputs: [url])

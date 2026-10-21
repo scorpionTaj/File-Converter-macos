@@ -36,11 +36,14 @@ public struct ToolOutcome: Sendable {
     public var message: String?
     /// Text the app should place on the clipboard.
     public var clipboardText: String?
+    /// "file: reason" for inputs that failed while others succeeded.
+    public var failures: [String]
 
-    public init(outputs: [URL] = [], message: String? = nil, clipboardText: String? = nil) {
+    public init(outputs: [URL] = [], message: String? = nil, clipboardText: String? = nil, failures: [String] = []) {
         self.outputs = outputs
         self.message = message
         self.clipboardText = clipboardText
+        self.failures = failures
     }
 }
 
@@ -162,18 +165,31 @@ public final class Converter: @unchecked Sendable {
 
         var artifacts: [ToolArtifact] = []
         var originals: [URL] = []
+        var failures: [String] = []
+        var firstError: Error?
         for (index, input) in inputs.enumerated() {
             try Task.checkCancellation()
             var itemContext = context
             itemContext.progress = { fraction in
                 progress?((Double(index) + fraction) / Double(inputs.count))
             }
-            let artifact = try await ToolRunner.run(tool, input: input, parameter: parameter, context: itemContext)
-            artifacts.append(artifact)
-            originals.append(input)
+            do {
+                let artifact = try await ToolRunner.run(tool, input: input, parameter: parameter, context: itemContext)
+                artifacts.append(artifact)
+                originals.append(input)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // Keep going: one bad file shouldn't throw away the others' results.
+                failures.append("\(input.lastPathComponent): \(error.localizedDescription)")
+                firstError = firstError ?? error
+            }
         }
+        if artifacts.isEmpty, let firstError { throw firstError }
         progress?(1)
-        return try finalize(artifacts, for: originals, tool: tool, options: options)
+        var outcome = try finalize(artifacts, for: originals, tool: tool, options: options)
+        outcome.failures = failures
+        return outcome
     }
 
     private func finalize(_ artifacts: [ToolArtifact], for originals: [URL], tool: ToolID, options: ConversionOptions) throws -> ToolOutcome {
@@ -215,8 +231,12 @@ enum ToolRunner {
         switch tool {
         case .extractArchive:
             guard let format else { throw KumquatError.unsupportedInput(input.lastPathComponent) }
-            let folder = try await ArchiveEngine.extractForUser(input, format: format, context: context)
-            return ToolArtifact(url: folder, preferredBaseName: folder.lastPathComponent)
+            let extracted = try await ArchiveEngine.extractForUser(input, format: format, context: context)
+            // A lone file keeps its own name; its extension is re-added when it's moved into place.
+            let name = FileManager.default.isDirectory(extracted)
+                ? extracted.lastPathComponent
+                : FormatRegistry.baseName(of: extracted)
+            return ToolArtifact(url: extracted, preferredBaseName: name)
         case .checksum:
             let digest = try await Checksum.sha256(of: input)
             return ToolArtifact(message: "SHA-256 copied", clipboardText: "\(digest)  \(input.lastPathComponent)")

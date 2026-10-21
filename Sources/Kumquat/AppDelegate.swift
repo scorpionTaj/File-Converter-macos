@@ -214,7 +214,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
                 }
-                finish(outputs: outcome.outputs, failures: [], message: outcome.message, job: job)
+                finish(outputs: outcome.outputs, failures: outcome.failures, message: outcome.message, job: job)
             } catch {
                 finish(outputs: [], failures: [error.localizedDescription], message: nil, job: job)
             }

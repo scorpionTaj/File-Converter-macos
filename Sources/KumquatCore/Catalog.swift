@@ -194,7 +194,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfRemovePages: return "edited"
         case .pdfExtractPages: return "pages"
         case .mediaTrim: return "trimmed"
-        case .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount: return nil
+        case .imagesToPDF, .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount: return nil
         }
     }
 

@@ -2,11 +2,15 @@ name: CI
 
 on:
   push:
+    branches: ["**"]
   pull_request:
   workflow_dispatch:
+  # The Release workflow runs the full suite before publishing.
+  workflow_call:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # github.workflow differs when called from Release, so a release never cancels (or is cancelled by) CI.
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -21,7 +25,17 @@ jobs:
       - name: Build
         run: swift build
       - name: Test
-        run: swift test
+        run: swift test --parallel --xunit-output build/linux-tests.xml 2>&1 | tee build-test.log
+        shell: bash -o pipefail {0}
+      - name: Test summary
+        if: always()
+        shell: bash
+        run: scripts/test-summary.sh "Linux" build/linux-tests.xml >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-linux
+          path: build/linux-tests*.xml
 
   macos:
     name: App build & tests (macOS)
@@ -32,14 +46,44 @@ jobs:
           fetch-depth: 0
       - name: Toolchain
         run: swift --version
-      - name: Test
-        run: swift test
+      - name: Test (with coverage)
+        run: swift test --parallel --enable-code-coverage --xunit-output build/macos-tests.xml
+      - name: Test summary
+        if: always()
+        run: scripts/test-summary.sh "macOS" build/macos-tests.xml >> "$GITHUB_STEP_SUMMARY"
+      - name: Coverage report
+        continue-on-error: true
+        run: |
+          BIN="$(swift build --show-bin-path)"
+          xcrun llvm-cov report "$BIN/KumquatPackageTests.xctest/Contents/MacOS/KumquatPackageTests" \
+            -instr-profile "$BIN/codecov/default.profdata" \
+            -ignore-filename-regex '(Tests|\.build)/' | tee build/coverage.txt
+          {
+            echo "### Coverage (KumquatCore)"
+            echo '```'
+            grep -E 'KumquatCore/|^TOTAL' build/coverage.txt | awk '{ printf "%-60s %s\n", $1, $4 }'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Build Kumquat.app
         run: scripts/build-app.sh
-      - name: Smoke-test the CLI
+      - name: Smoke-test the app bundle and CLI
         run: |
-          build/Kumquat.app/Contents/Resources/bin/kumquat-cli doctor
-          build/Kumquat.app/Contents/Resources/bin/kumquat-cli count
+          plutil -lint build/Kumquat.app/Contents/Info.plist
+          codesign --verify --strict build/Kumquat.app
+          CLI=build/Kumquat.app/Contents/Resources/bin/kumquat-cli
+          $CLI doctor
+          $CLI count
+          printf 'name,age\nAda,36\n' > build/smoke.csv
+          $CLI convert build/smoke.csv --to json
+          grep -q '"Ada"' build/smoke.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-macos
+          path: |
+            build/macos-tests*.xml
+            build/coverage.txt
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: Kumquat
@@ -47,3 +91,39 @@ jobs:
             build/Kumquat.zip
             build/Kumquat.dmg
           if-no-files-found: error
+
+  nightly:
+    name: Publish nightly build
+    needs: [core-linux, macos]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.workflow == 'CI'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Kumquat
+          path: dist
+      - name: Move the nightly tag to this commit
+        run: |
+          git tag -f nightly "$GITHUB_SHA"
+          git push -f origin refs/tags/nightly
+      - name: Rename assets
+        run: |
+          mv dist/Kumquat.dmg dist/Kumquat-nightly.dmg
+          mv dist/Kumquat.zip dist/Kumquat-nightly.zip
+          (cd dist && sha256sum Kumquat-nightly.* > SHA256SUMS.txt)
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Kumquat nightly
+          prerelease: true
+          make_latest: false
+          body: |
+            Automatic build of `main` at ${{ github.sha }}. It passed every test on Linux and macOS, but it may be unstable.
+            Ad-hoc signed: right-click → Open on first launch.
+          files: |
+            dist/Kumquat-nightly.dmg
+            dist/Kumquat-nightly.zip
+            dist/SHA256SUMS.txt

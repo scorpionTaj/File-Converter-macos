@@ -87,6 +87,30 @@ bundles FFmpeg inside the app.
 
 You can also open `Package.swift` in Xcode and run the **Kumquat** scheme.
 
+## Releases (CI/CD)
+
+| Channel | How it's made | Where |
+|---|---|---|
+| **Stable** | Push a `vX.Y.Z` tag, or run the **Release** workflow manually | [Releases](../../releases): universal `.dmg`, `.zip`, `kumquat-cli` tarball, `SHA256SUMS.txt` |
+| **Nightly** | Every push to `main` that passes all tests | The `nightly` pre-release |
+| **Per commit** | Every push and pull request | The `Kumquat` artifact on each [CI run](../../actions) |
+
+The Release workflow first runs the **full test suite** (Linux + macOS) as a reusable workflow. It then
+checks that the tag matches `VERSION` and that `CHANGELOG.md` has a section for it. Next it builds a
+universal (arm64 + x86_64) app and verifies the bundle (version, architectures, code signature, CLI
+smoke test). Finally it publishes the assets, with that changelog section as the release notes.
+
+To cut a release:
+
+```bash
+# 1. Move the "Unreleased" notes in CHANGELOG.md under "## [0.2.1] - <date>"
+# 2. Then:
+scripts/release.sh 0.2.1      # bumps VERSION, commits, tags v0.2.1 and pushes
+```
+
+Every CI run also publishes a test summary (passed / failed / skipped per platform) and a KumquatCore
+code-coverage table on the run page.
+
 ## Command line
 
 ```bash

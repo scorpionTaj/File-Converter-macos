@@ -225,18 +225,27 @@ final class RadialMenuView: NSView {
     // MARK: Drag destination
 
 
-    private func dragOperation(at location: NSPoint) -> NSDragOperation {
-        hovered = index(at: convert(location, from: nil))
+    private func dragOperation(_ sender: NSDraggingInfo) -> NSDragOperation {
+        hovered = index(at: convert(sender.draggingLocation, from: nil))
         guard let hovered, items[hovered].isAvailable else { return [] }
+        return Self.acceptedOperation(for: sender.draggingSourceOperationMask)
+    }
+
+    /// Holding ⌘ in Finder restricts a drag to "move"; accept whatever the source allows so the drop
+    /// still lands. Kumquat never deletes the source, whichever operation is reported.
+    static func acceptedOperation(for mask: NSDragOperation) -> NSDragOperation {
+        for operation in [NSDragOperation.copy, .generic, .link, .move] where mask.contains(operation) {
+            return operation
+        }
         return .copy
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        dragOperation(at: sender.draggingLocation)
+        dragOperation(sender)
     }
 
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
-        dragOperation(at: sender.draggingLocation)
+        dragOperation(sender)
     }
 
     override func draggingExited(_ sender: NSDraggingInfo?) {
