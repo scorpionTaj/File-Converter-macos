@@ -82,7 +82,10 @@ jobs:
           hdiutil attach -nobrowse -readonly -mountpoint "$MNT" build/Kumquat.dmg >/dev/null
           test -d "$MNT/Kumquat.app"
           test -L "$MNT/Applications"
-          test -f "$MNT/.DS_Store" && ls "$MNT/.background/" || echo "::warning::DMG has no styled window"
+          ls -la "$MNT"
+          # dmgbuild stores the window layout in .DS_Store and the artwork as a hidden .background* file.
+          test -f "$MNT/.DS_Store"
+          ls -a "$MNT" | grep -q '^\.background' || { echo "::error::DMG has no background artwork"; exit 1; }
           hdiutil detach "$MNT" -quiet
           printf 'name,age\nAda,36\n' > build/smoke.csv
           $CLI convert build/smoke.csv --to json
