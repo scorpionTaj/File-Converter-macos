@@ -137,6 +137,9 @@ public struct PDFEngine: ConversionEngine {
 
         switch tool {
         case .pdfCompress:
+            guard #available(macOS 13.4, *) else {
+                throw KumquatError.engineUnavailable("PDF compression (macOS 13.4 or later)")
+            }
             let options: [PDFDocumentWriteOption: Any] = [.saveImagesAsJPEGOption: true, .optimizeImagesForScreenOption: true]
             guard document.write(to: output, withOptions: options) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
             guard SizeReport.size(of: output) < SizeReport.size(of: input) else {

@@ -49,20 +49,22 @@ public struct DocumentEngine: ConversionEngine {
 
     /// The HTML importer uses WebKit and must run on the main thread.
     static func importHTML(_ data: Data, baseURL: URL) async throws -> NSAttributedString {
-        try await MainActor.run {
+        let result = try await MainActor.run {
             let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
                 .documentType: NSAttributedString.DocumentType.html,
                 .characterEncoding: String.Encoding.utf8.rawValue,
                 .baseURL: baseURL,
             ]
-            return try NSAttributedString(data: data, options: options, documentAttributes: nil)
+            return UncheckedBox(try NSAttributedString(data: data, options: options, documentAttributes: nil))
         }
+        return result.value
     }
 
     static func write(_ text: NSAttributedString, format: Format, to url: URL, title: String) async throws {
         switch format {
         case .pdf:
-            try await MainActor.run { try PDFPrinter.print(text, to: url) }
+            let box = UncheckedBox(text)
+            try await MainActor.run { try PDFPrinter.print(box.value, to: url) }
         case .txt:
             try text.string.write(to: url, atomically: true, encoding: .utf8)
         case .md:
@@ -75,6 +77,12 @@ public struct DocumentEngine: ConversionEngine {
             try data.write(to: url)
         }
     }
+}
+
+/// Carries an immutable, non-Sendable value across the hop to the main actor.
+struct UncheckedBox<Value>: @unchecked Sendable {
+    let value: Value
+    init(_ value: Value) { self.value = value }
 }
 
 /// Paginates attributed text into a PDF using an off-screen text view and the print system,

@@ -47,7 +47,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func modifierPressed(_ flag: NSEvent.ModifierFlags, urls: [URL]) {
-        guard let mode = settings.mode(for: flag) else { return }
+        // Settings can toggle `isEnabled` directly, so check it here rather than only in the monitor.
+        guard settings.isEnabled, let mode = settings.mode(for: flag) else { return }
         // Tapping the same key again closes the wheel.
         if wheel.isVisible, wheel.currentMode == mode {
             wheel.hide()

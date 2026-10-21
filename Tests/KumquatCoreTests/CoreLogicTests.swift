@@ -85,8 +85,11 @@ final class CatalogTests: XCTestCase {
     }
 
     func testConversionsIntersectAcrossFiles() {
-        let items = catalog().conversions(for: [URL(fileURLWithPath: "/a.png"), URL(fileURLWithPath: "/b.mp4")])
-        XCTAssertTrue(items.isEmpty)
+        // An image and a video only have GIF in common.
+        let mixed = catalog().conversions(for: [URL(fileURLWithPath: "/a.png"), URL(fileURLWithPath: "/b.mp4")])
+        XCTAssertEqual(mixed.map(\.payload), [.convert(.gif)])
+        let unrelated = catalog().conversions(for: [URL(fileURLWithPath: "/a.png"), URL(fileURLWithPath: "/b.mp3")])
+        XCTAssertTrue(unrelated.isEmpty)
         let images = catalog().conversions(for: [URL(fileURLWithPath: "/a.png"), URL(fileURLWithPath: "/b.heic")])
         XCTAssertTrue(images.contains { $0.payload == .convert(.jpg) })
         XCTAssertTrue(images.contains { $0.payload == .convert(.png) }, "HEIC can still become PNG")
