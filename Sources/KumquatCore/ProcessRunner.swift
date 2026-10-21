@@ -4,6 +4,8 @@ public struct ProcessResult: Sendable {
     public let status: Int32
     public let stdout: String
     public let stderr: String
+    /// The process was killed because it ran past its timeout.
+    public var timedOut = false
 }
 
 /// Thread-safe accumulator for a child process's output.
@@ -48,17 +50,34 @@ private final class OutputCollector: @unchecked Sendable {
 
 private final class ProcessBox: @unchecked Sendable {
     let process = Process()
+    private let lock = NSLock()
+    private var didTimeOut = false
+
+    var timedOut: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return didTimeOut
+    }
+
+    func killForTimeout() {
+        lock.lock()
+        didTimeOut = true
+        lock.unlock()
+        if process.isRunning { process.terminate() }
+    }
 }
 
 public enum ProcessRunner {
     /// Runs an executable to completion. Cancelling the calling task terminates the process.
     /// - Parameter stdoutFile: when set, standard output is written to this file instead of being captured.
+    /// - Parameter timeout: seconds after which the process is terminated (helpers like LibreOffice can hang).
     @discardableResult
     public static func run(_ executable: URL,
                            _ arguments: [String],
                            currentDirectory: URL? = nil,
                            environment: [String: String]? = nil,
                            stdoutFile: URL? = nil,
+                           timeout: TimeInterval? = nil,
                            onStdoutLine: (@Sendable (String) -> Void)? = nil) async throws -> ProcessResult {
         let box = ProcessBox()
         return try await withTaskCancellationHandler {
@@ -112,11 +131,15 @@ public enum ProcessRunner {
                     try? outFile?.close()
                     continuation.resume(returning: ProcessResult(status: finished.terminationStatus,
                                                                  stdout: collector.stdout,
-                                                                 stderr: collector.stderr))
+                                                                 stderr: collector.stderr,
+                                                                 timedOut: box.timedOut))
                 }
 
                 do {
                     try process.run()
+                    if let timeout {
+                        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { box.killForTimeout() }
+                    }
                 } catch {
                     process.terminationHandler = nil
                     errPipe.fileHandleForReading.readabilityHandler = nil
@@ -136,10 +159,15 @@ public enum ProcessRunner {
                                   currentDirectory: URL? = nil,
                                   environment: [String: String]? = nil,
                                   stdoutFile: URL? = nil,
+                                  timeout: TimeInterval? = nil,
                                   onStdoutLine: (@Sendable (String) -> Void)? = nil) async throws -> ProcessResult {
         let result = try await run(executable, arguments, currentDirectory: currentDirectory, environment: environment,
-                                   stdoutFile: stdoutFile, onStdoutLine: onStdoutLine)
+                                   stdoutFile: stdoutFile, timeout: timeout, onStdoutLine: onStdoutLine)
         try Task.checkCancellation()
+        if result.timedOut {
+            throw KumquatError.processFailed(tool: executable.lastPathComponent, status: result.status,
+                                             message: "didn't finish within \(Int(timeout ?? 0)) seconds and was stopped")
+        }
         guard result.status == 0 else {
             let lastLines = result.stderr.split(separator: "\n").suffix(3).joined(separator: "\n")
             throw KumquatError.processFailed(tool: executable.lastPathComponent, status: result.status, message: lastLines)
@@ -161,9 +189,11 @@ public struct ToolLocator: Sendable {
 
     public func path(for tool: String) -> URL? {
         let fm = FileManager.default
+        // A custom path that doesn't point at an executable falls back to auto-detection rather than hiding
+        // an installed tool (Settings flags it as invalid).
         if let override = overrides[tool] {
             let path = NSString(string: override).expandingTildeInPath
-            return fm.isExecutableFile(atPath: path) ? URL(fileURLWithPath: path) : nil
+            if fm.isExecutableFile(atPath: path) { return URL(fileURLWithPath: path) }
         }
         var candidates: [String] = []
         if let bundled = Bundle.main.resourceURL?.appendingPathComponent("bin/\(tool)").path {
@@ -176,6 +206,12 @@ public struct ToolLocator: Sendable {
         let pathDirectories = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)
         candidates += pathDirectories.map { "\($0)/\(tool)" }
         return candidates.first(where: fm.isExecutableFile(atPath:)).map { URL(fileURLWithPath: $0) }
+    }
+
+    /// The user set a custom path for `tool` that isn't an executable file.
+    public func overrideIsInvalid(_ tool: String) -> Bool {
+        guard let override = overrides[tool] else { return false }
+        return !FileManager.default.isExecutableFile(atPath: NSString(string: override).expandingTildeInPath)
     }
 
     public var ffmpeg: URL? { path(for: "ffmpeg") }
@@ -225,5 +261,91 @@ enum SystemTool {
 
     static func exists(_ url: URL) -> Bool {
         FileManager.default.isExecutableFile(atPath: url.path)
+    }
+}
+
+/// What Settings shows for each optional helper.
+public struct DependencyStatus: Equatable, Sendable {
+    public let dependency: Dependency
+    /// Executable or app bundle, when found.
+    public let path: String?
+    public let version: String?
+    /// A custom path was set but isn't usable.
+    public let invalidOverride: Bool
+
+    public var isInstalled: Bool { path != nil }
+}
+
+extension Dependency {
+    /// Command-line tool name, for helpers that are executables.
+    public var toolName: String? {
+        switch self {
+        case .ffmpeg: return "ffmpeg"
+        case .libreOffice: return "soffice"
+        case .pandoc: return "pandoc"
+        case .pngquant: return "pngquant"
+        case .pages, .keynote, .numbers: return nil
+        }
+    }
+
+    /// Homebrew formula/cask, when the helper can be installed that way.
+    public var brewPackage: String? {
+        switch self {
+        case .ffmpeg: return "ffmpeg"
+        case .libreOffice: return "--cask libreoffice"
+        case .pandoc: return "pandoc"
+        case .pngquant: return "pngquant"
+        case .pages, .keynote, .numbers: return nil
+        }
+    }
+
+    /// Mac App Store page for Apple's apps.
+    public var appStoreURL: URL? {
+        switch self {
+        case .pages: return URL(string: "macappstore://apps.apple.com/app/id409201541")
+        case .keynote: return URL(string: "macappstore://apps.apple.com/app/id409183694")
+        case .numbers: return URL(string: "macappstore://apps.apple.com/app/id409203825")
+        default: return nil
+        }
+    }
+}
+
+extension ToolLocator {
+    /// Finds a helper and asks it for its version. Runs subprocesses, so call it off the main thread.
+    public func status(of dependency: Dependency) async -> DependencyStatus {
+        if let tool = dependency.toolName {
+            let invalid = overrideIsInvalid(tool)
+            guard let url = path(for: tool) else {
+                return DependencyStatus(dependency: dependency, path: nil, version: nil, invalidOverride: invalid)
+            }
+            let flag = dependency == .ffmpeg ? "-version" : "--version"
+            let result = try? await ProcessRunner.run(url, [flag], timeout: 15)
+            let firstLine = (result?.stdout ?? "").split(separator: "\n").first.map(String.init)
+            return DependencyStatus(dependency: dependency, path: url.path,
+                                    version: firstLine.map(Self.shortVersion), invalidOverride: invalid)
+        }
+        let name = dependency.displayName
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        guard let path = ["/Applications/\(name).app", "\(home)/Applications/\(name).app"]
+            .first(where: FileManager.default.fileExists(atPath:)) else {
+            return DependencyStatus(dependency: dependency, path: nil, version: nil, invalidOverride: false)
+        }
+        let version = Bundle(path: path)?.infoDictionary?["CFBundleShortVersionString"] as? String
+        return DependencyStatus(dependency: dependency, path: path, version: version, invalidOverride: false)
+    }
+
+    public func statuses() async -> [DependencyStatus] {
+        var results: [DependencyStatus] = []
+        for dependency in Dependency.allCases { results.append(await status(of: dependency)) }
+        return results
+    }
+
+    /// "ffmpeg version 7.1 Copyright…" → "7.1"; "pandoc 3.5" → "3.5".
+    static func shortVersion(_ line: String) -> String {
+        let tokens = line.split(separator: " ").map(String.init)
+        if let index = tokens.firstIndex(where: { $0.lowercased() == "version" }), index + 1 < tokens.count {
+            return tokens[index + 1]
+        }
+        return tokens.first(where: { $0.first?.isNumber ?? false }) ?? line
     }
 }

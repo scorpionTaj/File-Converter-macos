@@ -26,6 +26,10 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 - **Annotate images**: pen, arrow, rectangle, ellipse, highlighter, text, pixelate (true redaction) and crop, with undo/redo.
   The edited copy is saved as `photo (annotated).jpg`.
 - **Works with Photos, Mail and Safari**: file-promise drags are received on drop. Results go to Downloads.
+- **Themes**: Catppuccin (Latte, Frappé, Macchiato, Mocha), Dracula, Monokai, Nord, Gruvbox, Tokyo Night,
+  One Dark, Rosé Pine, Solarized and the adaptive Kumquat default.
+- **Helper management**: Settings ▸ Engines shows versions and paths and installs missing helpers in one click.
+- **Cancel** any running job from the progress popup.
 - **More ways in**: drop files on the menu-bar icon, use Finder ▸ Services ▸ **Open in Kumquat**, or **Open With ▸ Kumquat**.
 - **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.
@@ -55,9 +59,10 @@ appear dimmed on the wheel, with the install command.
 
 ## Install
 
-1. Download `Kumquat.dmg` from [Releases](../../releases), or the `Kumquat` artifact of the latest
-   [CI run](../../actions).
-2. Drag **Kumquat.app** to Applications.
+1. Download `Kumquat-<version>.dmg` from [Releases](../../releases) (or `Kumquat-nightly.dmg` from the
+   `nightly` pre-release).
+2. Open it and drag **Kumquat** onto the **Applications** shortcut in the installer window. If you open
+   Kumquat straight from the disk image, it offers to move itself to Applications and eject the image.
 3. Development builds are ad-hoc signed. On first launch, right-click → **Open**, or run
    `xattr -dr com.apple.quarantine /Applications/Kumquat.app`.
 4. Optional helpers for more formats:

@@ -9,7 +9,12 @@ final class HUDController {
     private let titleLabel = NSTextField(labelWithString: "")
     private let detailLabel = NSTextField(labelWithString: "")
     private let progressBar = NSProgressIndicator()
+    /// Solid themed backing drawn over the blur when a fixed theme is chosen.
+    private let tintView = NSView()
+    private let cancelButton = NSButton()
     private var revealURLs: [URL] = []
+    /// Called with the job id when the user clicks the cancel button.
+    var onCancel: ((Int) -> Void)?
     private var dismissTask: Task<Void, Never>?
     private var activeJob = 0
 
@@ -33,6 +38,10 @@ final class HUDController {
         background.layer?.masksToBounds = true
         background.onClick = { [weak self] in self?.handleClick() }
         panel.contentView = background
+        tintView.frame = background.bounds
+        tintView.autoresizingMask = [.width, .height]
+        tintView.wantsLayer = true
+        background.addSubview(tintView)
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
         titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -46,7 +55,16 @@ final class HUDController {
         progressBar.maxValue = 1
         progressBar.controlSize = .small
 
-        for view in [iconView, titleLabel, detailLabel, progressBar] as [NSView] {
+        cancelButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Cancel")
+        cancelButton.isBordered = false
+        cancelButton.imagePosition = .imageOnly
+        cancelButton.contentTintColor = .secondaryLabelColor
+        cancelButton.toolTip = "Cancel"
+        cancelButton.target = self
+        cancelButton.action = #selector(cancelPressed)
+        cancelButton.isHidden = true
+
+        for view in [iconView, titleLabel, detailLabel, progressBar, cancelButton] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             background.addSubview(view)
         }
@@ -56,7 +74,11 @@ final class HUDController {
             iconView.widthAnchor.constraint(equalToConstant: 30),
             iconView.heightAnchor.constraint(equalToConstant: 30),
             titleLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
-            titleLabel.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -14),
+            titleLabel.trailingAnchor.constraint(equalTo: cancelButton.leadingAnchor, constant: -8),
+            cancelButton.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -12),
+            cancelButton.centerYAnchor.constraint(equalTo: background.centerYAnchor),
+            cancelButton.widthAnchor.constraint(equalToConstant: 18),
+            cancelButton.heightAnchor.constraint(equalToConstant: 18),
             titleLabel.topAnchor.constraint(equalTo: background.topAnchor, constant: 13),
             detailLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
             detailLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
@@ -73,12 +95,14 @@ final class HUDController {
         activeJob += 1
         dismissTask?.cancel()
         revealURLs = []
-        iconView.image = symbol("arrow.triangle.2.circlepath", color: .systemOrange)
+        applyTheme()
+        iconView.image = symbol("arrow.triangle.2.circlepath", color: theme.accent)
         titleLabel.stringValue = title
         detailLabel.stringValue = detail
         detailLabel.isHidden = true
         progressBar.isHidden = false
         progressBar.doubleValue = 0
+        cancelButton.isHidden = onCancel == nil
         present()
         return activeJob
     }
@@ -89,12 +113,12 @@ final class HUDController {
     }
 
     func success(_ title: String, detail: String, reveal urls: [URL] = []) {
-        finish(title: title, detail: detail, symbolName: "checkmark.circle.fill", color: .systemGreen, linger: 2.8)
+        finish(title: title, detail: detail, symbolName: "checkmark.circle.fill", color: theme.success, linger: 2.8)
         revealURLs = urls
     }
 
     func failure(_ title: String, detail: String, reveal urls: [URL] = []) {
-        finish(title: title, detail: detail, symbolName: "xmark.octagon.fill", color: .systemRed, linger: 6)
+        finish(title: title, detail: detail, symbolName: "xmark.octagon.fill", color: theme.failure, linger: 6)
         revealURLs = urls
     }
 
@@ -103,15 +127,28 @@ final class HUDController {
 
     /// A quick notice. Doesn't start a job, so a conversion running in the background still reports its result.
     func info(_ title: String, detail: String) {
-        finish(title: title, detail: detail, symbolName: "info.circle.fill", color: .systemOrange, linger: 2.5)
+        finish(title: title, detail: detail, symbolName: "info.circle.fill", color: theme.accent, linger: 2.5)
+    }
+
+    private var theme: Theme { SettingsStore.shared.resolvedTheme }
+
+    /// Themes other than the adaptive default pin the HUD's appearance and tint it.
+    private func applyTheme() {
+        let theme = Theme.named(SettingsStore.shared.themeID)
+        panel.appearance = theme.appearance
+        titleLabel.textColor = theme.isDark == nil ? .labelColor : theme.text
+        detailLabel.textColor = theme.isDark == nil ? .secondaryLabelColor : theme.secondaryText
+        tintView.layer?.backgroundColor = theme.isDark == nil ? nil : theme.hub.withAlphaComponent(0.94).cgColor
     }
 
     private func finish(title: String, detail: String, symbolName: String, color: NSColor, linger: Double) {
+        applyTheme()
         iconView.image = symbol(symbolName, color: color)
         titleLabel.stringValue = title
         detailLabel.stringValue = detail
         detailLabel.isHidden = false
         progressBar.isHidden = true
+        cancelButton.isHidden = true
         present()
         dismissTask?.cancel()
         dismissTask = Task { [weak self] in
@@ -143,6 +180,14 @@ final class HUDController {
         }, completionHandler: { [weak self] in
             Task { @MainActor in self?.panel.orderOut(nil) }
         })
+    }
+
+    @objc private func cancelPressed() {
+        cancelButton.isHidden = true
+        progressBar.isHidden = true
+        detailLabel.isHidden = false
+        detailLabel.stringValue = "Cancelling…"
+        onCancel?(activeJob)
     }
 
     private func handleClick() {

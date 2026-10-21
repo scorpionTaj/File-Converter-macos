@@ -71,6 +71,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             item.image?.size = NSSize(width: 16, height: 16)
             recentMenu.addItem(item)
         }
+        if !app.recentOutputs.isEmpty {
+            recentMenu.addItem(.separator())
+            let clear = NSMenuItem(title: "Clear Recent", action: #selector(clearRecents), keyEquivalent: "")
+            clear.target = self
+            recentMenu.addItem(clear)
+        }
         recent.submenu = recentMenu
         menu.addItem(recent)
         menu.addItem(.separator())
@@ -81,6 +87,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let preferences = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         preferences.target = self
         menu.addItem(preferences)
+        let log = NSMenuItem(title: "Show Log", action: #selector(showLog), keyEquivalent: "")
+        log.target = self
+        menu.addItem(log)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Kumquat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
@@ -97,6 +106,20 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func revealRecent(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
         NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
+    @objc private func clearRecents() {
+        app?.clearRecents()
+    }
+
+    @objc private func showLog() {
+        let url = AppLog.fileURL
+        if !FileManager.default.fileExists(atPath: url.path) {
+            AppLog.info("Log opened")
+            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try? Data().write(to: url)
+        }
+        NSWorkspace.shared.open(url)
     }
 
     @objc private func showWelcome() {

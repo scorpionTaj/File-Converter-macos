@@ -56,12 +56,36 @@ codesign --verify --deep --strict "$APP"
 echo "▸ Packaging"
 rm -f "$BUILD/Kumquat.zip" "$BUILD/Kumquat.dmg"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "$BUILD/Kumquat.zip"
-DMG_STAGE="$BUILD/dmg"
-rm -rf "$DMG_STAGE" && mkdir -p "$DMG_STAGE"
-cp -R "$APP" "$DMG_STAGE/"
-ln -s /Applications "$DMG_STAGE/Applications"
-hdiutil create -volname "Kumquat" -srcfolder "$DMG_STAGE" -ov -format UDZO "$BUILD/Kumquat.dmg" >/dev/null
-rm -rf "$DMG_STAGE"
+# Styled installer window (background, arrow, icon layout) via dmgbuild, which writes Finder's .DS_Store
+# directly and so works headless in CI. Falls back to a plain image when Python/pip isn't available.
+make_styled_dmg() {
+  local art="$BUILD/dmg-background" venv="$BUILD/.venv"
+  swift scripts/make-dmg-background.swift "$art" || return 1
+  tiffutil -cathidpicheck "$art/background.png" "$art/background@2x.png" -out "$art/background.tiff" >/dev/null || return 1
+  if [[ ! -x "$venv/bin/dmgbuild" ]]; then
+    python3 -m venv "$venv" && "$venv/bin/pip" install --quiet --disable-pip-version-check dmgbuild || return 1
+  fi
+  "$venv/bin/dmgbuild" -s scripts/dmg-settings.py \
+    -D app="$APP" -D background="$art/background.tiff" -D icon="$APP/Contents/Resources/AppIcon.icns" \
+    "Kumquat" "$BUILD/Kumquat.dmg" >/dev/null
+}
+
+make_plain_dmg() {
+  local stage="$BUILD/dmg"
+  rm -rf "$stage" && mkdir -p "$stage"
+  cp -R "$APP" "$stage/"
+  ln -s /Applications "$stage/Applications"
+  hdiutil create -volname "Kumquat" -srcfolder "$stage" -ov -format UDZO "$BUILD/Kumquat.dmg" >/dev/null
+  rm -rf "$stage"
+}
+
+if [[ "${PLAIN_DMG:-0}" != "1" ]] && make_styled_dmg; then
+  echo "  styled installer window"
+else
+  echo "  (styled DMG unavailable; building a plain one)"
+  rm -f "$BUILD/Kumquat.dmg"
+  make_plain_dmg
+fi
 
 echo "✓ $APP"
 echo "✓ $BUILD/Kumquat.zip"

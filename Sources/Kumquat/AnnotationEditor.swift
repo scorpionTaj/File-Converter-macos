@@ -301,7 +301,8 @@ final class AnnotationCanvas: NSView, NSTextFieldDelegate {
     // MARK: Drawing
 
     override func draw(_ dirtyRect: NSRect) {
-        NSColor(white: 0.16, alpha: 1).setFill()
+        let theme = SettingsStore.shared.resolvedTheme
+        (theme.isDark ?? true ? theme.canvas : theme.canvas.blended(withFraction: 0.15, of: .black) ?? theme.canvas).setFill()
         bounds.fill()
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         let rect = imageRect

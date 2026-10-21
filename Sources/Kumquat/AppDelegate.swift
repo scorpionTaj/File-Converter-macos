@@ -10,9 +10,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let wheel = RadialMenuController()
     private var statusBar: StatusBarController?
     private lazy var actions = FileActions(settings: settings, hud: hud)
-    private(set) var recentOutputs: [URL] = []
     /// Per-file progress of the running batch, keyed by HUD job id.
     private var batchProgress: [Int: [Double]] = [:]
+    /// Running jobs, so the HUD's cancel button can stop them.
+    private var jobTasks: [Int: Task<Void, Never>] = [:]
+    private var cancelledJobs: Set<Int> = []
+
+    /// Recent results that still exist, newest first.
+    var recentOutputs: [URL] {
+        settings.recentPaths.map { URL(fileURLWithPath: $0) }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    func clearRecents() { settings.recentPaths = [] }
 
     /// Files converted at the same time in a batch.
     static let batchConcurrency = 3
@@ -21,7 +31,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var converter: Converter { Converter(tools: settings.toolLocator) }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // One Kumquat at a time: a second copy would add a second menu-bar icon and double every wheel.
+        if let identifier = Bundle.main.bundleIdentifier,
+           let running = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
+            .first(where: { $0 != NSRunningApplication.current }) {
+            AppLog.info("Another Kumquat is already running (pid \(running.processIdentifier)); quitting this one.")
+            running.activate(options: [])
+            NSApp.terminate(nil)
+            return
+        }
+        AppLog.info("Kumquat \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev") started")
+
         statusBar = StatusBarController(app: self)
+        hud.onCancel = { [weak self] job in self?.cancel(job: job) }
+        EngineMonitor.shared.refresh()
 
         dragMonitor.isEnabled = settings.isEnabled
         dragMonitor.onModifierPressed = { [weak self] flag, urls in
@@ -31,7 +54,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dragMonitor.start()
 
         wheel.onSelect = { [weak self] item, urls in self?.perform(item, urls: urls) }
-        wheel.onDropFailed = { [weak self] message in self?.hud.failure("Couldn't receive the file", detail: message) }
+        wheel.onDropFailed = { [weak self] message in
+            AppLog.error("Drop failed: \(message)")
+            self?.hud.failure("Couldn't receive the file", detail: message)
+        }
         wheel.itemsProvider = { [weak self] mode, urls in self?.items(for: mode, urls: urls) ?? [] }
 
         // Finder ▸ Services ▸ "Open in Kumquat".
@@ -44,6 +70,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settings.hasSeenWelcome = true
             WindowManager.shared.showWelcome(app: self)
         }
+
+        // Ask after the menu-bar icon is up, so the prompt doesn't appear out of nowhere.
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 800_000_000)
+            ApplicationsMover.offerIfNeeded(settings: settings)
+        }
+    }
+
+    private func cancel(job: Int) {
+        guard let task = jobTasks[job] else { return }
+        cancelledJobs.insert(job)
+        task.cancel()
+        AppLog.info("Job \(job) cancelled")
     }
 
     /// "Open With ▸ Kumquat", `open -a Kumquat file`, or files dropped on the app icon.
@@ -142,7 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let job = hud.begin(title)
         batchProgress[job] = Array(repeating: 0, count: urls.count)
 
-        Task {
+        jobTasks[job] = Task {
             var outputs: [(Int, URL)] = []
             var failures: [String] = []
             await withTaskGroup(of: (Int, URL?, String?).self) { group in
@@ -205,7 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let converter = self.converter
         let jobOptions = options(for: urls)
         let job = hud.begin(tool.title, detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
-        Task {
+        jobTasks[job] = Task {
             do {
                 let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions) { [weak self] fraction in
                     Task { @MainActor in self?.hud.progress(fraction, job: job) }
@@ -223,12 +262,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func recordOutputs(_ outputs: [URL]) {
         guard !outputs.isEmpty else { return }
-        recentOutputs = Array((outputs + recentOutputs.filter { !outputs.contains($0) }).prefix(12))
+        let paths = outputs.map(\.path)
+        settings.recentPaths = Array((paths + settings.recentPaths.filter { !paths.contains($0) }).prefix(15))
         if settings.revealInFinder { NSWorkspace.shared.activateFileViewerSelecting(outputs) }
     }
 
     private func finish(outputs: [URL], failures: [String], message: String?, job: Int) {
+        jobTasks[job] = nil
         recordOutputs(outputs)
+        failures.forEach { AppLog.error($0) }
+        if cancelledJobs.remove(job) != nil {
+            if hud.isCurrent(job) {
+                hud.info("Cancelled", detail: outputs.isEmpty ? "Nothing was saved." : "\(outputs.count) file(s) finished before cancelling.")
+            }
+            return
+        }
         // A newer job owns the HUD; don't replace its progress with this result.
         guard hud.isCurrent(job) else { return }
         if failures.isEmpty {

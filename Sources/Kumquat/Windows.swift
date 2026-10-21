@@ -58,6 +58,8 @@ struct SettingsView: View {
         TabView {
             GeneralSettings(settings: settings)
                 .tabItem { Label("General", systemImage: "gearshape") }
+            AppearanceSettings(settings: settings)
+                .tabItem { Label("Appearance", systemImage: "paintpalette") }
             ConversionSettings(settings: settings)
                 .tabItem { Label("Quality", systemImage: "slider.horizontal.3") }
             EngineSettings(settings: settings)
@@ -80,9 +82,6 @@ struct GeneralSettings: View {
                 keyPicker("Convert wheel", selection: $settings.convertKey)
                 keyPicker("Tools wheel", selection: $settings.toolsKey)
                 keyPicker("Actions wheel", selection: $settings.actionsKey)
-                Slider(value: $settings.wheelScale, in: 0.8...1.3, step: 0.05) {
-                    Text("Wheel size")
-                }
                 Text("Start dragging a file, then tap the key. Drop the file on a segment.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -101,6 +100,7 @@ struct GeneralSettings: View {
                 }
                 Toggle("Reveal results in Finder", isOn: $settings.revealInFinder)
                 Toggle("Play a sound when done", isOn: $settings.playSound)
+                Toggle("Offer to move Kumquat to Applications", isOn: $settings.offerMoveToApplications)
             }
             Section("System") {
                 Toggle("Launch at login", isOn: Binding(get: { settings.launchAtLogin },
@@ -152,49 +152,101 @@ struct ConversionSettings: View {
 
 struct EngineSettings: View {
     @ObservedObject var settings: SettingsStore
-    @State private var refresh = 0
+    @ObservedObject var monitor = EngineMonitor.shared
 
     var body: some View {
-        let locator = settings.toolLocator
         Form {
-            Section("Optional helpers") {
+            Section {
                 ForEach(Dependency.allCases, id: \.self) { dependency in
-                    DependencyRow(dependency: dependency, installed: locator.isAvailable(dependency))
+                    DependencyRow(dependency: dependency, status: monitor.status(of: dependency))
                 }
-                Button("Re-check") { refresh += 1 }
+            } header: {
+                HStack {
+                    Text("Optional helpers")
+                    Spacer()
+                    if monitor.isChecking {
+                        ProgressView().controlSize(.small)
+                        Text("Checking…").foregroundStyle(.secondary)
+                    } else if let checked = monitor.lastChecked {
+                        Text("Checked \(checked.formatted(date: .omitted, time: .standard))").foregroundStyle(.secondary)
+                    }
+                    Button("Re-check") { monitor.refresh() }
+                        .disabled(monitor.isChecking)
+                        .keyboardShortcut("r", modifiers: .command)
+                }
             }
             Section("Custom paths (leave empty to auto-detect)") {
-                TextField("ffmpeg", text: $settings.ffmpegPath, prompt: Text("/opt/homebrew/bin/ffmpeg"))
-                TextField("soffice", text: $settings.sofficePath, prompt: Text("/Applications/LibreOffice.app/Contents/MacOS/soffice"))
-                TextField("pandoc", text: $settings.pandocPath, prompt: Text("/opt/homebrew/bin/pandoc"))
+                pathField("ffmpeg", text: $settings.ffmpegPath, tool: "ffmpeg", prompt: "/opt/homebrew/bin/ffmpeg")
+                pathField("soffice", text: $settings.sofficePath, tool: "soffice",
+                          prompt: "/Applications/LibreOffice.app/Contents/MacOS/soffice")
+                pathField("pandoc", text: $settings.pandocPath, tool: "pandoc", prompt: "/opt/homebrew/bin/pandoc")
             }
         }
         .formStyle(.grouped)
-        .id(refresh)
+        .onAppear { monitor.refresh() }
+        // Re-detect after a custom path is edited.
+        .onChange(of: settings.ffmpegPath) { _ in monitor.refresh() }
+        .onChange(of: settings.sofficePath) { _ in monitor.refresh() }
+        .onChange(of: settings.pandocPath) { _ in monitor.refresh() }
+    }
+
+    private func pathField(_ title: String, text: Binding<String>, tool: String, prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                TextField(title, text: text, prompt: Text(prompt))
+                Button("Choose…") {
+                    let panel = NSOpenPanel()
+                    panel.canChooseFiles = true
+                    panel.canChooseDirectories = false
+                    panel.directoryURL = URL(fileURLWithPath: "/opt/homebrew/bin")
+                    if panel.runModal() == .OK, let url = panel.url { text.wrappedValue = url.path }
+                }
+            }
+            if settings.toolLocator.overrideIsInvalid(tool) {
+                Label("Not an executable file — auto-detection is used instead.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+        }
     }
 }
 
 struct DependencyRow: View {
     let dependency: Dependency
-    let installed: Bool
+    let status: DependencyStatus?
 
     var body: some View {
-        HStack(alignment: .top) {
-            Image(systemName: installed ? "checkmark.circle.fill" : "circle.dashed")
-                .foregroundStyle(installed ? Color.green : Color.secondary)
+        let installed = status?.isInstalled ?? false
+        HStack(alignment: .top, spacing: 10) {
+            Group {
+                if status == nil {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Image(systemName: installed ? "checkmark.circle.fill" : "circle.dashed")
+                        .foregroundStyle(installed ? Color.green : Color.secondary)
+                }
+            }
+            .frame(width: 18)
             VStack(alignment: .leading, spacing: 2) {
-                Text(dependency.displayName).fontWeight(.medium)
+                HStack(spacing: 6) {
+                    Text(dependency.displayName).fontWeight(.medium)
+                    if let version = status?.version {
+                        Text(version).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    }
+                }
                 Text(dependency.purpose).font(.caption).foregroundStyle(.secondary)
-                if !installed {
+                if let path = status?.path {
+                    Text(path).font(.caption2.monospaced()).foregroundStyle(.tertiary).textSelection(.enabled)
+                } else if status != nil {
                     Text(dependency.installHint).font(.caption.monospaced()).textSelection(.enabled)
                 }
             }
             Spacer()
-            if !installed, dependency.installHint.hasPrefix("brew") {
-                Button("Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(dependency.installHint, forType: .string)
+            if status != nil, !installed {
+                Button(dependency.appStoreURL == nil ? "Install" : "App Store") {
+                    HelperInstaller.install(dependency)
                 }
+                .help(dependency.installHint)
             }
         }
     }
@@ -225,6 +277,7 @@ struct AboutView: View {
 
 struct WelcomeView: View {
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var monitor = EngineMonitor.shared
     let openSettings: () -> Void
     let close: () -> Void
 
@@ -249,9 +302,8 @@ struct WelcomeView: View {
                 .foregroundStyle(.secondary)
             Divider()
             Text("Optional helpers unlock more formats:").font(.headline)
-            let locator = settings.toolLocator
             ForEach([Dependency.ffmpeg, .libreOffice, .pandoc], id: \.self) { dependency in
-                DependencyRow(dependency: dependency, installed: locator.isAvailable(dependency))
+                DependencyRow(dependency: dependency, status: monitor.status(of: dependency))
             }
             Spacer()
             HStack {
@@ -263,6 +315,7 @@ struct WelcomeView: View {
         }
         .padding(24)
         .frame(width: 520, height: 620)
+        .onAppear { monitor.refresh() }
     }
 
     private func step(_ key: ModifierKey, _ title: String, _ detail: String) -> some View {

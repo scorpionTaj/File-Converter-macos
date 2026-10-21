@@ -77,6 +77,10 @@ final class SettingsStore: ObservableObject {
     @Published var sofficePath: String { didSet { defaults.set(sofficePath, forKey: "sofficePath") } }
     @Published var pandocPath: String { didSet { defaults.set(pandocPath, forKey: "pandocPath") } }
     @Published var hasSeenWelcome: Bool { didSet { defaults.set(hasSeenWelcome, forKey: "hasSeenWelcome") } }
+    @Published var themeID: String { didSet { defaults.set(themeID, forKey: "themeID") } }
+    @Published var offerMoveToApplications: Bool { didSet { defaults.set(offerMoveToApplications, forKey: "offerMoveToApplications") } }
+    /// Most recent results (paths), newest first; survives relaunches.
+    @Published var recentPaths: [String] { didSet { defaults.set(recentPaths, forKey: "recentPaths") } }
 
     private init() {
         // Local copy: the helpers below must not capture `self` before every property is set.
@@ -104,6 +108,9 @@ final class SettingsStore: ObservableObject {
         sofficePath = string("sofficePath", "")
         pandocPath = string("pandocPath", "")
         hasSeenWelcome = bool("hasSeenWelcome", false)
+        themeID = string("themeID", "kumquat")
+        offerMoveToApplications = bool("offerMoveToApplications", true)
+        recentPaths = defaults.stringArray(forKey: "recentPaths") ?? []
     }
 
     func mode(for flag: NSEvent.ModifierFlags) -> WheelMode? {

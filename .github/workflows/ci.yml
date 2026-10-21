@@ -77,6 +77,13 @@ jobs:
           CLI=build/Kumquat.app/Contents/Resources/bin/kumquat-cli
           $CLI doctor
           $CLI count
+          # The installer image: app, Applications link, styled window.
+          MNT="$(mktemp -d)"
+          hdiutil attach -nobrowse -readonly -mountpoint "$MNT" build/Kumquat.dmg >/dev/null
+          test -d "$MNT/Kumquat.app"
+          test -L "$MNT/Applications"
+          test -f "$MNT/.DS_Store" && ls "$MNT/.background/" || echo "::warning::DMG has no styled window"
+          hdiutil detach "$MNT" -quiet
           printf 'name,age\nAda,36\n' > build/smoke.csv
           $CLI convert build/smoke.csv --to json
           grep -q '"Ada"' build/smoke.json
@@ -87,6 +94,7 @@ jobs:
           path: |
             build/macos-tests*.xml
             build/coverage.txt
+            build/dmg-background/background@2x.png
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:

@@ -5,6 +5,33 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
+### Added
+- **Themes**: Kumquat (follows light/dark), Catppuccin Latte, Frappé, Macchiato and Mocha, Dracula,
+  Monokai, Nord, Gruvbox, Tokyo Night, One Dark, Rosé Pine, Solarized Light and Dark. They apply to the
+  wheels, the progress popup and the annotation editor. Pick one in Settings ▸ Appearance with live previews.
+- **Styled installer**: the disk image opens a designed window (background, arrow, big icons) with
+  an Applications shortcut, built with dmgbuild.
+- **Move to Applications**: when launched from the disk image or Downloads, Kumquat offers to install
+  itself, relaunches from Applications and ejects the image.
+- **Engines tab**: shows each helper's version and location, has one-click **Install** (Homebrew in
+  Terminal, or the App Store for Pages/Keynote/Numbers), a **Choose…** button for custom paths, and
+  flags custom paths that don't point at an executable.
+- **Cancel** running conversions and tools from the progress popup.
+- Recent results persist across launches; **Clear Recent** and **Show Log** in the menu.
+- Errors are logged to `~/Library/Logs/Kumquat/Kumquat.log`.
+
+### Fixed
+- **Re-check** in Settings ▸ Engines gave no feedback and could keep showing stale results. It now
+  re-detects every helper in the background with a spinner and a "Checked at…" time, clears cached FFmpeg
+  encoder lists, and runs automatically when Settings opens, when you return to Kumquat, and when a custom
+  path changes.
+- A mistyped custom path made an installed helper look missing; detection now falls back to auto-search.
+- Parallel batch jobs could collide on an output name (`photo.png` + `photo.jpg` → `photo.webp`).
+- LibreOffice, Pandoc, iWork automation and Quick Look are stopped after a timeout instead of hanging a job forever.
+- Launching a second copy of Kumquat no longer adds a second menu-bar icon.
+
 ## [0.2.0] - 2026-10-21
 
 ### Added
@@ -42,6 +69,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/scorpionTaj/File-Converter-macos/releases/tag/v0.1.0

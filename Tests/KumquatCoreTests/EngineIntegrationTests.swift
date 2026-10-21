@@ -313,3 +313,45 @@ final class TextEngineTests: TemporaryDirectoryTestCase {
         }
     }
 }
+
+final class ConcurrencyTests: TemporaryDirectoryTestCase {
+    /// Two inputs with the same base name converted at once must both be saved.
+    func testParallelJobsDoNotCollideOnNames() async throws {
+        let converter = Converter()
+        let first = try file("report.csv", "a\n1\n")
+        let second = try file("report.tsv", "a\n2\n")
+        async let one = converter.convert(first, to: .json)
+        async let two = converter.convert(second, to: .json)
+        let results = try await [one, two]
+        XCTAssertEqual(Set(results.map(\.lastPathComponent)), ["report.json", "report 2.json"])
+    }
+
+    func testTimeoutStopsAHungProcess() async throws {
+        let sleep = URL(fileURLWithPath: "/bin/sleep")
+        guard FileManager.default.isExecutableFile(atPath: sleep.path) else { throw XCTSkip("no /bin/sleep") }
+        let started = Date()
+        do {
+            try await ProcessRunner.runChecked(sleep, ["30"], timeout: 1)
+            XCTFail("expected a timeout")
+        } catch let error as KumquatError {
+            XCTAssertTrue(error.localizedDescription.contains("didn't finish"), error.localizedDescription)
+        }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+    }
+
+    func testInvalidOverrideFallsBackToAutoDetection() {
+        let locator = ToolLocator(overrides: ["tar": "/definitely/not/here"])
+        XCTAssertTrue(locator.overrideIsInvalid("tar"))
+        XCTAssertNotNil(locator.path(for: "tar"), "an installed tool must still be found")
+    }
+
+    func testDependencyStatusReportsVersions() async {
+        let locator = ToolLocator()
+        let status = await locator.status(of: .ffmpeg)
+        if status.isInstalled {
+            XCTAssertNotNil(status.version)
+        }
+        XCTAssertEqual(ToolLocator.shortVersion("ffmpeg version 7.1.1 Copyright (c) 2000-2025"), "7.1.1")
+        XCTAssertEqual(ToolLocator.shortVersion("pandoc 3.6.2"), "3.6.2")
+    }
+}

@@ -136,11 +136,27 @@ public final class Converter: @unchecked Sendable {
 
         let directory = OutputNamer.destinationDirectory(for: input, location: options.outputLocation)
         let base = FormatRegistry.baseName(of: input)
-        let destination = fm.isDirectory(current)
-            ? OutputNamer.uniqueURL(in: directory, baseName: "\(base) (\(target.shortName))", extension: nil)
-            : OutputNamer.uniqueURL(in: directory, baseName: base, extension: target.fileExtension)
-        try fm.moveItem(at: current, to: destination)
-        return destination
+        return fm.isDirectory(current)
+            ? try Self.moveIntoPlace(current, directory: directory, baseName: "\(base) (\(target.shortName))", extension: nil)
+            : try Self.moveIntoPlace(current, directory: directory, baseName: base, extension: target.fileExtension)
+    }
+
+    /// Moves a finished result to a unique name. Parallel jobs can pick the same name between the check and
+    /// the move (photo.png and photo.jpg → photo.webp), so a collision simply retries with the next number.
+    static func moveIntoPlace(_ item: URL, directory: URL, baseName: String, extension ext: String?) throws -> URL {
+        let fm = FileManager.default
+        var lastError: Error?
+        for _ in 0..<20 {
+            let destination = OutputNamer.uniqueURL(in: directory, baseName: baseName, extension: ext)
+            do {
+                try fm.moveItem(at: item, to: destination)
+                return destination
+            } catch {
+                lastError = error
+                guard fm.fileExists(atPath: destination.path) else { throw error }
+            }
+        }
+        throw lastError ?? KumquatError.conversionFailed("Couldn't save \(baseName).")
     }
 
     // MARK: Tools
@@ -211,9 +227,7 @@ public final class Converter: @unchecked Sendable {
                 base = FormatRegistry.baseName(of: original)
             }
             let ext: String? = fm.isDirectory(url) ? nil : FormatRegistry.format(for: url)?.fileExtension ?? url.pathExtension
-            let destination = OutputNamer.uniqueURL(in: directory, baseName: base, extension: ext)
-            try fm.moveItem(at: url, to: destination)
-            outcome.outputs.append(destination)
+            outcome.outputs.append(try Self.moveIntoPlace(url, directory: directory, baseName: base, extension: ext))
         }
         outcome.message = messages.isEmpty ? nil : (messages.count == 1 ? messages[0] : messages.joined(separator: " · "))
         outcome.clipboardText = clipboard.isEmpty ? nil : clipboard.joined(separator: "\n")

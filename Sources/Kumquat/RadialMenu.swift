@@ -103,11 +103,12 @@ final class RadialMenuView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         guard !items.isEmpty else { return }
-        let accent = NSColor.systemOrange
         let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let base = isDark ? NSColor(white: 0.13, alpha: 0.94) : NSColor(white: 0.98, alpha: 0.95)
-        let stroke = isDark ? NSColor(white: 1, alpha: 0.10) : NSColor(white: 0, alpha: 0.10)
-        let textColor = isDark ? NSColor.white : NSColor(white: 0.1, alpha: 1)
+        let theme = Theme.named(SettingsStore.shared.themeID).resolved(dark: isDark)
+        let accent = theme.accent
+        let base = theme.segment
+        let stroke = theme.stroke
+        let textColor = theme.text
 
         let shadow = NSShadow()
         shadow.shadowBlurRadius = 18
@@ -141,12 +142,12 @@ final class RadialMenuView: NSView {
                 let radians = center * .pi / 180
                 let radius = (ring.inner + ring.outer) / 2 * scale
                 let labelCenter = CGPoint(x: hub.x + CGFloat(cos(radians)) * radius, y: hub.y + CGFloat(sin(radians)) * radius)
-                var color = isHovered && item.isAvailable ? NSColor.white : textColor
+                var color = isHovered && item.isAvailable ? theme.accentText : textColor
                 if !item.isAvailable { color = color.withAlphaComponent(0.35) }
                 drawLabel(for: item, at: labelCenter, color: color, compact: ring.outer - ring.inner < 90)
             }
         }
-        drawHub(base: base, stroke: stroke, textColor: textColor, accent: accent, shadow: shadow)
+        drawHub(base: theme.hub, stroke: stroke, textColor: textColor, accent: accent, shadow: shadow)
     }
 
     private func drawLabel(for item: WheelItem, at point: CGPoint, color: NSColor, compact: Bool) {

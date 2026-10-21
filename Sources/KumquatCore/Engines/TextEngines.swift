@@ -113,7 +113,7 @@ public struct OfficeEngine: ConversionEngine {
             "--convert-to", Self.filter(for: target),
             "--outdir", outDir.path,
             input.path,
-        ])
+        ], timeout: 300)
         guard let produced = try FileManager.default.contentsOfDirectory(at: outDir, includingPropertiesForKeys: nil)
             .first(where: { $0.pathExtension.lowercased() == target.fileExtension }) else {
             throw KumquatError.conversionFailed("LibreOffice didn't produce a \(target.name) file.")
@@ -144,7 +144,7 @@ public struct PandocEngine: ConversionEngine {
         if target == .epub {
             args += ["--metadata", "title=\(FormatRegistry.baseName(of: input))"]
         }
-        try await ProcessRunner.runChecked(pandoc, args, currentDirectory: input.deletingLastPathComponent())
+        try await ProcessRunner.runChecked(pandoc, args, currentDirectory: input.deletingLastPathComponent(), timeout: 300)
         return output
     }
 }
@@ -159,7 +159,8 @@ public struct IWorkEngine: ConversionEngine {
         guard let script = IWorkScripts.script(input: input.path, output: output.path, source: source, target: target) else {
             throw KumquatError.noRoute(from: source.name, to: target.name)
         }
-        try await ProcessRunner.runChecked(SystemTool.osascript, ["-e", script])
+        // Pages/Keynote/Numbers can sit behind a permission prompt; don't wait forever.
+        try await ProcessRunner.runChecked(SystemTool.osascript, ["-e", script], timeout: 180)
         guard FileManager.default.fileExists(atPath: output.path) else {
             throw KumquatError.conversionFailed("The iWork app didn't save the file. Check Kumquat's Automation permission in System Settings → Privacy & Security.")
         }

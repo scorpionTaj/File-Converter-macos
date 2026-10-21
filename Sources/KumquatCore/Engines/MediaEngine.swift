@@ -18,6 +18,9 @@ public struct MediaEngine: ConversionEngine {
 
     private static let encoderCache = EncoderCache()
 
+    /// Forget detected encoders, e.g. after the user installs or upgrades FFmpeg.
+    public static func resetCaches() { encoderCache.removeAll() }
+
     /// Encoders of a given FFmpeg binary, detected once per path.
     static func encoders(of ffmpeg: URL) async -> EncoderSet {
         if let cached = encoderCache.get(ffmpeg.path) { return cached }
@@ -134,6 +137,12 @@ final class EncoderCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return storage[key]
+    }
+
+    func removeAll() {
+        lock.lock()
+        storage.removeAll()
+        lock.unlock()
     }
 
     func set(_ key: String, _ value: EncoderSet) {

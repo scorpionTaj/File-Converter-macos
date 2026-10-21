@@ -63,7 +63,7 @@ public struct ImageEngine: ConversionEngine {
     static func rasterizeSVG(_ url: URL, context: EngineContext) async throws -> URL {
         let outDir = context.workDirectory.appendingPathComponent("svg-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
-        try await ProcessRunner.runChecked(SystemTool.qlmanage, ["-t", "-s", "2048", "-o", outDir.path, url.path])
+        try await ProcessRunner.runChecked(SystemTool.qlmanage, ["-t", "-s", "2048", "-o", outDir.path, url.path], timeout: 60)
         guard let png = try FileManager.default.contentsOfDirectory(at: outDir, includingPropertiesForKeys: nil)
             .first(where: { $0.pathExtension.lowercased() == "png" }) else {
             throw KumquatError.conversionFailed("Quick Look couldn't render \(url.lastPathComponent).")
