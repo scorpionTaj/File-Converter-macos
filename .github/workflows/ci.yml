@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-linux:
+    name: Core tests (Linux + FFmpeg)
+    runs-on: ubuntu-latest
+    container: swift:6.0-jammy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install FFmpeg and archivers
+        run: apt-get update -qq && apt-get install -y -qq ffmpeg zip unzip > /dev/null
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+
+  macos:
+    name: App build & tests (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Toolchain
+        run: swift --version
+      - name: Test
+        run: swift test
+      - name: Build Kumquat.app
+        run: scripts/build-app.sh
+      - name: Smoke-test the CLI
+        run: |
+          build/Kumquat.app/Contents/Resources/bin/kumquat-cli doctor
+          build/Kumquat.app/Contents/Resources/bin/kumquat-cli count
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kumquat
+          path: |
+            build/Kumquat.zip
+            build/Kumquat.dmg
+          if-no-files-found: error
