@@ -22,7 +22,7 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 
 - **600+ conversions** across images, audio, video, PDF, documents, slides, spreadsheets, subtitles, archives and data.
   Run `kumquat-cli count` to see the exact number for your setup.
-- **43 tools** and **7 actions**, filtered to what makes sense for the dragged files.
+- **42 tools** and **7 actions**, filtered to what makes sense for the dragged files.
 - **Annotate images**: pen, arrow, rectangle, ellipse, highlighter, text, pixelate (true redaction) and crop, with undo/redo.
   The edited copy is saved as `photo (annotated).jpg`.
 - **Works with Photos, Mail and Safari**: file-promise drags are received on drop. Results go to Downloads.

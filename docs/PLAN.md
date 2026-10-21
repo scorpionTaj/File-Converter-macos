@@ -119,7 +119,7 @@ installed (with copy-able `brew install` commands).
 | Pandoc | pandoc | → EPUB, EPUB →, high-quality → Markdown |
 | iWork | AppleScript via `osascript` | Pages, Keynote, Numbers import/export |
 
-### 4.4 Tools (Tools wheel, 43)
+### 4.4 Tools (Tools wheel, 42)
 Images: Compress, Resize 50 %, Fit 1920 px, Rotate L/R, Flip, Grayscale, Remove Background (Vision,
 macOS 14), Copy Text (OCR), Make PDF (multi). PDF: Compress, Merge (multi), Split Pages, Rotate, Extract
 Text, OCR Text, Add Password, Unlock, Redact PII (emails, phones, card numbers, SSN, IBAN), Redact
