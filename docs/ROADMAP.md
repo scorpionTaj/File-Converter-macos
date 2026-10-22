@@ -12,25 +12,28 @@ Ground rules:
 - **No bundled engines.** FFmpeg, LibreOffice and Pandoc stay optional and are found or installed
   through Settings ▸ Engines, so the app stays a few MB.
 
-## 0.4 — Updates, settings & reliability
+## 0.4 — Updates, settings & reliability (built, unreleased)
 
-| Item | Why |
+✅ done · ⏳ left for later
+
+| Item | Status |
 |---|---|
-| Sparkle 2 auto-updates (EdDSA-signed `appcast.xml` made by the release workflow, "Check for Updates…", automatic checks on/off, beta channel for nightlies). Works with ad-hoc builds | Users otherwise never get fixes |
-| Crash/hang reporting: MetricKit diagnostics in the log, "Report a Problem…" opens a prefilled GitHub issue with the log attached | Bugs in the field are invisible today |
-| **File naming**: template with tokens (`{name}`, `{format}`, `{date}`, `{n}`, `{width}x{height}`), live preview in Settings | "photo-converted (2).png" is not what everyone wants |
-| **When the name exists**: keep both / replace / skip / ask | Today it always keeps both |
-| **Originals**: keep / move to Trash after success / replace in place (with undo) | Common cleanup step done by hand |
-| **Metadata**: keep or strip EXIF/GPS/document info; keep file dates (created/modified) of the original | Privacy and sorting by date |
-| **Per-format quality**: separate JPEG, HEIC, WebP, AVIF quality; PNG optimisation level; max size (long edge) applied to every image conversion | One slider doesn't fit every format |
-| **Video**: encoder speed preset, hardware (VideoToolbox) vs software, max resolution, keep/drop audio, frame rate cap | Size vs. speed vs. quality trade-offs |
-| **Audio**: bitrate per codec, sample rate, mono/stereo, normalise loudness | Podcasts and voice memos |
-| **Jobs**: parallel jobs (1–8), lower priority when on battery, per-job timeout | Big batches shouldn't freeze the Mac |
-| **Wheel**: tap window length, hover-to-select delay, click-mode on menu bar, slice labels on/off, max slices before "More…", position (cursor / screen centre) | Gesture feel is personal |
-| **HUD & feedback**: HUD position, auto-hide delay, sound choice, Dock badge while working | Less intrusive on small screens |
-| **Menu bar**: icon style (mono/colour/hidden while idle), recent files count, clear recents | Menu bar space is precious |
-| **Themes**: custom theme editor (accent, slice, background, text) with import/export as JSON; follow system light/dark per theme pair | Fourteen themes are a start |
-| **Advanced**: log level, open log, clear temporary files, reset all settings, export diagnostics | Support without a terminal |
+| Check for Updates (GitHub releases, notes, skip version, daily check, pre-releases, DMG download) | ✅ Built in, no Sparkle needed for ad-hoc builds |
+| Crash reporting: notice after an unexpected quit, "Report a Problem…" with a prefilled GitHub issue | ✅ |
+| File name template (`{name}`, `{format}`, `{date}`, `{time}`) with live example | ✅ (`{n}`, `{width}x{height}` ⏳) |
+| When the name exists: keep both / replace (to Trash) / skip | ✅ ("ask" ⏳) |
+| Originals: keep / move to Trash; keep the original's file dates | ✅ (undo ⏳ in 0.5) |
+| Metadata: keep / remove location / remove all (images, audio, video) | ✅ |
+| Per-format JPEG/HEIC/WebP/AVIF quality, maximum image size | ✅ (PNG optimisation level ⏳) |
+| Video: encoder (auto/hardware/software), speed preset, max resolution, frame-rate cap, remove audio | ✅ |
+| Audio: sample rate, mono/stereo, loudness normalisation | ✅ |
+| Jobs: 1–8 files at a time | ✅ (battery priority, per-job timeout ⏳) |
+| Wheel position (pointer / screen centre) | ✅ (tap window, hover delay, labels, slice limit ⏳) |
+| Notices: position, how long they stay, hide successes, success/failure sounds | ✅ |
+| Menu bar: icon style, progress percentage, recent results count | ✅ |
+| Custom themes: editor, import/export JSON, light/dark pairs | ✅ |
+| Advanced: open log, copy diagnostics, clear temporary files, reset all settings | ✅ |
+| Sparkle 2 (signed appcast, in-place install) | ⏳ Optional; revisit if in-place install is wanted |
 
 ## 0.5 — Everyday workflow
 
