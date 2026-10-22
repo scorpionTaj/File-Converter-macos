@@ -137,7 +137,7 @@ The app bundle includes the CLI at `Kumquat.app/Contents/Resources/bin/kumquat-c
 ## How it works
 
 See [docs/PLAN.md](docs/PLAN.md) for the full product and engineering plan, covering interaction design,
-architecture, the conversion graph, engines, permissions, testing and the roadmap. In short:
+architecture, the conversion graph, engines, permissions, and testing, and [docs/ROADMAP.md](docs/ROADMAP.md) for what comes before 1.0. In short:
 
 - A global mouse monitor notices file drags (via the drag pasteboard) without any permission prompt. It
   then polls modifier keys while the button is down.

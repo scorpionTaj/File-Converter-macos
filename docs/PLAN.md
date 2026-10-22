@@ -209,13 +209,7 @@ The release build can bundle static `ffmpeg`/`ffprobe` (set `FFMPEG_BIN`/`FFPROB
 
 ## 9. Roadmap
 
-| Version | Scope |
-|---|---|
-| **0.1** | Everything in §8 except annotation and file promises; CLI; CI; signed/zipped/dmg builds |
-| **0.2** (current) | Annotation editor with crop; file-promise drags; drop onto the menu-bar icon; Services ▸ Open in Kumquat and Open With; Trim…, Resize…, Remove/Keep Pages…, images → animated GIF; parallel batches (3 at a time); Escape closes the click-mode wheel |
-| 0.3 | Annotate PDFs; PDF page reorder; per-format favourites & ordering on the wheel; Finder-selection hotkey |
-| 0.4 | Bundled FFmpeg build, Sparkle auto-updates, notarized releases, localisation |
-| 0.5 | Plugin edges (user-defined shell recipes in `~/Library/Application Support/Kumquat/recipes`) |
+See [ROADMAP.md](ROADMAP.md) for the plan from 0.4 to 1.0.
 
 ## 10. Risks
 
