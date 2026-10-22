@@ -105,9 +105,16 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let preferences = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         preferences.target = self
         menu.addItem(preferences)
+        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        updates.target = self
+        updates.isEnabled = !UpdateController.shared.isChecking
+        menu.addItem(updates)
         let log = NSMenuItem(title: "Show Log", action: #selector(showLog), keyEquivalent: "")
         log.target = self
         menu.addItem(log)
+        let report = NSMenuItem(title: "Report a Problem…", action: #selector(reportProblem), keyEquivalent: "")
+        report.target = self
+        menu.addItem(report)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Kumquat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
@@ -138,6 +145,14 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             try? Data().write(to: url)
         }
         NSWorkspace.shared.open(url)
+    }
+
+    @objc private func checkForUpdates() {
+        UpdateController.shared.check(userInitiated: true)
+    }
+
+    @objc private func reportProblem() {
+        CrashReporter.reportProblem()
     }
 
     @objc private func showWelcome() {

@@ -342,9 +342,26 @@ struct AdvancedSettings: View {
                 Text("More is faster on Apple silicon but uses more memory. Video conversions already use every core.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section {
+                Toggle("Check for updates automatically", isOn: $settings.checkForUpdates)
+                Toggle("Include pre-releases", isOn: $settings.includePrereleases)
+                HStack {
+                    Button("Check Now") { UpdateController.shared.check(userInitiated: true) }
+                    if let last = settings.lastUpdateCheck {
+                        Text("Last checked \(last.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("Kumquat asks GitHub for new releases once a day. Nothing else is sent. Updates download as a disk image; drag Kumquat to Applications to install.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Troubleshooting") {
                 HStack {
                     Button("Open Log") { Self.openLog() }
+                    Button("Report a Problem…") { CrashReporter.reportProblem() }
                     Button("Copy Diagnostics") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(Self.diagnostics(), forType: .string)

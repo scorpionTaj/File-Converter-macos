@@ -150,6 +150,11 @@ final class SettingsStore: ObservableObject {
             Theme.custom = customThemes.map(Theme.fromSpec)
         }
     }
+    @Published var checkForUpdates: Bool { didSet { defaults.set(checkForUpdates, forKey: "checkForUpdates") } }
+    @Published var includePrereleases: Bool { didSet { defaults.set(includePrereleases, forKey: "includePrereleases") } }
+    @Published var lastUpdateCheck: Date? { didSet { defaults.set(lastUpdateCheck, forKey: "lastUpdateCheck") } }
+    /// Release tag the user chose to skip.
+    @Published var skippedVersion: String { didSet { defaults.set(skippedVersion, forKey: "skippedVersion") } }
     @Published var hudPosition: HUDPosition { didSet { defaults.set(hudPosition.rawValue, forKey: "hudPosition") } }
     /// Seconds a result stays on screen; 0 keeps it until clicked.
     @Published var hudDuration: Double { didSet { defaults.set(hudDuration, forKey: "hudDuration") } }
@@ -221,6 +226,10 @@ final class SettingsStore: ObservableObject {
         let storedThemes = defaults.data(forKey: "customThemes").flatMap { try? JSONDecoder().decode([ThemeSpec].self, from: $0) } ?? []
         customThemes = storedThemes
         Theme.custom = storedThemes.map(Theme.fromSpec)
+        checkForUpdates = bool("checkForUpdates", true)
+        includePrereleases = bool("includePrereleases", false)
+        lastUpdateCheck = defaults.object(forKey: "lastUpdateCheck") as? Date
+        skippedVersion = string("skippedVersion", "")
         hudPosition = HUDPosition(rawValue: string("hudPosition", "")) ?? .topRight
         hudDuration = double("hudDuration", 3)
         hudShowsSuccess = bool("hudShowsSuccess", true)

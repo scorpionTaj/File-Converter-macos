@@ -40,8 +40,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         AppLog.info("Kumquat \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev") started")
 
+        let crashedLastTime = CrashReporter.noteLaunch()
         statusBar = StatusBarController(app: self)
         hud.onCancel = { [weak self] job in self?.cancel(job: job) }
+        UpdateController.shared.hud = hud
+        if crashedLastTime {
+            AppLog.error("The previous run ended unexpectedly")
+            // After launch settles, so the alert doesn't race the welcome window.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { CrashReporter.offerReportAfterCrash() }
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) { UpdateController.shared.checkAutomaticallyIfDue() }
+        }
         EngineMonitor.shared.refresh()
 
         dragMonitor.isEnabled = settings.isEnabled
@@ -84,6 +93,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// "Open With ▸ Kumquat", `open -a Kumquat file`, or files dropped on the app icon.
+    func applicationWillTerminate(_ notification: Notification) {
+        CrashReporter.noteCleanExit()
+    }
+
     func application(_ application: NSApplication, open urls: [URL]) {
         showWheel(for: urls.filter(\.isFileURL), at: NSEvent.mouseLocation)
     }

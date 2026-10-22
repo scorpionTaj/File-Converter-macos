@@ -28,6 +28,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
     results to keep.
 - **Custom themes**: duplicate any theme and edit its colours with a live preview, export themes as `.json`
   and import them on another Mac. You can also use different themes for Light and Dark mode.
+- **Check for Updates…** (menu bar and Settings ▸ Advanced) compares your version with the GitHub
+  releases, shows the release notes and downloads the new disk image. It also checks automatically once
+  a day (can be turned off), you can include pre-releases, and you can skip a version.
+- **Crash reporting**: if Kumquat quit unexpectedly last time, it offers to open a prefilled GitHub issue
+  with diagnostics and the recent log. **Report a Problem…** does the same at any time. Nothing is sent
+  until you submit the issue.
 - `kumquat-cli` options: `--name`, `--on-conflict`, `--originals`, `--metadata`, `--keep-dates`,
   `--max-size`, `--max-height` and `--encoder`.
 
