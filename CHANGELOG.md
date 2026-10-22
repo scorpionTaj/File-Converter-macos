@@ -5,12 +5,6 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Changed
-- Kumquat is now **macOS-only**. Linux build support and the Linux CI job are gone, along with every
-  platform `#if`. All tests run on macOS with the real helpers installed.
-- SHA-256 uses CryptoKit and streams the file, instead of running `shasum`.
-- ZIP extraction always uses `ditto`; the Linux `unzip` fallback is removed.
-
 ## [0.3.1] - 2026-10-22
 
 ### Added
@@ -23,6 +17,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Running the Release workflow with a new version failed with "doesn't match the VERSION file" unless
   `VERSION` and `CHANGELOG.md` were edited first. The workflow now prepares and commits them itself.
+
+### Changed
+- Kumquat is now **macOS-only**. Linux build support and the Linux CI job are gone, along with every
+  platform `#if`. All tests run on macOS with the real helpers installed.
+- SHA-256 uses CryptoKit and streams the file, instead of running `shasum`.
+- ZIP extraction always uses `ditto`; the Linux `unzip` fallback is removed.
+- CI retries stalled package installs and puts a time limit on every job.
 
 ## [0.3.0] - 2026-10-21
 
