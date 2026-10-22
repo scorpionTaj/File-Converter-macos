@@ -20,8 +20,9 @@ swift test
 scripts/build-app.sh && open build/Kumquat.app
 ```
 
-Core logic must stay testable on Linux: keep Apple-only frameworks behind `#if canImport(...)`, and put
-pure logic (argument builders, parsers) in plain Swift so it can be unit-tested.
+Kumquat targets macOS only (13 Ventura or later), so use Apple frameworks freely. Keep pure logic
+(argument builders, parsers, routing) separate from engine code, so it can be unit-tested without real
+files or helpers.
 
 ## Adding a conversion
 

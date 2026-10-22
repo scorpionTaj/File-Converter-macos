@@ -63,7 +63,7 @@ private final class ProcessBox: @unchecked Sendable {
         lock.lock()
         didTimeOut = true
         lock.unlock()
-        // Signal the pid directly: `Process.isRunning`/`terminate()` aren't reliable from a background queue on Linux.
+        // Signal the pid directly (SIGTERM, then SIGKILL if it ignores that).
         let pid = process.processIdentifier
         guard pid > 0 else { return }
         kill(pid, SIGTERM)
@@ -255,19 +255,14 @@ public struct ToolLocator: Sendable {
     }
 }
 
-/// System binaries that ship with macOS (and mostly Linux).
+/// System binaries that ship with macOS.
 enum SystemTool {
     static let tar = URL(fileURLWithPath: "/usr/bin/tar")
     static let gzip = URL(fileURLWithPath: "/usr/bin/gzip")
     static let zip = URL(fileURLWithPath: "/usr/bin/zip")
-    static let unzip = URL(fileURLWithPath: "/usr/bin/unzip")
     static let ditto = URL(fileURLWithPath: "/usr/bin/ditto")
     static let osascript = URL(fileURLWithPath: "/usr/bin/osascript")
     static let qlmanage = URL(fileURLWithPath: "/usr/bin/qlmanage")
-
-    static func exists(_ url: URL) -> Bool {
-        FileManager.default.isExecutableFile(atPath: url.path)
-    }
 }
 
 /// What Settings shows for each optional helper.

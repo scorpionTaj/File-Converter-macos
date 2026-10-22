@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 
 @main
@@ -16,11 +15,3 @@ enum KumquatApp {
         application.run()
     }
 }
-#else
-@main
-enum KumquatApp {
-    static func main() {
-        print("The Kumquat app requires macOS. Use kumquat-cli on other platforms.")
-    }
-}
-#endif

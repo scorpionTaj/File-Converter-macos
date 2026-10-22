@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 
 /// Watches for file drags anywhere on screen and reports when a modifier key is tapped mid-drag.
@@ -82,4 +81,3 @@ final class DragMonitor: NSObject {
         lastChangeCount = dragPasteboard.changeCount
     }
 }
-#endif

@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 import Quartz
@@ -167,4 +166,3 @@ enum Prompt {
         return panel.runModal() == .OK ? panel.urls : []
     }
 }
-#endif

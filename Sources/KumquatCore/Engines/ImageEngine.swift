@@ -1,13 +1,8 @@
-#if canImport(ImageIO)
 import Foundation
 import ImageIO
 import CoreGraphics
-#if canImport(CoreImage)
 import CoreImage
-#endif
-#if canImport(Vision)
 import Vision
-#endif
 
 /// Image conversions and edits with ImageIO/Core Graphics. SVG is rasterised through Quick Look.
 public struct ImageEngine: ConversionEngine {
@@ -17,12 +12,8 @@ public struct ImageEngine: ConversionEngine {
 
     public func convert(_ input: URL, from source: Format, to target: Format, output: URL, context: EngineContext) async throws -> URL {
         if target == .pdf {
-            #if canImport(PDFKit) && canImport(AppKit)
             try await PDFEngine.makePDF(fromImages: [input], output: output, context: context)
             return output
-            #else
-            throw KumquatError.engineUnavailable("PDF export")
-            #endif
         }
         let image = try await Self.loadImage(input, source: source, context: context)
         try await Self.write(image, to: output, format: target, quality: context.options.imageQuality, context: context)
@@ -207,16 +198,12 @@ public struct ImageEngine: ConversionEngine {
     }
 
     static func grayscale(_ image: CGImage) throws -> CGImage {
-        #if canImport(CoreImage)
         let input = CIImage(cgImage: image)
         let output = input.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0])
         guard let result = CIContext().createCGImage(output, from: input.extent) else {
             throw KumquatError.conversionFailed("Couldn't apply the filter.")
         }
         return result
-        #else
-        throw KumquatError.engineUnavailable("Core Image")
-        #endif
     }
 
     // MARK: Tools
@@ -375,7 +362,6 @@ public struct ImageEngine: ConversionEngine {
     }
 
     static func removeBackground(_ image: CGImage) throws -> CGImage {
-        #if canImport(Vision) && canImport(CoreImage)
         if #available(macOS 14.0, *) {
             let request = VNGenerateForegroundInstanceMaskRequest()
             let handler = VNImageRequestHandler(cgImage: image, options: [:])
@@ -391,7 +377,6 @@ public struct ImageEngine: ConversionEngine {
             }
             return result
         }
-        #endif
         throw KumquatError.engineUnavailable("Background removal (macOS 14 or later)")
     }
 }
@@ -399,7 +384,6 @@ public struct ImageEngine: ConversionEngine {
 /// On-device text recognition with Vision.
 enum TextRecognizer {
     static func recognize(_ image: CGImage) throws -> String {
-        #if canImport(Vision)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.usesLanguageCorrection = true
@@ -408,9 +392,5 @@ enum TextRecognizer {
         return (request.results ?? [])
             .compactMap { $0.topCandidates(1).first?.string }
             .joined(separator: "\n")
-        #else
-        throw KumquatError.engineUnavailable("Text recognition")
-        #endif
     }
 }
-#endif

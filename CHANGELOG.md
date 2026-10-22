@@ -5,6 +5,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Kumquat is now **macOS-only**. Linux build support and the Linux CI job are gone, along with every
+  platform `#if`. All tests run on macOS with the real helpers installed.
+- SHA-256 uses CryptoKit and streams the file, instead of running `shasum`.
+- ZIP extraction always uses `ditto`; the Linux `unzip` fallback is removed.
+
 ## [0.3.1] - 2026-10-22
 
 ### Added

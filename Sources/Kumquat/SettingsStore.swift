@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 import ServiceManagement
@@ -163,4 +162,3 @@ final class SettingsStore: ObservableObject {
         }
     }
 }
-#endif

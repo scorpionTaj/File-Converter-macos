@@ -77,16 +77,10 @@ public final class Converter: @unchecked Sendable {
             .office: OfficeEngine(),
             .pandoc: PandocEngine(),
         ]
-        #if os(macOS)
         engines[.iwork] = IWorkEngine()
-        #endif
-        #if canImport(ImageIO)
         engines[.image] = ImageEngine()
-        #endif
-        #if canImport(PDFKit) && canImport(AppKit)
         engines[.pdf] = PDFEngine()
         engines[.document] = DocumentEngine()
-        #endif
         return engines
     }
 
@@ -270,17 +264,9 @@ enum ToolRunner {
         case .audio, .video:
             return try await MediaEngine.runTool(tool, input: input, source: format, parameter: parameter, context: context)
         case .image:
-            #if canImport(ImageIO)
             return try await ImageEngine.runTool(tool, input: input, source: format, parameter: parameter, context: context)
-            #else
-            throw KumquatError.engineUnavailable("Image tools")
-            #endif
         case .pdf:
-            #if canImport(PDFKit) && canImport(AppKit)
             return try await PDFEngine.runTool(tool, input: input, parameter: parameter, context: context)
-            #else
-            throw KumquatError.engineUnavailable("PDF tools")
-            #endif
         default:
             throw KumquatError.nothingToDo("\(tool.title) doesn't apply to \(input.lastPathComponent).")
         }
@@ -294,15 +280,10 @@ enum ToolRunner {
             let name = inputs.count == 1 ? FormatRegistry.baseName(of: inputs[0]) : "Archive"
             return ToolArtifact(url: output, preferredBaseName: name)
         case .imagesToGIF:
-            #if canImport(ImageIO)
             let output = context.scratchURL("gif")
             try await ImageEngine.makeAnimatedGIF(from: inputs, output: output, context: context)
             return ToolArtifact(url: output, preferredBaseName: FormatRegistry.baseName(of: inputs[0]))
-            #else
-            throw KumquatError.engineUnavailable("Image tools")
-            #endif
         case .imagesToPDF, .pdfMerge:
-            #if canImport(PDFKit) && canImport(AppKit)
             let output = context.scratchURL("pdf")
             if tool == .pdfMerge {
                 try PDFEngine.merge(inputs, output: output)
@@ -311,9 +292,6 @@ enum ToolRunner {
             }
             let base = FormatRegistry.baseName(of: inputs[0])
             return ToolArtifact(url: output, preferredBaseName: tool == .pdfMerge ? "\(base) (merged)" : base)
-            #else
-            throw KumquatError.engineUnavailable("PDF tools")
-            #endif
         default:
             throw KumquatError.nothingToDo("\(tool.title) works on one file at a time.")
         }
@@ -335,12 +313,10 @@ enum TextExtraction {
             let text = try String.readText(from: url)
             return format == .html ? text.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression) : text
         default:
-            #if canImport(PDFKit) && canImport(AppKit)
             if format == .pdf { return PDFEngine.plainText(of: url) }
             if let format, DocumentEngine.readable.contains(format) {
                 return try await DocumentEngine.read(url, format: format).string
             }
-            #endif
             throw KumquatError.nothingToDo("Can't count words in \(url.lastPathComponent).")
         }
     }

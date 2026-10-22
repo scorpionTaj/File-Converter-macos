@@ -1,4 +1,3 @@
-#if canImport(ImageIO) && canImport(PDFKit) && canImport(AppKit) && canImport(CoreText)
 import XCTest
 import AppKit
 import CoreText
@@ -209,4 +208,3 @@ final class RealWorldTests: TemporaryDirectoryTestCase {
         XCTAssertEqual(audio.outputs.first?.pathExtension, "m4a")
     }
 }
-#endif

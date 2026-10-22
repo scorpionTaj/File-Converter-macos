@@ -1,4 +1,3 @@
-#if canImport(PDFKit) && canImport(AppKit)
 import Foundation
 import AppKit
 
@@ -199,4 +198,3 @@ enum MarkdownWriter {
         return counts.max(by: { $0.value < $1.value })?.key ?? 12
     }
 }
-#endif

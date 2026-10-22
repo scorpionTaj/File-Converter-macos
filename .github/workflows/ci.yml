@@ -14,42 +14,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  core-linux:
-    name: Core tests (Linux + FFmpeg)
-    runs-on: ubuntu-latest
-    container: swift:6.0-jammy
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install FFmpeg and archivers
-        # Ubuntu mirrors occasionally stall; give each attempt a deadline and retry instead of hanging the run.
-        timeout-minutes: 12
-        shell: bash
-        run: |
-          APT="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
-          for attempt in 1 2 3; do
-            if timeout 240 apt-get $APT update -qq && timeout 300 apt-get $APT install -y -qq ffmpeg zip unzip > /dev/null; then
-              exit 0
-            fi
-            echo "::warning::apt attempt $attempt failed or stalled; retrying"
-            sleep 10
-          done
-          exit 1
-      - name: Build
-        run: swift build
-      - name: Test
-        run: swift test --parallel --xunit-output build/linux-tests.xml 2>&1 | tee build-test.log
-        shell: bash -o pipefail {0}
-      - name: Test summary
-        if: always()
-        shell: bash
-        run: scripts/test-summary.sh "Linux" build/linux-tests.xml >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-linux
-          path: build/linux-tests*.xml
-
   macos:
     name: App build & tests (macOS)
     runs-on: macos-15
@@ -124,7 +88,7 @@ jobs:
 
   nightly:
     name: Publish nightly build
-    needs: [core-linux, macos]
+    needs: [macos]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.workflow == 'CI'
     runs-on: ubuntu-latest
     permissions:
@@ -151,7 +115,7 @@ jobs:
           prerelease: true
           make_latest: false
           body: |
-            Automatic build of `main` at ${{ github.sha }}. It passed every test on Linux and macOS, but it may be unstable.
+            Automatic build of `main` at ${{ github.sha }}. It passed every test, but it may be unstable.
             Ad-hoc signed: right-click → Open on first launch.
           files: |
             dist/Kumquat-nightly.dmg

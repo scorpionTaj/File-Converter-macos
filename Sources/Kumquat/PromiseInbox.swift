@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import UniformTypeIdentifiers
 
@@ -133,4 +132,3 @@ private final class PromiseCollector: @unchecked Sendable {
         Task { @MainActor in completion(result, message) }
     }
 }
-#endif

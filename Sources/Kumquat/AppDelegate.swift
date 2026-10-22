@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 
@@ -291,4 +290,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 }
-#endif

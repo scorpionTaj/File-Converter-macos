@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 
@@ -93,4 +92,3 @@ enum HelperInstaller {
         }
     }
 }
-#endif

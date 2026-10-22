@@ -1,7 +1,7 @@
 import Foundation
 
-/// ZIP/TAR/GZ/BZ2/XZ/7z/RAR. Extraction uses the system `tar` (libarchive on macOS reads 7z and RAR too);
-/// ZIP creation uses `ditto` on macOS to keep metadata and resource forks.
+/// ZIP/TAR/GZ/BZ2/XZ/7z/RAR with the tools built into macOS: `ditto` for ZIP (keeps metadata and resource
+/// forks), `tar` (libarchive, which also reads 7z and RAR) for the rest.
 public struct ArchiveEngine: ConversionEngine {
     public let id = EngineID.archive
 
@@ -25,10 +25,8 @@ public struct ArchiveEngine: ConversionEngine {
     static func extract(_ archive: URL, format: Format, into directory: URL) async throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         switch format {
-        case .zip where SystemTool.exists(SystemTool.ditto):
+        case .zip:
             try await ProcessRunner.runChecked(SystemTool.ditto, ["-x", "-k", archive.path, directory.path])
-        case .zip where SystemTool.exists(SystemTool.unzip):
-            try await ProcessRunner.runChecked(SystemTool.unzip, ["-q", archive.path, "-d", directory.path])
         case .gz:
             let name = FormatRegistry.baseName(of: archive)
             let output = directory.appendingPathComponent(name.isEmpty ? "file" : name)
@@ -73,7 +71,7 @@ public struct ArchiveEngine: ConversionEngine {
         let environment = ["COPYFILE_DISABLE": "1"]
         switch format {
         case .zip:
-            if items.count == 1, SystemTool.exists(SystemTool.ditto) {
+            if items.count == 1 {
                 try await ProcessRunner.runChecked(SystemTool.ditto, ["-c", "-k", "--sequesterRsrc", "--keepParent", first.path, output.path])
             } else {
                 // -y stores symlinks as links; staged links must be followed instead.

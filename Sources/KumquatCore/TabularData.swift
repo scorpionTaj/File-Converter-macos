@@ -138,9 +138,7 @@ public enum Table {
         case let string as String: return string
         case is NSNull: return ""
         case let number as NSNumber:
-            #if canImport(Darwin)
             if CFGetTypeID(number) == CFBooleanGetTypeID() { return number.boolValue ? "true" : "false" }
-            #endif
             return number.stringValue
         default:
             if JSONSerialization.isValidJSONObject(value),

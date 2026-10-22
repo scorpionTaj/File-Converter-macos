@@ -10,7 +10,7 @@ let package = Package(
         .library(name: "KumquatCore", targets: ["KumquatCore"]),
     ],
     targets: [
-        // Formats, conversion graph, engines. Pure Foundation parts build and test on Linux too.
+        // Formats, conversion graph, engines.
         .target(name: "KumquatCore"),
         // The menu bar app: drag monitor, radial wheels, HUD, settings.
         .executableTarget(name: "Kumquat", dependencies: ["KumquatCore"]),

@@ -1,4 +1,3 @@
-#if os(macOS)
 import Foundation
 import os
 
@@ -45,4 +44,3 @@ enum AppLog {
         }
     }
 }
-#endif

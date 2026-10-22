@@ -1,4 +1,3 @@
-#if canImport(PDFKit) && canImport(AppKit)
 import Foundation
 import AppKit
 import PDFKit
@@ -291,4 +290,3 @@ enum Redaction {
         return (result, total)
     }
 }
-#endif

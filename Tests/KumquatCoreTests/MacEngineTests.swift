@@ -1,4 +1,3 @@
-#if canImport(ImageIO) && canImport(PDFKit) && canImport(AppKit)
 import XCTest
 import AppKit
 import ImageIO
@@ -215,4 +214,3 @@ final class MacEngineTests: TemporaryDirectoryTestCase {
         XCTAssertFalse(catalog.tools(for: [png]).isEmpty)
     }
 }
-#endif

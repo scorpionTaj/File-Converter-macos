@@ -100,7 +100,7 @@ You can also open `Package.swift` in Xcode and run the **Kumquat** scheme.
 | **Nightly** | Every push to `main` that passes all tests | The `nightly` pre-release |
 | **Per commit** | Every push and pull request | The `Kumquat` artifact on each [CI run](../../actions) |
 
-The Release workflow first runs the **full test suite** (Linux + macOS) as a reusable workflow. It then
+The Release workflow first runs the **full test suite** on macOS as a reusable workflow. It then
 checks that the tag matches `VERSION` and that `CHANGELOG.md` has a section for it. Next it builds a
 universal (arm64 + x86_64) app and verifies the bundle (version, architectures, code signature, CLI
 smoke test). Finally it publishes the assets, with that changelog section as the release notes.

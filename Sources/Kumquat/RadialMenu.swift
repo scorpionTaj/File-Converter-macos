@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 
@@ -454,4 +453,3 @@ extension NSImage {
         return image
     }
 }
-#endif

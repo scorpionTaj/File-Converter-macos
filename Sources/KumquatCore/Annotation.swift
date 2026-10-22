@@ -1,4 +1,3 @@
-#if canImport(CoreGraphics) && canImport(CoreText)
 import Foundation
 import CoreGraphics
 import CoreText
@@ -176,4 +175,3 @@ public enum AnnotationRenderer {
         context.restoreGState()
     }
 }
-#endif

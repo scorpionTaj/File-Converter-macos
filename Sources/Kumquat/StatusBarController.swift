@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 
@@ -210,4 +209,3 @@ enum StatusIcon {
         return image
     }
 }
-#endif

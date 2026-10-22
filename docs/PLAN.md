@@ -31,7 +31,7 @@ From Tangerine's public website, App Store listing and press kit:
    command.
 5. **Hackable**: adding a format is usually one line in the conversion graph.
 
-Non-goals (v1): cloud services, Windows/Linux GUI, App Store sandboxing.
+Non-goals: other platforms (Kumquat is macOS-only by design), cloud services, App Store sandboxing.
 
 ## 3. Interaction design
 
@@ -178,13 +178,14 @@ The release build can bundle static `ffmpeg`/`ffprobe` (set `FFMPEG_BIN`/`FFPROB
 - `LSUIElement` (menu bar only), Launch at Login via `SMAppService`.
 
 ## 7. Quality & testing
-- **Unit tests (Linux + macOS)**: format detection, graph routing & policy, catalog decisions, naming,
-  SRT/VTT, CSV/JSON/Markdown tables, Markdown renderer, every FFmpeg recipe, AppleScript generation.
-- **Integration tests**: real FFmpeg conversions/tools (Linux CI installs FFmpeg), archives, data,
-  subtitles, checksums; on macOS: ImageIO conversions & tools, PDF render/merge/split/encrypt/redact,
-  document round trips.
-- **CI**: GitHub Actions — Linux (Swift 6 container + FFmpeg) and macOS 15 (tests, `.app`, `.dmg`,
-  CLI smoke test, artifact upload). Tag `v*` → universal release with zip + dmg.
+- **Unit tests**: format detection, graph routing & policy, catalog decisions, naming, SRT/VTT,
+  CSV/JSON/Markdown tables, Markdown renderer, every FFmpeg recipe and encoder fallback, AppleScript
+  generation, parsers, concurrency and timeouts.
+- **Integration tests**: ImageIO conversions & tools, OCR, PDF render/merge/split/encrypt/redact/OCR,
+  document round trips, real FFmpeg/Pandoc/pngquant/cwebp/avifenc conversions (CI installs them with
+  Homebrew), archives, data, subtitles, checksums.
+- **CI**: GitHub Actions on macOS 15: tests with coverage, `.app`, styled `.dmg` verified by mounting it,
+  CLI smoke test, artifacts, nightly pre-release. The Release workflow adds version prep and a universal build.
 - **Manual QA checklist** (each release): drag from Finder/Desktop/Mail attachment; each modifier; swap
   wheels mid-drag; cancel on hub; multi-file drop; Spaces/full-screen; dark/light; external display;
   missing helper messaging; read-only source folder.

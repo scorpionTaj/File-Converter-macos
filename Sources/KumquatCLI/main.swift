@@ -1,8 +1,6 @@
 import Foundation
 import KumquatCore
-#if canImport(AppKit)
 import AppKit
-#endif
 
 let usage = """
 kumquat-cli — Kumquat's converter from the command line
@@ -65,10 +63,8 @@ func printProgress(_ fraction: Double) {
     FileHandle.standardError.write(Data("\r  \(percent)%".utf8))
 }
 
-#if canImport(AppKit)
 // HTML import and PDF printing use AppKit; make sure an application object exists.
 _ = NSApplication.shared
-#endif
 
 let args = Arguments(Array(CommandLine.arguments.dropFirst()))
 let converter = Converter()

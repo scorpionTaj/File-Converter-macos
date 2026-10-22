@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// CSV/TSV/JSON/Property List conversions in pure Swift.
 public struct DataEngine: ConversionEngine {
@@ -222,17 +223,18 @@ public enum IWorkScripts {
     }
 }
 
-/// SHA-256 without depending on CryptoKit, so it also runs on Linux.
+/// SHA-256 with CryptoKit, streamed in 1 MB chunks so large files never load into memory.
 enum Checksum {
     static func sha256(of url: URL) async throws -> String {
-        #if os(macOS)
-        let result = try await ProcessRunner.runChecked(URL(fileURLWithPath: "/usr/bin/shasum"), ["-a", "256", url.path])
-        #else
-        let result = try await ProcessRunner.runChecked(URL(fileURLWithPath: "/usr/bin/sha256sum"), [url.path])
-        #endif
-        guard let digest = result.stdout.split(separator: " ").first, digest.count == 64 else {
-            throw KumquatError.conversionFailed("Couldn't compute the checksum.")
-        }
-        return String(digest)
+        try await Task.detached(priority: .userInitiated) {
+            let handle = try FileHandle(forReadingFrom: url)
+            defer { try? handle.close() }
+            var hasher = SHA256()
+            while let chunk = try handle.read(upToCount: 1 << 20), !chunk.isEmpty {
+                try Task.checkCancellation()
+                hasher.update(data: chunk)
+            }
+            return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+        }.value
     }
 }

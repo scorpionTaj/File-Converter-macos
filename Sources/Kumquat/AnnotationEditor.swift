@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 import KumquatCore
 
@@ -491,4 +490,3 @@ extension AnnotationWindowController {
         }
     }
 }
-#endif

@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 
 /// Small toast in the top-right corner showing progress and results. Click it to reveal the output.
@@ -213,4 +212,3 @@ final class ClickableEffectView: NSVisualEffectView {
         onClick?()
     }
 }
-#endif

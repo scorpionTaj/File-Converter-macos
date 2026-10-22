@@ -1,4 +1,3 @@
-#if os(macOS)
 import AppKit
 
 /// Offers to move Kumquat into Applications when it's launched from the disk image, Downloads or elsewhere,
@@ -91,4 +90,3 @@ enum ApplicationsMover {
         }
     }
 }
-#endif
