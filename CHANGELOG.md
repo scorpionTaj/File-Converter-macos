@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-22
+
 ### Added
 - New **Output** settings tab:
   - File name template with `{name}`, `{format}`, `{date}` and `{time}`, plus a live example.
@@ -126,7 +128,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.1.0...v0.2.0
