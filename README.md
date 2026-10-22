@@ -125,6 +125,7 @@ code-coverage table on the run page.
 kumquat-cli convert IMG_0042.HEIC --to jpg
 kumquat-cli convert talk.mov --to mp4 --crf 20
 kumquat-cli convert data.xlsx --to json --out ~/Desktop
+kumquat-cli convert *.HEIC --to jpg --name "{name}-web" --max-size 2048 --metadata removeLocation
 kumquat-cli tool pdfMerge part1.pdf part2.pdf
 kumquat-cli tool pdfRedactPersonalInfo contract.pdf
 kumquat-cli targets song.flac      # what can this become?

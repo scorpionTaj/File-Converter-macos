@@ -15,9 +15,47 @@ public struct ImageEngine: ConversionEngine {
             try await PDFEngine.makePDF(fromImages: [input], output: output, context: context)
             return output
         }
-        let image = try await Self.loadImage(input, source: source, context: context)
-        try await Self.write(image, to: output, format: target, quality: context.options.imageQuality, context: context)
+        let options = context.options
+        let image = try Self.limited(try await Self.loadImage(input, source: source, context: context),
+                                     maxDimension: options.maxImageDimension)
+        try await Self.write(image, to: output, format: target, quality: options.quality(for: target),
+                             metadata: Self.metadataProperties(of: input, policy: options.metadata), context: context)
         return output
+    }
+
+    /// Scales down so the longest side is at most `maxDimension` (0 = no limit). Never enlarges.
+    static func limited(_ image: CGImage, maxDimension: Int) throws -> CGImage {
+        let longest = max(image.width, image.height)
+        guard maxDimension > 0, longest > maxDimension else { return image }
+        return try resized(image, scale: CGFloat(maxDimension) / CGFloat(longest))
+    }
+
+    /// EXIF/TIFF/IPTC (and GPS unless removed) from the source, for writing into the converted file.
+    /// Orientation is reset because the pixels are already upright, and pixel sizes are dropped
+    /// because the image may have been resized.
+    static func metadataProperties(of url: URL, policy: MetadataPolicy) -> [CFString: Any]? {
+        guard policy != .removeAll,
+              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any] else { return nil }
+        var keys = [kCGImagePropertyExifDictionary, kCGImagePropertyExifAuxDictionary,
+                    kCGImagePropertyTIFFDictionary, kCGImagePropertyIPTCDictionary]
+        if policy == .keep { keys.append(kCGImagePropertyGPSDictionary) }
+        var result: [CFString: Any] = [:]
+        for key in keys {
+            if let value = properties[key] { result[key] = value }
+        }
+        guard !result.isEmpty else { return nil }
+        if var exif = result[kCGImagePropertyExifDictionary] as? [CFString: Any] {
+            exif[kCGImagePropertyExifPixelXDimension] = nil
+            exif[kCGImagePropertyExifPixelYDimension] = nil
+            result[kCGImagePropertyExifDictionary] = exif
+        }
+        if var tiff = result[kCGImagePropertyTIFFDictionary] as? [CFString: Any] {
+            tiff[kCGImagePropertyTIFFOrientation] = 1
+            result[kCGImagePropertyTIFFDictionary] = tiff
+        }
+        result[kCGImagePropertyOrientation] = 1
+        return result
     }
 
     // MARK: Reading
@@ -87,9 +125,10 @@ public struct ImageEngine: ConversionEngine {
         uti(for: format).map { writableTypes.contains($0) } ?? false
     }
 
-    static func write(_ image: CGImage, to url: URL, format: Format, quality: Double, context: EngineContext) async throws {
+    static func write(_ image: CGImage, to url: URL, format: Format, quality: Double,
+                      metadata: [CFString: Any]? = nil, context: EngineContext) async throws {
         if canWrite(format) {
-            try encode(image, to: url, format: format, quality: quality)
+            try encode(image, to: url, format: format, quality: quality, metadata: metadata)
         } else if format == .webp || format == .avif {
             let png = context.scratchURL("png")
             try encode(image, to: png, format: .png, quality: 1)
@@ -99,7 +138,8 @@ public struct ImageEngine: ConversionEngine {
         }
     }
 
-    static func encode(_ image: CGImage, to url: URL, format: Format, quality: Double) throws {
+    static func encode(_ image: CGImage, to url: URL, format: Format, quality: Double,
+                       metadata: [CFString: Any]? = nil) throws {
         guard let type = Self.uti(for: format) else { throw KumquatError.noRoute(from: "image", to: format.name) }
         let representations: [CGImage]
         switch format {
@@ -116,11 +156,16 @@ public struct ImageEngine: ConversionEngine {
         guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type as CFString, representations.count, nil) else {
             throw KumquatError.engineUnavailable("\(format.name) encoding")
         }
-        let properties: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: quality]
+        var properties: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: quality]
+        if let metadata, representations.count == 1 {
+            properties.merge(metadata) { current, _ in current }
+        }
         for representation in representations {
             CGImageDestinationAddImage(destination, representation, properties as CFDictionary)
         }
         guard CGImageDestinationFinalize(destination) else {
+            // Unusual metadata can make an encoder refuse the file; the pixels matter more.
+            if metadata != nil { return try encode(image, to: url, format: format, quality: quality) }
             throw KumquatError.conversionFailed("Couldn't write \(format.name).")
         }
     }
@@ -218,7 +263,7 @@ public struct ImageEngine: ConversionEngine {
                         context: EngineContext) async throws -> ToolArtifact {
         let image = try await loadImage(input, source: source, context: context)
         var format = toolOutputFormat(for: source)
-        var quality = context.options.imageQuality
+        var quality = context.options.quality(for: format)
         let result: CGImage
 
         switch tool {

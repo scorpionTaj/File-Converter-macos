@@ -11,8 +11,9 @@ final class WindowManager {
 
     func showSettings(app: AppDelegate) {
         if settingsWindow == nil {
-            settingsWindow = makeWindow(title: "Kumquat Settings", size: NSSize(width: 560, height: 520),
-                                        view: SettingsView(settings: app.settings))
+            settingsWindow = makeWindow(title: "Kumquat Settings", size: NSSize(width: 620, height: 600),
+                                        view: SettingsView(settings: app.settings,
+                                                           isBusy: { [weak app] in app?.hasRunningJobs ?? false }))
         }
         present(settingsWindow)
     }
@@ -52,22 +53,27 @@ final class WindowManager {
 
 struct SettingsView: View {
     @ObservedObject var settings: SettingsStore
+    let isBusy: () -> Bool
 
     var body: some View {
         TabView {
             GeneralSettings(settings: settings)
                 .tabItem { Label("General", systemImage: "gearshape") }
-            AppearanceSettings(settings: settings)
-                .tabItem { Label("Appearance", systemImage: "paintpalette") }
+            OutputSettings(settings: settings)
+                .tabItem { Label("Output", systemImage: "folder") }
             ConversionSettings(settings: settings)
                 .tabItem { Label("Quality", systemImage: "slider.horizontal.3") }
+            AppearanceSettings(settings: settings)
+                .tabItem { Label("Appearance", systemImage: "paintpalette") }
             EngineSettings(settings: settings)
                 .tabItem { Label("Engines", systemImage: "shippingbox") }
+            AdvancedSettings(settings: settings, isBusy: isBusy)
+                .tabItem { Label("Advanced", systemImage: "wrench.and.screwdriver") }
             AboutView()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
         .padding(12)
-        .frame(width: 560, height: 520)
+        .frame(width: 620, height: 600)
     }
 }
 
@@ -85,18 +91,7 @@ struct GeneralSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section("Results") {
-                Picker("Save results", selection: $settings.outputMode) {
-                    ForEach(OutputMode.allCases) { Text($0.title).tag($0) }
-                }
-                if settings.outputMode == .custom {
-                    HStack {
-                        TextField("Folder", text: $settings.customFolder)
-                        Button("Choose…") {
-                            if let url = Prompt.chooseFolder(title: "Save results to") { settings.customFolder = url.path }
-                        }
-                    }
-                }
+            Section("Feedback") {
                 Toggle("Reveal results in Finder", isOn: $settings.revealInFinder)
                 Toggle("Play a sound when done", isOn: $settings.playSound)
                 Toggle("Offer to move Kumquat to Applications", isOn: $settings.offerMoveToApplications)
@@ -122,30 +117,287 @@ struct GeneralSettings: View {
     }
 }
 
+struct OutputSettings: View {
+    @ObservedObject var settings: SettingsStore
+
+    var body: some View {
+        Form {
+            Section("Location") {
+                Picker("Save results", selection: $settings.outputMode) {
+                    ForEach(OutputMode.allCases) { Text($0.title).tag($0) }
+                }
+                if settings.outputMode == .custom {
+                    HStack {
+                        TextField("Folder", text: $settings.customFolder)
+                        Button("Choose…") {
+                            if let url = Prompt.chooseFolder(title: "Save results to") { settings.customFolder = url.path }
+                        }
+                    }
+                }
+            }
+            Section {
+                TextField("Name", text: $settings.fileNameTemplate, prompt: Text(FileNameTemplate.default))
+                HStack(spacing: 6) {
+                    ForEach(FileNameTemplate.tokens, id: \.token) { item in
+                        Button(item.token) { settings.fileNameTemplate += item.token }
+                            .help(item.meaning)
+                            .controlSize(.small)
+                    }
+                    Spacer()
+                    Button("Reset") { settings.fileNameTemplate = FileNameTemplate.default }
+                        .controlSize(.small)
+                        .disabled(settings.fileNameTemplate == FileNameTemplate.default)
+                }
+                LabeledContent("Example") {
+                    Text(FileNameTemplate.render(settings.fileNameTemplate, name: "IMG_0042", format: "JPG") + ".jpg")
+                        .font(.callout.monospaced())
+                        .textSelection(.enabled)
+                }
+            } header: {
+                Text("File names")
+            } footer: {
+                Text("Used for conversions. Tools keep names like “IMG_0042 (compressed)”.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("When a file with that name exists") {
+                Picker("Existing file", selection: $settings.conflictPolicy) {
+                    Text("Keep both (add a number)").tag(ConflictPolicy.keepBoth)
+                    Text("Replace (old file goes to the Trash)").tag(ConflictPolicy.replace)
+                    Text("Skip").tag(ConflictPolicy.skip)
+                }
+            }
+            Section {
+                Picker("After saving", selection: $settings.originalsPolicy) {
+                    Text("Keep the original").tag(OriginalsPolicy.keep)
+                    Text("Move the original to the Trash").tag(OriginalsPolicy.trash)
+                }
+                Toggle("Give results the original's file dates", isOn: $settings.preserveFileDates)
+            } header: {
+                Text("Originals")
+            } footer: {
+                Text("Merging, zipping and other tools that combine files never trash the originals.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                Picker("Photo & media metadata", selection: $settings.metadataPolicy) {
+                    Text("Keep (camera, date, location)").tag(MetadataPolicy.keep)
+                    Text("Remove location only").tag(MetadataPolicy.removeLocation)
+                    Text("Remove all").tag(MetadataPolicy.removeAll)
+                }
+            } header: {
+                Text("Privacy")
+            } footer: {
+                Text("Applies to image, audio and video conversions.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+}
+
 struct ConversionSettings: View {
     @ObservedObject var settings: SettingsStore
+
+    private static let imageSizes = [0, 4096, 3840, 2560, 2048, 1920, 1600, 1280, 1024, 800]
+    private static let videoHeights = [0, 2160, 1440, 1080, 720, 480]
+    private static let frameRates = [0, 60, 30, 24]
+    private static let presets = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
 
     var body: some View {
         Form {
             Section("Images") {
                 Slider(value: $settings.imageQuality, in: 0.4...1, step: 0.05) {
-                    Text("JPEG / HEIC / WebP quality: \(Int(settings.imageQuality * 100))%")
+                    Text("Default quality: \(Int(settings.imageQuality * 100))%")
+                }
+                FormatQualityRow(title: "JPEG", value: $settings.jpegQuality, fallback: settings.imageQuality)
+                FormatQualityRow(title: "HEIC", value: $settings.heicQuality, fallback: settings.imageQuality)
+                FormatQualityRow(title: "WebP", value: $settings.webpQuality, fallback: settings.imageQuality)
+                FormatQualityRow(title: "AVIF", value: $settings.avifQuality, fallback: settings.imageQuality)
+                Picker("Maximum size", selection: $settings.maxImageDimension) {
+                    ForEach(Self.imageSizes, id: \.self) { Text($0 == 0 ? "Original" : "\($0) px longest side").tag($0) }
                 }
                 Stepper("PDF page render: \(settings.pdfDPI) dpi", value: $settings.pdfDPI, in: 72...600, step: 24)
             }
-            Section("Video") {
+            Section {
                 Stepper("H.264 quality (CRF): \(settings.videoCRF)", value: $settings.videoCRF, in: 14...36)
-                Text("Lower is better quality and bigger files. 18 is visually lossless, 23 is the default, 28 is small.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Picker("Encoder", selection: $settings.videoEncoder) {
+                    Text("Automatic").tag(VideoEncoderPreference.automatic)
+                    Text("Hardware (fast)").tag(VideoEncoderPreference.hardware)
+                    Text("Software (smallest files)").tag(VideoEncoderPreference.software)
+                }
+                Picker("Speed", selection: $settings.videoPreset) {
+                    ForEach(Self.presets, id: \.self) { Text($0.capitalized).tag($0) }
+                }
+                .disabled(settings.videoEncoder == .hardware)
+                Picker("Maximum resolution", selection: $settings.maxVideoHeight) {
+                    ForEach(Self.videoHeights, id: \.self) { Text($0 == 0 ? "Original" : "\($0)p").tag($0) }
+                }
+                Picker("Maximum frame rate", selection: $settings.maxFrameRate) {
+                    ForEach(Self.frameRates, id: \.self) { Text($0 == 0 ? "Original" : "\($0) fps").tag($0) }
+                }
+                Toggle("Remove audio", isOn: $settings.removeAudio)
+            } header: {
+                Text("Video")
+            } footer: {
+                Text("Lower CRF is better quality and bigger files: 18 is visually lossless, 23 the default, 28 small. Slower speeds make smaller files.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Audio") {
                 Picker("Lossy bitrate", selection: $settings.audioBitrate) {
                     ForEach([96, 128, 160, 192, 256, 320], id: \.self) { Text("\($0) kbps").tag($0) }
                 }
+                Picker("Sample rate", selection: $settings.audioSampleRate) {
+                    Text("Original").tag(0)
+                    Text("44.1 kHz").tag(44100)
+                    Text("48 kHz").tag(48000)
+                }
+                Picker("Channels", selection: $settings.audioChannels) {
+                    Text("Original").tag(0)
+                    Text("Mono").tag(1)
+                    Text("Stereo").tag(2)
+                }
+                Toggle("Normalise loudness (−16 LUFS)", isOn: $settings.normalizeAudio)
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// "Use the default" or a format's own quality slider.
+struct FormatQualityRow: View {
+    let title: String
+    @Binding var value: Double
+    let fallback: Double
+
+    var body: some View {
+        let custom = (0...1).contains(value)
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("\(title): \(custom ? "\(Int(value * 100))%" : "default")",
+                   isOn: Binding(get: { custom }, set: { value = $0 ? fallback : -1 }))
+            if custom {
+                Slider(value: $value, in: 0.3...1, step: 0.05)
+            }
+        }
+    }
+}
+
+struct AdvancedSettings: View {
+    @ObservedObject var settings: SettingsStore
+    let isBusy: () -> Bool
+    @State private var status: String?
+
+    var body: some View {
+        Form {
+            Section {
+                Stepper("Convert \(settings.parallelJobs) file\(settings.parallelJobs == 1 ? "" : "s") at a time",
+                        value: $settings.parallelJobs, in: 1...8)
+            } header: {
+                Text("Batches")
+            } footer: {
+                Text("More is faster on Apple silicon but uses more memory. Video conversions already use every core.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section("Troubleshooting") {
+                HStack {
+                    Button("Open Log") { Self.openLog() }
+                    Button("Copy Diagnostics") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(Self.diagnostics(), forType: .string)
+                        status = "Diagnostics copied. Paste them into a GitHub issue."
+                    }
+                    Button("Clear Temporary Files") {
+                        guard !isBusy() else {
+                            status = "Wait for running conversions to finish first."
+                            return
+                        }
+                        status = Self.clearTemporaryFiles()
+                    }
+                }
+                if let status {
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Section("Reset") {
+                Button("Reset All Settings…", role: .destructive) { confirmReset() }
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private func confirmReset() {
+        let alert = NSAlert()
+        alert.messageText = "Reset all Kumquat settings?"
+        alert.informativeText = "Keys, quality, output, theme and recent files go back to their defaults. Kumquat will relaunch."
+        alert.addButton(withTitle: "Reset and Relaunch")
+        alert.addButton(withTitle: "Cancel")
+        alert.alertStyle = .warning
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        settings.resetAll()
+        AppLog.info("Settings reset")
+        ApplicationsMover.relaunch(Bundle.main.bundleURL, eject: nil)
+    }
+
+    static func openLog() {
+        let url = AppLog.fileURL
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.open(url)
+        } else {
+            NSWorkspace.shared.open(url.deletingLastPathComponent().deletingLastPathComponent())
+        }
+    }
+
+    /// Removes leftovers of interrupted jobs from the temporary folder.
+    static func clearTemporaryFiles() -> String {
+        let fm = FileManager.default
+        let folder = fm.temporaryDirectory.appendingPathComponent("Kumquat", isDirectory: true)
+        let items = (try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.totalFileAllocatedSizeKey])) ?? []
+        var bytes: Int64 = 0
+        var removed = 0
+        for item in items {
+            bytes += Self.size(of: item)
+            if (try? fm.removeItem(at: item)) != nil { removed += 1 }
+        }
+        guard removed > 0 else { return "Nothing to clear." }
+        return "Removed \(removed) item\(removed == 1 ? "" : "s") (\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))."
+    }
+
+    private static func size(of url: URL) -> Int64 {
+        guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: [.totalFileAllocatedSizeKey]) else {
+            return 0
+        }
+        var total: Int64 = 0
+        for case let file as URL in enumerator {
+            total += Int64((try? file.resourceValues(forKeys: [.totalFileAllocatedSizeKey]))?.totalFileAllocatedSize ?? 0)
+        }
+        return total
+    }
+
+    @MainActor
+    static func diagnostics() -> String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let version = info["CFBundleShortVersionString"] as? String ?? "dev"
+        let build = info["CFBundleVersion"] as? String ?? "?"
+        var architecture = "x86_64"
+        #if arch(arm64)
+        architecture = "arm64"
+        #endif
+        var lines = [
+            "Kumquat \(version) (\(build))",
+            "macOS \(ProcessInfo.processInfo.operatingSystemVersionString), \(architecture)",
+            "",
+            "Helpers:",
+        ]
+        for dependency in Dependency.allCases {
+            let status = EngineMonitor.shared.status(of: dependency)
+            let detail = status?.path.map { "\($0) \(status?.version ?? "")" } ?? "not found"
+            lines.append("- \(dependency.displayName): \(detail)")
+        }
+        let options = SettingsStore.shared.options
+        lines += [
+            "",
+            "Options: template \(options.fileNameTemplate), conflict \(options.conflictPolicy.rawValue), originals \(options.originals.rawValue), metadata \(options.metadata.rawValue), encoder \(options.videoEncoder.rawValue), parallel \(SettingsStore.shared.parallelJobs)",
+        ]
+        return lines.joined(separator: "\n")
     }
 }
 

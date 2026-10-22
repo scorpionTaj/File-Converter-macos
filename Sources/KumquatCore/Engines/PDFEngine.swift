@@ -77,7 +77,7 @@ public struct PDFEngine: ConversionEngine {
 
     static func renderPages(_ document: PDFDocument, to output: URL, format: Format, context: EngineContext) async throws -> URL {
         let dpi = context.options.pdfRenderDPI
-        let quality = context.options.imageQuality
+        let quality = context.options.quality(for: format)
         guard document.pageCount > 0 else { throw KumquatError.nothingToDo("The PDF has no pages.") }
         if document.pageCount == 1, let page = document.page(at: 0) {
             try await ImageEngine.write(render(page, dpi: dpi), to: output, format: format, quality: quality, context: context)

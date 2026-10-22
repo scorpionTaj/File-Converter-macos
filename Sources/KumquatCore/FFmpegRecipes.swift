@@ -147,63 +147,111 @@ public enum FFmpegRecipes {
         }
     }
 
-    static func h264(crf: Int, preset: String = "medium", filter: String = evenDimensions, encoders: EncoderSet = .all) -> [String] {
-        if encoders.has("libx264") {
-            return ["-c:v", "libx264", "-preset", preset, "-crf", "\(crf)", "-pix_fmt", "yuv420p", "-vf", filter]
+    static let x264Presets = ["ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"]
+
+    static func h264(crf: Int, preset: String = "medium", filter: String = evenDimensions, encoders: EncoderSet = .all,
+                     preference: VideoEncoderPreference = .automatic) -> [String] {
+        let x264 = ["-c:v", "libx264", "-preset", x264Presets.contains(preset) ? preset : "medium",
+                    "-crf", "\(crf)", "-pix_fmt", "yuv420p", "-vf", filter]
+        // Apple's hardware encoder is always present on macOS builds; it takes a bitrate, not a CRF.
+        let bitrate = crf <= 20 ? "10M" : crf <= 24 ? "6M" : "3M"
+        let videoToolbox = ["-c:v", "h264_videotoolbox", "-b:v", bitrate, "-pix_fmt", "yuv420p", "-vf", filter]
+        let order: [(String, [String])]
+        switch preference {
+        case .automatic: order = [("libx264", x264), ("h264_videotoolbox", videoToolbox)]
+        case .hardware: order = [("h264_videotoolbox", videoToolbox), ("libx264", x264)]
+        case .software: order = [("libx264", x264)]
         }
-        if encoders.has("h264_videotoolbox") {
-            // Apple's hardware encoder is always present on macOS builds; it takes a bitrate, not a CRF.
-            let bitrate = crf <= 20 ? "10M" : crf <= 24 ? "6M" : "3M"
-            return ["-c:v", "h264_videotoolbox", "-b:v", bitrate, "-pix_fmt", "yuv420p", "-vf", filter]
-        }
+        for (encoder, args) in order where encoders.has(encoder) { return args }
         return ["-c:v", "mpeg4", "-q:v", "\(max(2, min(31, crf / 5)))", "-pix_fmt", "yuv420p", "-vf", filter]
     }
 
-    static func webmArguments(crf: Int, encoders: EncoderSet) -> [String] {
-        var args: [String]
+    /// WebM video encoder arguments. `filter` is only added when scaling was asked for.
+    static func webmVideoArguments(crf: Int, filter: String?, encoders: EncoderSet) -> [String] {
+        let scale = filter.map { ["-vf", $0] } ?? []
         if encoders.has("libvpx-vp9") {
-            args = ["-c:v", "libvpx-vp9", "-crf", "\(min(crf + 8, 63))", "-b:v", "0", "-row-mt", "1",
-                    "-deadline", "good", "-cpu-used", "4"]
-        } else if encoders.has("libsvtav1") {
-            args = ["-c:v", "libsvtav1", "-crf", "\(min(crf + 12, 63))", "-preset", "8", "-vf", evenDimensions]
-        } else if encoders.has("libaom-av1") {
-            args = ["-c:v", "libaom-av1", "-crf", "\(min(crf + 12, 63))", "-b:v", "0", "-cpu-used", "8", "-row-mt", "1"]
-        } else {
-            args = ["-c:v", "libvpx", "-crf", "\(min(crf + 8, 63))", "-b:v", "1M"]
+            return ["-c:v", "libvpx-vp9", "-crf", "\(min(crf + 8, 63))", "-b:v", "0", "-row-mt", "1",
+                    "-deadline", "good", "-cpu-used", "4"] + scale
         }
-        if let audio = encoders.first("libopus", "libvorbis") {
-            args += ["-c:a", audio, "-b:a", "128k"]
-        } else {
-            args += ["-c:a", "opus", "-strict", "experimental", "-ar", "48000", "-b:a", "128k"]
+        if encoders.has("libsvtav1") {
+            return ["-c:v", "libsvtav1", "-crf", "\(min(crf + 12, 63))", "-preset", "8", "-vf", filter ?? evenDimensions]
         }
-        return args
+        if encoders.has("libaom-av1") {
+            return ["-c:v", "libaom-av1", "-crf", "\(min(crf + 12, 63))", "-b:v", "0", "-cpu-used", "8", "-row-mt", "1"] + scale
+        }
+        return ["-c:v", "libvpx", "-crf", "\(min(crf + 8, 63))", "-b:v", "1M"] + scale
+    }
+
+    static func webmAudioArguments(encoders: EncoderSet) -> [String] {
+        if let audio = encoders.first("libopus", "libvorbis") { return ["-c:a", audio, "-b:a", "128k"] }
+        return ["-c:a", "opus", "-strict", "experimental", "-ar", "48000", "-b:a", "128k"]
+    }
+
+    /// Scale filter honouring the maximum height; nil when no limit is set.
+    static func scaleFilter(maxHeight: Int) -> String? {
+        maxHeight > 0 ? "scale=-2:'min(\(maxHeight),trunc(ih/2)*2)'" : nil
     }
 
     static func videoArguments(target: Format, probe: MediaProbe?, options: ConversionOptions, encoders: EncoderSet = .all) -> [String] {
-        let maps = ["-map", "0:v:0", "-map", "0:a?"]
-        if let probe, canRemux(probe, into: target) {
-            var args = ["-map", "0:v:0", "-map", "0:a?", "-c", "copy"]
+        let maps = options.removeAudio ? ["-map", "0:v:0"] : ["-map", "0:v:0", "-map", "0:a?"]
+        func audio(_ args: [String]) -> [String] { options.removeAudio ? ["-an"] : args }
+        let scale = scaleFilter(maxHeight: options.maxVideoHeight)
+        let fitsHeight = options.maxVideoHeight == 0 || (probe?.height ?? Int.max) <= options.maxVideoHeight
+        if let probe, canRemux(probe, into: target), fitsHeight, options.maxFrameRate == 0 {
+            var args = maps + ["-c", "copy"]
             if probe.videoCodec == "hevc", [.mp4, .m4v, .mov].contains(target) { args += ["-tag:v", "hvc1"] }
             if [.mp4, .m4v, .mov].contains(target) { args += ["-movflags", "+faststart"] }
             return args
         }
-        let crf = options.videoCRF
+        let fps = options.maxFrameRate > 0 ? ["-fpsmax", "\(options.maxFrameRate)"] : []
+        let videoCodec = Self.h264(crf: options.videoCRF, preset: options.videoPreset, filter: scale ?? evenDimensions,
+                                        encoders: encoders, preference: options.videoEncoder) + fps
+        let aac = ["-c:a", "aac", "-b:a", "160k"]
+        let scaleArgs = scale.map { ["-vf", $0] } ?? []
         switch target {
         case .mp4, .m4v, .mov:
-            return maps + h264(crf: crf, encoders: encoders) + ["-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"]
+            return maps + videoCodec + audio(aac) + ["-movflags", "+faststart"]
         case .mkv:
-            return maps + h264(crf: crf, encoders: encoders) + ["-c:a", "aac", "-b:a", "160k"]
+            return maps + videoCodec + audio(aac)
         case .webm:
-            return maps + webmArguments(crf: crf, encoders: encoders)
+            return maps + webmVideoArguments(crf: options.videoCRF, filter: scale, encoders: encoders) + fps
+                + audio(webmAudioArguments(encoders: encoders))
         case .avi:
-            let audio = encoders.has("libmp3lame") ? ["-c:a", "libmp3lame", "-b:a", "192k"] : ["-c:a", "ac3", "-b:a", "192k"]
-            return maps + ["-c:v", "mpeg4", "-q:v", "4"] + audio
+            let mp3 = encoders.has("libmp3lame") ? ["-c:a", "libmp3lame", "-b:a", "192k"] : ["-c:a", "ac3", "-b:a", "192k"]
+            return maps + ["-c:v", "mpeg4", "-q:v", "4"] + scaleArgs + fps + audio(mp3)
         case .wmv:
-            return maps + ["-c:v", "wmv2", "-b:v", "4M", "-c:a", "wmav2", "-b:a", "192k"]
+            return maps + ["-c:v", "wmv2", "-b:v", "4M"] + scaleArgs + fps + audio(["-c:a", "wmav2", "-b:a", "192k"])
         case .gif:
             return ["-map", "0:v:0", "-vf", gifFilter(fps: options.gifFPS, maxWidth: options.gifMaxWidth), "-loop", "0"]
         default:
             return maps
+        }
+    }
+
+    /// Sample rate, channels and loudness options for audio conversions.
+    static func audioExtras(target: Format, probe: MediaProbe?, options: ConversionOptions, codec: [String],
+                            encoders: EncoderSet) -> [String] {
+        var args: [String] = []
+        if options.normalizeAudio { args += ["-af", "loudnorm=I=-16:TP=-1.5:LRA=11"] }
+        // Some fallback encoders pin the channel count themselves (native Vorbis is stereo-only).
+        if options.audioChannels > 0, !codec.contains("-ac") { args += ["-ac", "\(options.audioChannels)"] }
+        var rate = options.audioSampleRate
+        // loudnorm resamples to 192 kHz; go back to the source rate unless one was chosen.
+        if options.normalizeAudio, rate == 0 { rate = probe?.sampleRate ?? 48000 }
+        // Opus only takes 48/24/16/12/8 kHz.
+        let isOpus = target == .opus || (target == .ogg && !encoders.has("libvorbis"))
+        if isOpus { rate = options.normalizeAudio ? 48000 : 0 }
+        if rate > 0 { args += ["-ar", "\(rate)"] }
+        return args
+    }
+
+    /// Metadata handling for converted media.
+    static func metadataArguments(_ policy: MetadataPolicy, audio: Bool) -> [String] {
+        switch policy {
+        case .keep: return audio ? ["-map_metadata", "0"] : []
+        case .removeAll: return ["-map_metadata", "-1"]
+        case .removeLocation:
+            return (audio ? ["-map_metadata", "0"] : []) + ["-metadata", "location=", "-metadata", "location-eng="]
         }
     }
 
@@ -220,11 +268,14 @@ public enum FFmpegRecipes {
             guard let codec = audioCodecArguments(for: target, bitrate: options.audioBitrateKbps, encoders: encoders) else {
                 throw missingEncoder(for: target)
             }
-            args += ["-map", "0:a:0", "-vn"] + codec + ["-map_metadata", "0"]
+            args += ["-map", "0:a:0", "-vn"] + codec
+                + audioExtras(target: target, probe: probe, options: options, codec: codec, encoders: encoders)
+                + metadataArguments(options.metadata, audio: true)
         } else if target.kind == .subtitle {
             args += ["-map", "0:s:0?"]
         } else {
             args += videoArguments(target: target, probe: probe, options: options, encoders: encoders)
+            if target != .gif { args += metadataArguments(options.metadata, audio: false) }
         }
         return args + [output]
     }
@@ -298,9 +349,10 @@ public enum FFmpegRecipes {
         let body: [String]
         switch tool {
         case .videoCompress:
-            body = maps + h264(crf: 28, preset: "slow", encoders: encoders) + ["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]
+            body = maps + h264(crf: 28, preset: "slow", encoders: encoders, preference: options.videoEncoder) + ["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"]
         case .video720p:
-            body = maps + h264(crf: options.videoCRF, filter: "scale=-2:'min(720,trunc(ih/2)*2)'", encoders: encoders) + aacAudio
+            body = maps + h264(crf: options.videoCRF, filter: "scale=-2:'min(720,trunc(ih/2)*2)'", encoders: encoders,
+                                preference: options.videoEncoder) + aacAudio
         case .videoMute:
             body = ["-map", "0:v", "-c:v", "copy", "-an"]
         case .videoExtractAudio:
@@ -308,10 +360,12 @@ public enum FFmpegRecipes {
                 ? ["-map", "0:a:0", "-vn", "-c:a", "copy"]
                 : ["-map", "0:a:0", "-vn", "-c:a", "aac", "-b:a", "192k"]
         case .videoRotate:
-            body = maps + h264(crf: options.videoCRF, filter: "transpose=1," + evenDimensions, encoders: encoders) + aacAudio
+            body = maps + h264(crf: options.videoCRF, filter: "transpose=1," + evenDimensions, encoders: encoders,
+                                preference: options.videoEncoder) + aacAudio
         case .videoSpeedUp:
             body = maps + ["-filter:a", "atempo=2.0"]
-                + h264(crf: options.videoCRF, filter: "setpts=0.5*PTS," + evenDimensions, encoders: encoders) + aacAudio
+                + h264(crf: options.videoCRF, filter: "setpts=0.5*PTS," + evenDimensions, encoders: encoders,
+                       preference: options.videoEncoder) + aacAudio
         case .videoFirstFrame:
             body = ["-map", "0:v:0", "-frames:v", "1"]
         case .audioNormalize:

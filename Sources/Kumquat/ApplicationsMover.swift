@@ -71,7 +71,7 @@ enum ApplicationsMover {
     }
 
     /// Waits for this process to exit, opens the installed copy, then ejects the image.
-    private static func relaunch(_ app: URL, eject volume: URL?) {
+    static func relaunch(_ app: URL, eject volume: URL?) {
         let script = #"""
         while kill -0 "$1" 2>/dev/null; do sleep 0.2; done
         /usr/bin/open "$2"

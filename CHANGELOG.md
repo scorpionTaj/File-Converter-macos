@@ -5,6 +5,28 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- New **Output** settings tab:
+  - File name template with `{name}`, `{format}`, `{date}` and `{time}`, plus a live example.
+  - When a file with that name exists: keep both, replace (the old file goes to the Trash) or skip.
+  - Move originals to the Trash after a successful conversion; tools that combine files never do.
+  - Give results the original's creation and modification dates.
+  - Photo and media metadata: keep, remove location only, or remove all.
+- **Quality** tab:
+  - Separate JPEG, HEIC, WebP and AVIF quality, and a maximum image size.
+  - Video: encoder (automatic / hardware / software), speed preset, maximum resolution, frame-rate cap
+    and remove audio.
+  - Audio: sample rate, mono/stereo and loudness normalisation.
+- **Advanced** tab: how many files convert at once (1–8), Open Log, Copy Diagnostics, Clear Temporary
+  Files and Reset All Settings.
+- `kumquat-cli` options: `--name`, `--on-conflict`, `--originals`, `--metadata`, `--keep-dates`,
+  `--max-size`, `--max-height` and `--encoder`.
+
+### Changed
+- Image conversions now keep EXIF, TIFF, IPTC and GPS metadata by default. Before, they dropped it.
+  Choose "Remove location only" or "Remove all" in Settings ▸ Output to change this.
+- A tool result that can't be saved no longer discards the batch's other results.
+
 ## [0.3.1] - 2026-10-22
 
 ### Added

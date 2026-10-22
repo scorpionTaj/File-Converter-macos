@@ -14,6 +14,16 @@ USAGE
   kumquat-cli doctor                Which optional helpers are installed
   kumquat-cli count                 Number of supported conversions
 
+OUTPUT OPTIONS (convert and tool)
+  --name <template>         Result name, e.g. "{name}-web" ({name} {format} {date} {time}); convert only
+  --on-conflict <policy>    keepBoth (default), replace (existing file goes to the Trash) or skip
+  --originals <policy>      keep (default) or trash
+  --metadata <policy>       keep (default), removeLocation or removeAll
+  --keep-dates <yes|no>     Copy the original's creation/modification dates
+  --max-size <px>           Longest side of converted images
+  --max-height <px>         Maximum video height, e.g. 1080
+  --encoder <name>          automatic, hardware (VideoToolbox) or software
+
 EXAMPLES
   kumquat-cli convert IMG_0001.HEIC --to jpg
   kumquat-cli convert talk.mov --to mp4
@@ -50,6 +60,26 @@ func makeOptions(_ args: Arguments) -> ConversionOptions {
     if let crf = args.flags["crf"].flatMap(Int.init) { options.videoCRF = crf }
     if let bitrate = args.flags["bitrate"].flatMap(Int.init) { options.audioBitrateKbps = bitrate }
     if let out = args.flags["out"] { options.outputLocation = .folder(out) }
+    if let name = args.flags["name"] { options.fileNameTemplate = name }
+    if let value = args.flags["on-conflict"] {
+        guard let policy = ConflictPolicy(rawValue: value) else { fail("--on-conflict must be keepBoth, replace or skip") }
+        options.conflictPolicy = policy
+    }
+    if let value = args.flags["originals"] {
+        guard let policy = OriginalsPolicy(rawValue: value) else { fail("--originals must be keep or trash") }
+        options.originals = policy
+    }
+    if let value = args.flags["metadata"] {
+        guard let policy = MetadataPolicy(rawValue: value) else { fail("--metadata must be keep, removeLocation or removeAll") }
+        options.metadata = policy
+    }
+    if let value = args.flags["keep-dates"] { options.preserveFileDates = ["yes", "true", "1"].contains(value.lowercased()) }
+    if let size = args.flags["max-size"].flatMap(Int.init) { options.maxImageDimension = max(size, 0) }
+    if let height = args.flags["max-height"].flatMap(Int.init) { options.maxVideoHeight = max(height, 0) }
+    if let value = args.flags["encoder"] {
+        guard let preference = VideoEncoderPreference(rawValue: value) else { fail("--encoder must be automatic, hardware or software") }
+        options.videoEncoder = preference
+    }
     return options
 }
 

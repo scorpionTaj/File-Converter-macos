@@ -23,8 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func clearRecents() { settings.recentPaths = [] }
 
-    /// Files converted at the same time in a batch.
-    static let batchConcurrency = 3
+    var hasRunningJobs: Bool { !jobTasks.isEmpty }
 
     /// Rebuilt per use so changed tool paths in Settings apply immediately.
     var converter: Converter { Converter(tools: settings.toolLocator) }
@@ -174,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let converter = self.converter
         let jobOptions = options(for: urls)
+        let concurrency = settings.parallelJobs
         let title = urls.count == 1
             ? "\(urls[0].lastPathComponent) → \(target.shortName)"
             : "\(urls.count) files → \(target.shortName)"
@@ -201,7 +201,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         }
                     }
                 }
-                for _ in 0..<min(Self.batchConcurrency, urls.count) { enqueue() }
+                for _ in 0..<min(concurrency, urls.count) { enqueue() }
                 while let result = await group.next() {
                     let (index, output, failure) = result
                     if let output { outputs.append((index, output)) }

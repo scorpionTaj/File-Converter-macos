@@ -130,16 +130,57 @@ public final class Converter: @unchecked Sendable {
 
         let directory = OutputNamer.destinationDirectory(for: input, location: options.outputLocation)
         let base = FormatRegistry.baseName(of: input)
-        return fm.isDirectory(current)
-            ? try Self.moveIntoPlace(current, directory: directory, baseName: "\(base) (\(target.shortName))", extension: nil)
-            : try Self.moveIntoPlace(current, directory: directory, baseName: base, extension: target.fileExtension)
+        let name = FileNameTemplate.render(options.fileNameTemplate, name: base, format: target.shortName)
+        let placed = fm.isDirectory(current)
+            ? try Self.moveIntoPlace(current, directory: directory, baseName: name == base ? "\(base) (\(target.shortName))" : name,
+                                     extension: nil, conflict: options.conflictPolicy)
+            : try Self.moveIntoPlace(current, directory: directory, baseName: name, extension: target.fileExtension,
+                                     conflict: options.conflictPolicy)
+        Self.finishOriginal(input, result: placed, options: options)
+        return placed
     }
 
-    /// Moves a finished result to a unique name. Names are reserved in-process first, because parallel jobs
-    /// could otherwise pick the same name (photo.png and photo.jpg → photo.webp) and `rename` would silently
-    /// overwrite the first result. A collision with another app retries with the next number.
-    static func moveIntoPlace(_ item: URL, directory: URL, baseName: String, extension ext: String?) throws -> URL {
+    /// Applies the "file dates" and "originals" settings once `result` is saved.
+    static func finishOriginal(_ original: URL, result: URL, options: ConversionOptions) {
         let fm = FileManager.default
+        if options.preserveFileDates, let attributes = try? fm.attributesOfItem(atPath: original.path) {
+            var dates: [FileAttributeKey: Any] = [:]
+            dates[.creationDate] = attributes[.creationDate]
+            dates[.modificationDate] = attributes[.modificationDate]
+            try? fm.setAttributes(dates, ofItemAtPath: result.path)
+        }
+        if options.originals == .trash,
+           original.standardizedFileURL.path != result.standardizedFileURL.path,
+           fm.fileExists(atPath: original.path) {
+            try? fm.trashItem(at: original, resultingItemURL: nil)
+        }
+    }
+
+    /// Moves a finished result into place. With `.keepBoth`, names are reserved in-process first, because
+    /// parallel jobs could otherwise pick the same name (photo.png and photo.jpg → photo.webp) and `rename`
+    /// would silently overwrite the first result; a collision with another app retries with the next number.
+    /// `.replace` moves an existing file to the Trash first; `.skip` throws instead of saving.
+    static func moveIntoPlace(_ item: URL, directory: URL, baseName: String, extension ext: String?,
+                              conflict: ConflictPolicy = .keepBoth) throws -> URL {
+        let fm = FileManager.default
+        if conflict != .keepBoth {
+            let destination = OutputNamer.url(in: directory, baseName: baseName, extension: ext)
+            // Another job in this batch is saving the same name: never replace a result we just made.
+            if OutputNamer.reserve(destination) {
+                defer { OutputNamer.release(destination) }
+                // `fileExists` follows links, so check for a (possibly broken) symlink too.
+                if fm.fileExists(atPath: destination.path) || (try? fm.destinationOfSymbolicLink(atPath: destination.path)) != nil {
+                    if conflict == .skip {
+                        throw KumquatError.nothingToDo("\(destination.lastPathComponent) already exists, so it was skipped.")
+                    }
+                    try fm.trashItem(at: destination, resultingItemURL: nil)
+                }
+                try fm.moveItem(at: item, to: destination)
+                return destination
+            } else if conflict == .skip {
+                throw KumquatError.nothingToDo("\(destination.lastPathComponent) already exists, so it was skipped.")
+            }
+        }
         var lastError: Error?
         for _ in 0..<20 {
             let destination = OutputNamer.reserveUniqueURL(in: directory, baseName: baseName, extension: ext)
@@ -172,7 +213,7 @@ public final class Converter: @unchecked Sendable {
 
         if tool.combinesInputs {
             let artifact = try await ToolRunner.runCombined(tool, inputs: inputs, context: context)
-            return try finalize([artifact], for: [inputs[0]], tool: tool, options: options)
+            return try finalize([artifact], for: [inputs[0]], tool: tool, options: options, combined: true)
         }
 
         var artifacts: [ToolArtifact] = []
@@ -199,16 +240,20 @@ public final class Converter: @unchecked Sendable {
         }
         if artifacts.isEmpty, let firstError { throw firstError }
         progress?(1)
-        var outcome = try finalize(artifacts, for: originals, tool: tool, options: options)
-        outcome.failures = failures
+        var outcome = try finalize(artifacts, for: originals, tool: tool, options: options, combined: false)
+        outcome.failures = failures + outcome.failures
         return outcome
     }
 
-    private func finalize(_ artifacts: [ToolArtifact], for originals: [URL], tool: ToolID, options: ConversionOptions) throws -> ToolOutcome {
+    /// Saves tool results. A file that can't be saved (e.g. skipped because the name exists) is reported
+    /// in `failures` without losing the others; if nothing at all came out, the first error is thrown.
+    private func finalize(_ artifacts: [ToolArtifact], for originals: [URL], tool: ToolID, options: ConversionOptions,
+                          combined: Bool) throws -> ToolOutcome {
         let fm = FileManager.default
         var outcome = ToolOutcome()
         var messages: [String] = []
         var clipboard: [String] = []
+        var firstError: Error?
         for (artifact, original) in zip(artifacts, originals) {
             if let message = artifact.message { messages.append(message) }
             if let text = artifact.clipboardText { clipboard.append(text) }
@@ -223,10 +268,20 @@ public final class Converter: @unchecked Sendable {
                 base = FormatRegistry.baseName(of: original)
             }
             let ext: String? = fm.isDirectory(url) ? nil : FormatRegistry.format(for: url)?.fileExtension ?? url.pathExtension
-            outcome.outputs.append(try Self.moveIntoPlace(url, directory: directory, baseName: base, extension: ext))
+            do {
+                let placed = try Self.moveIntoPlace(url, directory: directory, baseName: base, extension: ext,
+                                                    conflict: options.conflictPolicy)
+                outcome.outputs.append(placed)
+                // Combined results (merge, zip…) come from several files: leave those originals alone.
+                if !combined { Self.finishOriginal(original, result: placed, options: options) }
+            } catch {
+                outcome.failures.append("\(original.lastPathComponent): \(error.localizedDescription)")
+                firstError = firstError ?? error
+            }
         }
         outcome.message = messages.isEmpty ? nil : (messages.count == 1 ? messages[0] : messages.joined(separator: " · "))
         outcome.clipboardText = clipboard.isEmpty ? nil : clipboard.joined(separator: "\n")
+        if outcome.outputs.isEmpty, outcome.message == nil, outcome.clipboardText == nil, let firstError { throw firstError }
         return outcome
     }
 }

@@ -79,20 +79,123 @@ public enum OutputLocation: Codable, Hashable, Sendable {
     case folder(String)
 }
 
+/// What to do when a result's file name is already taken.
+public enum ConflictPolicy: String, Codable, CaseIterable, Sendable {
+    /// Save as "photo 2.jpg".
+    case keepBoth
+    /// Move the existing file to the Trash and take its name.
+    case replace
+    /// Leave the existing file alone and discard the new result.
+    case skip
+}
+
+/// What happens to the dropped files once their results are saved.
+public enum OriginalsPolicy: String, Codable, CaseIterable, Sendable {
+    case keep
+    /// Move to the Trash (recoverable).
+    case trash
+}
+
+/// Photo/media metadata (EXIF, GPS, tags) carried into converted files.
+public enum MetadataPolicy: String, Codable, CaseIterable, Sendable {
+    case keep
+    case removeLocation
+    case removeAll
+}
+
+/// Which H.264 encoder video conversions prefer.
+public enum VideoEncoderPreference: String, Codable, CaseIterable, Sendable {
+    /// x264 when available (best quality per byte), else Apple's hardware encoder.
+    case automatic
+    /// Apple VideoToolbox: much faster, slightly larger files.
+    case hardware
+    case software
+}
+
 /// User-tunable knobs passed to every engine.
 public struct ConversionOptions: Codable, Hashable, Sendable {
     /// 0...1 quality for lossy image formats.
     public var imageQuality: Double = 0.85
+    /// Per-format overrides of `imageQuality`, keyed by `Format.id` ("jpg", "heic", "webp", "avif").
+    public var formatQuality: [String: Double] = [:]
+    /// Longest side of converted images in pixels; 0 keeps the original size.
+    public var maxImageDimension: Int = 0
     /// x264 constant rate factor (lower is better quality).
     public var videoCRF: Int = 23
+    /// x264 speed preset ("ultrafast"…"veryslow").
+    public var videoPreset: String = "medium"
+    public var videoEncoder: VideoEncoderPreference = .automatic
+    /// Maximum video height in pixels (e.g. 1080); 0 keeps the original.
+    public var maxVideoHeight: Int = 0
+    /// Frame-rate cap; 0 keeps the original.
+    public var maxFrameRate: Int = 0
+    /// Drop audio tracks from converted videos.
+    public var removeAudio: Bool = false
     public var audioBitrateKbps: Int = 192
+    /// Output sample rate for audio conversions; 0 keeps the original.
+    public var audioSampleRate: Int = 0
+    /// 1 = mono, 2 = stereo, 0 keeps the original.
+    public var audioChannels: Int = 0
+    /// EBU R128 loudness normalisation for audio conversions.
+    public var normalizeAudio: Bool = false
     /// Resolution used when rendering PDF pages to images.
     public var pdfRenderDPI: Double = 200
     public var gifFPS: Int = 12
     public var gifMaxWidth: Int = 640
     public var outputLocation: OutputLocation = .besideOriginal
+    /// Name of converted files; see `FileNameTemplate`.
+    public var fileNameTemplate: String = FileNameTemplate.default
+    public var conflictPolicy: ConflictPolicy = .keepBoth
+    public var originals: OriginalsPolicy = .keep
+    public var metadata: MetadataPolicy = .keep
+    /// Give results the original's creation and modification dates.
+    public var preserveFileDates: Bool = false
 
     public init() {}
+
+    /// Quality for a lossy image format, honouring per-format overrides.
+    public func quality(for format: Format) -> Double {
+        min(max(formatQuality[format.id] ?? imageQuality, 0.05), 1)
+    }
+}
+
+/// Builds result names from a template such as "{name}-{format}-{date}".
+public enum FileNameTemplate {
+    public static let `default` = "{name}"
+    public struct Token: Hashable, Sendable {
+        public let token: String
+        public let meaning: String
+    }
+
+    /// Tokens and what they stand for, for the Settings help text.
+    public static let tokens = [
+        Token(token: "{name}", meaning: "original name"),
+        Token(token: "{format}", meaning: "new format, e.g. JPG"),
+        Token(token: "{date}", meaning: "today, 2026-01-31"),
+        Token(token: "{time}", meaning: "now, 14.05.09"),
+    ]
+
+    public static func render(_ template: String, name: String, format: String, date: Date = Date()) -> String {
+        // Clean the template before substituting, so the original name is never altered.
+        var result = template.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        guard !result.isEmpty, result != Self.default else { return name }
+        let calendar = Calendar(identifier: .gregorian)
+        let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+        let day = String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+        let time = String(format: "%02d.%02d.%02d", parts.hour ?? 0, parts.minute ?? 0, parts.second ?? 0)
+        result = result
+            .replacingOccurrences(of: "{name}", with: name)
+            .replacingOccurrences(of: "{format}", with: format)
+            .replacingOccurrences(of: "{date}", with: day)
+            .replacingOccurrences(of: "{time}", with: time)
+            .trimmingCharacters(in: .whitespaces)
+        // A leading dot would hide the file.
+        while result.hasPrefix(".") { result.removeFirst() }
+        if result.count > 200 { result = String(result.prefix(200)) }
+        return result.isEmpty ? name : result
+    }
 }
 
 /// Names handed out but not yet written, so parallel jobs never pick the same file name.
@@ -107,6 +210,13 @@ private final class ReservedNames: @unchecked Sendable {
         let url = make { self.paths.contains($0.standardizedFileURL.path) }
         paths.insert(url.standardizedFileURL.path)
         return url
+    }
+
+    /// Reserves exactly `url`; false if another job holds it.
+    func tryReserve(_ url: URL) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return paths.insert(url.standardizedFileURL.path).inserted
     }
 
     func release(_ url: URL) {
@@ -138,6 +248,15 @@ public enum OutputNamer {
 
     public static func release(_ url: URL) {
         ReservedNames.shared.release(url)
+    }
+
+    /// Reserves exactly this name (no numbering); false while another job in this process holds it.
+    public static func reserve(_ url: URL) -> Bool {
+        ReservedNames.shared.tryReserve(url)
+    }
+
+    public static func url(in directory: URL, baseName: String, extension ext: String?) -> URL {
+        directory.appendingPathComponent((ext?.isEmpty ?? true) ? baseName : "\(baseName).\(ext!)")
     }
 
     /// `dir/base.ext`, or `dir/base 2.ext`, `dir/base 3.ext`… if taken.

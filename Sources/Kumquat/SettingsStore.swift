@@ -78,6 +78,27 @@ final class SettingsStore: ObservableObject {
     @Published var hasSeenWelcome: Bool { didSet { defaults.set(hasSeenWelcome, forKey: "hasSeenWelcome") } }
     @Published var themeID: String { didSet { defaults.set(themeID, forKey: "themeID") } }
     @Published var offerMoveToApplications: Bool { didSet { defaults.set(offerMoveToApplications, forKey: "offerMoveToApplications") } }
+    @Published var fileNameTemplate: String { didSet { defaults.set(fileNameTemplate, forKey: "fileNameTemplate") } }
+    @Published var conflictPolicy: ConflictPolicy { didSet { defaults.set(conflictPolicy.rawValue, forKey: "conflictPolicy") } }
+    @Published var originalsPolicy: OriginalsPolicy { didSet { defaults.set(originalsPolicy.rawValue, forKey: "originalsPolicy") } }
+    @Published var metadataPolicy: MetadataPolicy { didSet { defaults.set(metadataPolicy.rawValue, forKey: "metadataPolicy") } }
+    @Published var preserveFileDates: Bool { didSet { defaults.set(preserveFileDates, forKey: "preserveFileDates") } }
+    /// Per-format quality; values outside 0...1 (the default -1) mean "use `imageQuality`".
+    @Published var jpegQuality: Double { didSet { defaults.set(jpegQuality, forKey: "jpegQuality") } }
+    @Published var heicQuality: Double { didSet { defaults.set(heicQuality, forKey: "heicQuality") } }
+    @Published var webpQuality: Double { didSet { defaults.set(webpQuality, forKey: "webpQuality") } }
+    @Published var avifQuality: Double { didSet { defaults.set(avifQuality, forKey: "avifQuality") } }
+    @Published var maxImageDimension: Int { didSet { defaults.set(maxImageDimension, forKey: "maxImageDimension") } }
+    @Published var videoPreset: String { didSet { defaults.set(videoPreset, forKey: "videoPreset") } }
+    @Published var videoEncoder: VideoEncoderPreference { didSet { defaults.set(videoEncoder.rawValue, forKey: "videoEncoder") } }
+    @Published var maxVideoHeight: Int { didSet { defaults.set(maxVideoHeight, forKey: "maxVideoHeight") } }
+    @Published var maxFrameRate: Int { didSet { defaults.set(maxFrameRate, forKey: "maxFrameRate") } }
+    @Published var removeAudio: Bool { didSet { defaults.set(removeAudio, forKey: "removeAudio") } }
+    @Published var audioSampleRate: Int { didSet { defaults.set(audioSampleRate, forKey: "audioSampleRate") } }
+    @Published var audioChannels: Int { didSet { defaults.set(audioChannels, forKey: "audioChannels") } }
+    @Published var normalizeAudio: Bool { didSet { defaults.set(normalizeAudio, forKey: "normalizeAudio") } }
+    /// Files converted at the same time in a batch.
+    @Published var parallelJobs: Int { didSet { defaults.set(parallelJobs, forKey: "parallelJobs") } }
     /// Most recent results (paths), newest first; survives relaunches.
     @Published var recentPaths: [String] { didSet { defaults.set(recentPaths, forKey: "recentPaths") } }
 
@@ -109,7 +130,34 @@ final class SettingsStore: ObservableObject {
         hasSeenWelcome = bool("hasSeenWelcome", false)
         themeID = string("themeID", "kumquat")
         offerMoveToApplications = bool("offerMoveToApplications", true)
+        fileNameTemplate = string("fileNameTemplate", FileNameTemplate.default)
+        conflictPolicy = ConflictPolicy(rawValue: string("conflictPolicy", "")) ?? .keepBoth
+        originalsPolicy = OriginalsPolicy(rawValue: string("originalsPolicy", "")) ?? .keep
+        metadataPolicy = MetadataPolicy(rawValue: string("metadataPolicy", "")) ?? .keep
+        preserveFileDates = bool("preserveFileDates", false)
+        jpegQuality = double("jpegQuality", -1)
+        heicQuality = double("heicQuality", -1)
+        webpQuality = double("webpQuality", -1)
+        avifQuality = double("avifQuality", -1)
+        maxImageDimension = int("maxImageDimension", 0)
+        videoPreset = string("videoPreset", "medium")
+        videoEncoder = VideoEncoderPreference(rawValue: string("videoEncoder", "")) ?? .automatic
+        maxVideoHeight = int("maxVideoHeight", 0)
+        maxFrameRate = int("maxFrameRate", 0)
+        removeAudio = bool("removeAudio", false)
+        audioSampleRate = int("audioSampleRate", 0)
+        audioChannels = int("audioChannels", 0)
+        normalizeAudio = bool("normalizeAudio", false)
+        parallelJobs = min(max(int("parallelJobs", 3), 1), 8)
         recentPaths = defaults.stringArray(forKey: "recentPaths") ?? []
+    }
+
+    /// Forgets every preference (recent files included). Takes effect after a relaunch.
+    func resetAll() {
+        if let domain = Bundle.main.bundleIdentifier {
+            defaults.removePersistentDomain(forName: domain)
+            defaults.synchronize()
+        }
     }
 
     func mode(for flag: NSEvent.ModifierFlags) -> WheelMode? {
@@ -133,6 +181,24 @@ final class SettingsStore: ObservableObject {
         options.videoCRF = videoCRF
         options.audioBitrateKbps = audioBitrate
         options.pdfRenderDPI = Double(pdfDPI)
+        for (format, value) in [(Format.jpg, jpegQuality), (Format.heic, heicQuality), (Format.webp, webpQuality), (Format.avif, avifQuality)]
+        where (0...1).contains(value) {
+            options.formatQuality[format.id] = value
+        }
+        options.maxImageDimension = maxImageDimension
+        options.videoPreset = videoPreset
+        options.videoEncoder = videoEncoder
+        options.maxVideoHeight = maxVideoHeight
+        options.maxFrameRate = maxFrameRate
+        options.removeAudio = removeAudio
+        options.audioSampleRate = audioSampleRate
+        options.audioChannels = audioChannels
+        options.normalizeAudio = normalizeAudio
+        options.fileNameTemplate = fileNameTemplate
+        options.conflictPolicy = conflictPolicy
+        options.originals = originalsPolicy
+        options.metadata = metadataPolicy
+        options.preserveFileDates = preserveFileDates
         switch outputMode {
         case .beside: options.outputLocation = .besideOriginal
         case .downloads: options.outputLocation = .downloads
