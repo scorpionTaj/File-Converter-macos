@@ -18,10 +18,23 @@ jobs:
     name: Core tests (Linux + FFmpeg)
     runs-on: ubuntu-latest
     container: swift:6.0-jammy
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Install FFmpeg and archivers
-        run: apt-get update -qq && apt-get install -y -qq ffmpeg zip unzip > /dev/null
+        # Ubuntu mirrors occasionally stall; give each attempt a deadline and retry instead of hanging the run.
+        timeout-minutes: 12
+        shell: bash
+        run: |
+          APT="-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30"
+          for attempt in 1 2 3; do
+            if timeout 240 apt-get $APT update -qq && timeout 300 apt-get $APT install -y -qq ffmpeg zip unzip > /dev/null; then
+              exit 0
+            fi
+            echo "::warning::apt attempt $attempt failed or stalled; retrying"
+            sleep 10
+          done
+          exit 1
       - name: Build
         run: swift build
       - name: Test
@@ -40,6 +53,7 @@ jobs:
   macos:
     name: App build & tests (macOS)
     runs-on: macos-15
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +61,7 @@ jobs:
       - name: Toolchain
         run: swift --version
       - name: Install optional helpers (so their engines are tested too)
+        timeout-minutes: 15
         run: |
           export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
           brew install --quiet ffmpeg pandoc pngquant webp libavif || brew install --quiet ffmpeg

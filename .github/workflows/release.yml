@@ -110,6 +110,7 @@ jobs:
     name: Build & publish
     needs: [prepare, tests]
     runs-on: macos-15
+    timeout-minutes: 45
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
