@@ -140,6 +140,16 @@ final class SettingsStore: ObservableObject {
     @Published var audioSampleRate: Int { didSet { defaults.set(audioSampleRate, forKey: "audioSampleRate") } }
     @Published var audioChannels: Int { didSet { defaults.set(audioChannels, forKey: "audioChannels") } }
     @Published var normalizeAudio: Bool { didSet { defaults.set(normalizeAudio, forKey: "normalizeAudio") } }
+    @Published var themeFollowsSystem: Bool { didSet { defaults.set(themeFollowsSystem, forKey: "themeFollowsSystem") } }
+    @Published var lightThemeID: String { didSet { defaults.set(lightThemeID, forKey: "lightThemeID") } }
+    @Published var darkThemeID: String { didSet { defaults.set(darkThemeID, forKey: "darkThemeID") } }
+    /// User-made and imported themes.
+    @Published var customThemes: [ThemeSpec] {
+        didSet {
+            defaults.set(try? JSONEncoder().encode(customThemes), forKey: "customThemes")
+            Theme.custom = customThemes.map(Theme.fromSpec)
+        }
+    }
     @Published var hudPosition: HUDPosition { didSet { defaults.set(hudPosition.rawValue, forKey: "hudPosition") } }
     /// Seconds a result stays on screen; 0 keeps it until clicked.
     @Published var hudDuration: Double { didSet { defaults.set(hudDuration, forKey: "hudDuration") } }
@@ -205,6 +215,12 @@ final class SettingsStore: ObservableObject {
         audioChannels = int("audioChannels", 0)
         normalizeAudio = bool("normalizeAudio", false)
         parallelJobs = min(max(int("parallelJobs", 3), 1), 8)
+        themeFollowsSystem = bool("themeFollowsSystem", false)
+        lightThemeID = string("lightThemeID", "catppuccin-latte")
+        darkThemeID = string("darkThemeID", "catppuccin-mocha")
+        let storedThemes = defaults.data(forKey: "customThemes").flatMap { try? JSONDecoder().decode([ThemeSpec].self, from: $0) } ?? []
+        customThemes = storedThemes
+        Theme.custom = storedThemes.map(Theme.fromSpec)
         hudPosition = HUDPosition(rawValue: string("hudPosition", "")) ?? .topRight
         hudDuration = double("hudDuration", 3)
         hudShowsSuccess = bool("hudShowsSuccess", true)
@@ -224,6 +240,22 @@ final class SettingsStore: ObservableObject {
     func play(_ name: String) {
         guard playSound, !name.isEmpty else { return }
         NSSound(named: NSSound.Name(name))?.play()
+    }
+
+    /// Adds a theme, or replaces the one with the same id.
+    func saveCustomTheme(_ spec: ThemeSpec) {
+        if let index = customThemes.firstIndex(where: { $0.id == spec.id }) {
+            customThemes[index] = spec
+        } else {
+            customThemes.append(spec)
+        }
+    }
+
+    func deleteCustomTheme(id: String) {
+        customThemes.removeAll { $0.id == id }
+        if themeID == id { themeID = Theme.kumquat.id }
+        if lightThemeID == id { lightThemeID = Theme.kumquatLight.id }
+        if darkThemeID == id { darkThemeID = Theme.kumquatDark.id }
     }
 
     /// Forgets every preference (recent files included). Takes effect after a relaunch.

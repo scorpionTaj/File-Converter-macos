@@ -26,6 +26,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - Choose the success and failure sounds.
   - Menu bar icon style, a progress percentage next to the icon while converting, and how many recent
     results to keep.
+- **Custom themes**: duplicate any theme and edit its colours with a live preview, export themes as `.json`
+  and import them on another Mac. You can also use different themes for Light and Dark mode.
 - `kumquat-cli` options: `--name`, `--on-conflict`, `--originals`, `--metadata`, `--keep-dates`,
   `--max-size`, `--max-height` and `--encoder`.
 

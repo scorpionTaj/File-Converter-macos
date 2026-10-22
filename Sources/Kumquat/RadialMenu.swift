@@ -103,7 +103,7 @@ final class RadialMenuView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard !items.isEmpty else { return }
         let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let theme = Theme.named(SettingsStore.shared.themeID).resolved(dark: isDark)
+        let theme = SettingsStore.shared.activeTheme.resolved(dark: isDark)
         let accent = theme.accent
         let base = theme.segment
         let stroke = theme.stroke

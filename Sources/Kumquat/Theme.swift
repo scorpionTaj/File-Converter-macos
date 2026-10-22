@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import KumquatCore
 
 /// Colours for the wheel, the HUD and the annotation editor.
@@ -39,8 +40,27 @@ struct Theme: Identifiable, Equatable {
         .solarizedLight, .solarizedDark,
     ]
 
+    /// Themes the user made or imported; kept in sync by `SettingsStore`.
+    static var custom: [Theme] = []
+
     static func named(_ id: String) -> Theme {
-        all.first { $0.id == id } ?? .kumquat
+        all.first { $0.id == id } ?? custom.first { $0.id == id } ?? .kumquat
+    }
+
+    static func fromSpec(_ spec: ThemeSpec) -> Theme {
+        make(spec.id, spec.name, dark: spec.dark, segment: spec.segment, hub: spec.hub, stroke: spec.stroke,
+             text: spec.text, secondary: spec.secondaryText, accent: spec.accent, accentText: spec.accentText,
+             success: spec.success, failure: spec.failure, canvas: spec.canvas)
+    }
+
+    /// Editable copy of this theme's colours (the adaptive default uses its light or dark palette).
+    func spec(id: String, name: String, dark systemIsDark: Bool) -> ThemeSpec {
+        let theme = resolved(dark: systemIsDark)
+        return ThemeSpec(id: id, name: name, dark: theme.isDark ?? systemIsDark,
+                         segment: theme.segment.hexString, hub: theme.hub.hexString, stroke: theme.stroke.hexString,
+                         text: theme.text.hexString, secondaryText: theme.secondaryText.hexString,
+                         accent: theme.accent.hexString, accentText: theme.accentText.hexString,
+                         success: theme.success.hexString, failure: theme.failure.hexString, canvas: theme.canvas.hexString)
     }
 
     // MARK: Palettes
@@ -109,7 +129,41 @@ struct Theme: Identifiable, Equatable {
                                     accentText: "002B36", success: "859900", failure: "DC322F", canvas: "002B36")
 }
 
+/// A user theme as stored in settings and in exported `.json` files. Colours are "RRGGBB" hex strings.
+struct ThemeSpec: Codable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var dark: Bool
+    var segment: String
+    var hub: String
+    var stroke: String
+    var text: String
+    var secondaryText: String
+    var accent: String
+    var accentText: String
+    var success: String
+    var failure: String
+    var canvas: String
+
+    static func newID() -> String { "custom-\(UUID().uuidString.prefix(8).lowercased())" }
+
+    /// Every colour is a 6-digit hex value.
+    var isValid: Bool {
+        [segment, hub, stroke, text, secondaryText, accent, accentText, success, failure, canvas].allSatisfy { value in
+            let hex = value.hasPrefix("#") ? String(value.dropFirst()) : value
+            return hex.count == 6 && UInt64(hex, radix: 16) != nil
+        }
+    }
+}
+
 extension NSColor {
+    /// "FF8A00" in sRGB.
+    var hexString: String {
+        guard let rgb = usingColorSpace(.sRGB) else { return "000000" }
+        func byte(_ value: CGFloat) -> Int { Int((min(max(value, 0), 1) * 255).rounded()) }
+        return String(format: "%02X%02X%02X", byte(rgb.redComponent), byte(rgb.greenComponent), byte(rgb.blueComponent))
+    }
+
     /// "FF8A00" / "#FF8A00".
     convenience init(hex: String, alpha: CGFloat = 1) {
         let cleaned = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
@@ -122,11 +176,18 @@ extension NSColor {
 }
 
 extension SettingsStore {
-    /// Current theme resolved for the system appearance.
-    var resolvedTheme: Theme {
-        let systemIsDark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        return Theme.named(themeID).resolved(dark: systemIsDark)
+    var systemIsDark: Bool {
+        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
+
+    /// The chosen theme: the single theme, or the light/dark pair's member for the current appearance.
+    var activeTheme: Theme {
+        if themeFollowsSystem { return Theme.named(systemIsDark ? darkThemeID : lightThemeID) }
+        return Theme.named(themeID)
+    }
+
+    /// Current theme resolved for the system appearance.
+    var resolvedTheme: Theme { activeTheme.resolved(dark: systemIsDark) }
 }
 
 // MARK: - Settings UI
@@ -170,6 +231,8 @@ struct ThemePreview: View {
 
 struct AppearanceSettings: View {
     @ObservedObject var settings: SettingsStore
+    @State private var editing: ThemeSpec?
+    @State private var message: String?
     private let columns = [GridItem(.adaptive(minimum: 96), spacing: 14)]
 
     var body: some View {
@@ -179,17 +242,37 @@ struct AppearanceSettings: View {
                 Text("Colours for the wheels, the progress popup and the annotation editor.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Use different themes for Light and Dark mode", isOn: $settings.themeFollowsSystem)
+                if settings.themeFollowsSystem {
+                    HStack(spacing: 16) {
+                        themeMenu("Light mode", selection: $settings.lightThemeID)
+                        themeMenu("Dark mode", selection: $settings.darkThemeID)
+                    }
+                }
                 LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(Theme.all) { theme in
+                    ForEach(Theme.all + Theme.custom) { theme in
                         Button {
                             settings.themeID = theme.id
+                            settings.themeFollowsSystem = false
                         } label: {
-                            ThemePreview(theme: theme, isSelected: settings.themeID == theme.id)
+                            ThemePreview(theme: theme, isSelected: !settings.themeFollowsSystem && settings.themeID == theme.id)
                         }
                         .buttonStyle(.plain)
                         .help(theme.isDark == nil ? "\(theme.name) (follows light/dark mode)" : theme.name)
+                        .contextMenu { contextMenu(for: theme) }
                     }
                 }
+                HStack {
+                    Button("New Theme…") { duplicate(settings.activeTheme) }
+                    Button("Import…") { importThemes() }
+                    Spacer()
+                    if let message {
+                        Text(message).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Text("Right-click a theme to duplicate, edit, export or delete it.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Divider()
                 Slider(value: $settings.wheelScale, in: 0.8...1.3, step: 0.05) {
                     Text("Wheel size")
@@ -197,5 +280,121 @@ struct AppearanceSettings: View {
             }
             .padding(16)
         }
+        .sheet(item: $editing) { spec in
+            ThemeEditor(spec: spec) { saved in
+                settings.saveCustomTheme(saved)
+                settings.themeID = saved.id
+                settings.themeFollowsSystem = false
+                editing = nil
+            } cancel: {
+                editing = nil
+            }
+        }
+    }
+
+    private func themeMenu(_ title: String, selection: Binding<String>) -> some View {
+        Picker(title, selection: selection) {
+            ForEach(Theme.all + Theme.custom) { Text($0.name).tag($0.id) }
+        }
+    }
+
+    @ViewBuilder
+    private func contextMenu(for theme: Theme) -> some View {
+        let isCustom = Theme.custom.contains(theme)
+        Button("Duplicate…") { duplicate(theme) }
+        if isCustom, let spec = settings.customThemes.first(where: { $0.id == theme.id }) {
+            Button("Edit…") { editing = spec }
+            Button("Export…") { export(spec) }
+            Divider()
+            Button("Delete", role: .destructive) { settings.deleteCustomTheme(id: spec.id) }
+        }
+    }
+
+    private func duplicate(_ theme: Theme) {
+        editing = theme.spec(id: ThemeSpec.newID(), name: "\(theme.name) Copy", dark: settings.systemIsDark)
+    }
+
+    private func export(_ spec: ThemeSpec) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "\(spec.name).json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(spec).write(to: url)
+            message = "Exported \(spec.name)."
+        } catch {
+            message = "Couldn't export: \(error.localizedDescription)"
+        }
+    }
+
+    private func importThemes() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        var imported = 0
+        for url in panel.urls {
+            guard let data = try? Data(contentsOf: url) else { continue }
+            let decoder = JSONDecoder()
+            let specs = (try? decoder.decode([ThemeSpec].self, from: data))
+                ?? (try? decoder.decode(ThemeSpec.self, from: data)).map { [$0] } ?? []
+            for var spec in specs where spec.isValid {
+                // Fresh ids, so importing twice or sharing between Macs never overwrites another theme.
+                spec.id = ThemeSpec.newID()
+                settings.saveCustomTheme(spec)
+                imported += 1
+            }
+        }
+        message = imported == 0 ? "No valid themes found." : "Imported \(imported) theme\(imported == 1 ? "" : "s")."
+    }
+}
+
+/// Edits one custom theme's name, base appearance and colours, with a live preview.
+struct ThemeEditor: View {
+    @State var spec: ThemeSpec
+    let save: (ThemeSpec) -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Edit Theme").font(.headline)
+            HStack(alignment: .top, spacing: 20) {
+                Form {
+                    TextField("Name", text: $spec.name)
+                    Toggle("Dark theme", isOn: $spec.dark)
+                    colorRow("Segments", \.segment)
+                    colorRow("Centre", \.hub)
+                    colorRow("Outlines", \.stroke)
+                    colorRow("Text", \.text)
+                    colorRow("Secondary text", \.secondaryText)
+                    colorRow("Accent", \.accent)
+                    colorRow("Text on accent", \.accentText)
+                    colorRow("Success", \.success)
+                    colorRow("Failure", \.failure)
+                    colorRow("Editor background", \.canvas)
+                }
+                .formStyle(.grouped)
+                ThemePreview(theme: Theme.fromSpec(spec), isSelected: false)
+                    .padding(.top, 12)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel", action: cancel).keyboardShortcut(.cancelAction)
+                Button("Save") { save(spec) }
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(spec.name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 520, height: 560)
+    }
+
+    private func colorRow(_ title: String, _ keyPath: WritableKeyPath<ThemeSpec, String>) -> some View {
+        ColorPicker(title, selection: Binding(
+            get: { Color(nsColor: NSColor(hex: spec[keyPath: keyPath])) },
+            set: { spec[keyPath: keyPath] = NSColor($0).hexString }
+        ), supportsOpacity: false)
     }
 }

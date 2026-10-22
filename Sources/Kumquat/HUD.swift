@@ -143,7 +143,7 @@ final class HUDController {
 
     /// Themes other than the adaptive default pin the HUD's appearance and tint it.
     private func applyTheme() {
-        let theme = Theme.named(SettingsStore.shared.themeID)
+        let theme = SettingsStore.shared.activeTheme
         panel.appearance = theme.appearance
         titleLabel.textColor = theme.isDark == nil ? .labelColor : theme.text
         detailLabel.textColor = theme.isDark == nil ? .secondaryLabelColor : theme.secondaryText
