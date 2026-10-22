@@ -105,13 +105,16 @@ checks that the tag matches `VERSION` and that `CHANGELOG.md` has a section for 
 universal (arm64 + x86_64) app and verifies the bundle (version, architectures, code signature, CLI
 smoke test). Finally it publishes the assets, with that changelog section as the release notes.
 
-To cut a release:
+To cut a release, use either:
 
-```bash
-# 1. Move the "Unreleased" notes in CHANGELOG.md under "## [0.2.1] - <date>"
-# 2. Then:
-scripts/release.sh 0.2.1      # bumps VERSION, commits, tags v0.2.1 and pushes
-```
+- **From GitHub:** Actions ▸ **Release** ▸ **Run workflow**. Pick a bump (`patch`, `minor`, `major` or
+  `custom`) and optionally tick *pre-release*, *draft* or *universal*, or add extra notes. The workflow
+  writes the new `VERSION` and turns the changelog's "Unreleased" notes into the version's section (or
+  writes them from commit messages). It commits that to `main`, runs the tests, builds and publishes.
+- **From your Mac:** `scripts/release.sh patch` (or `minor`, `major`, `1.2.3`). It does the same file
+  updates locally, shows you the notes, then tags and pushes.
+
+You only need to edit `CHANGELOG.md` if you want hand-written notes: put them under `## [Unreleased]`.
 
 Every CI run also publishes a test summary (passed / failed / skipped per platform) and a KumquatCore
 code-coverage table on the run page.

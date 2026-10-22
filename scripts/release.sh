@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Cuts a release: bumps VERSION, checks the changelog, commits, tags and pushes.
-# The Release workflow then runs every test, builds a universal app and publishes it.
-#   scripts/release.sh 0.2.1
+# Cuts a release from your machine: updates VERSION and CHANGELOG.md, commits, tags and pushes.
+# The Release workflow then runs every test, builds the app and publishes it.
+#   scripts/release.sh patch|minor|major|X.Y.Z[-pre]
+# (Or skip this script entirely: Actions ▸ Release ▸ Run workflow does the same in the cloud.)
 set -euo pipefail
-VERSION="${1:?usage: scripts/release.sh <version>}"
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "Not a semantic version: $VERSION" >&2; exit 1; }
+SPEC="${1:?usage: scripts/release.sh patch|minor|major|<version>}"
 cd "$(dirname "$0")/.."
 git diff --quiet && git diff --cached --quiet || { echo "Commit or stash your changes first." >&2; exit 1; }
-grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "Add a '## [$VERSION]' section to CHANGELOG.md first." >&2; exit 1; }
-if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then echo "Tag v$VERSION already exists." >&2; exit 1; fi
+git fetch --quiet --tags origin
 
-echo "$VERSION" > VERSION
-git add VERSION
+VERSION="$(scripts/prepare-release.sh "$SPEC")"
+echo "Release notes for $VERSION:"
+scripts/changelog-section.sh "$VERSION"
+read -r -p "Commit, tag v$VERSION and push? [y/N] " answer
+[[ "$answer" =~ ^[Yy]$ ]] || { git checkout -- VERSION CHANGELOG.md; echo "Cancelled; files restored."; exit 1; }
+
+git add VERSION CHANGELOG.md
 git diff --cached --quiet || git commit -m "Release $VERSION"
 git tag -a "v$VERSION" -m "Kumquat $VERSION"
 git push origin HEAD "v$VERSION"

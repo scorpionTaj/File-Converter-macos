@@ -5,6 +5,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- The **Release** workflow now has options: version bump (patch / minor / major / custom), pre-release,
+  draft, universal or Apple-silicon-only build, and extra release notes.
+- `scripts/prepare-release.sh` updates `VERSION` and `CHANGELOG.md` for a release. It moves the
+  "Unreleased" notes under the new version, or writes them from commit messages, and fixes the compare links.
+- `scripts/release.sh` accepts `patch` / `minor` / `major` and shows the notes before tagging.
+
+### Fixed
+- Running the Release workflow with a new version failed with "doesn't match the VERSION file" unless
+  `VERSION` and `CHANGELOG.md` were edited first. The workflow now prepares and commits them itself.
+
 ## [0.3.0] - 2026-10-21
 
 ### Added
