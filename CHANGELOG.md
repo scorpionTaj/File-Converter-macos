@@ -19,6 +19,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
   - Audio: sample rate, mono/stereo and loudness normalisation.
 - **Advanced** tab: how many files convert at once (1–8), Open Log, Copy Diagnostics, Clear Temporary
   Files and Reset All Settings.
+- **General** settings:
+  - Open the wheel under the pointer or in the centre of the screen.
+  - Notice position (any corner or top centre), how long results stay on screen (or until clicked), and
+    whether to show a notice for successful jobs.
+  - Choose the success and failure sounds.
+  - Menu bar icon style, a progress percentage next to the icon while converting, and how many recent
+    results to keep.
 - `kumquat-cli` options: `--name`, `--on-conflict`, `--originals`, `--metadata`, `--keep-dates`,
   `--max-size`, `--max-height` and `--encoder`.
 

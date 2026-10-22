@@ -112,12 +112,22 @@ final class HUDController {
     }
 
     func success(_ title: String, detail: String, reveal urls: [URL] = []) {
-        finish(title: title, detail: detail, symbolName: "checkmark.circle.fill", color: theme.success, linger: 2.8)
+        let settings = SettingsStore.shared
+        guard settings.hudShowsSuccess else {
+            dismissTask?.cancel()
+            if panel.isVisible { dismiss() }
+            return
+        }
+        finish(title: title, detail: detail, symbolName: "checkmark.circle.fill", color: theme.success,
+               linger: settings.hudDuration)
         revealURLs = urls
     }
 
     func failure(_ title: String, detail: String, reveal urls: [URL] = []) {
-        finish(title: title, detail: detail, symbolName: "xmark.octagon.fill", color: theme.failure, linger: 6)
+        let duration = SettingsStore.shared.hudDuration
+        // Errors need time to read: at least six seconds, or until clicked.
+        finish(title: title, detail: detail, symbolName: "xmark.octagon.fill", color: theme.failure,
+               linger: duration == 0 ? 0 : max(duration, 6))
         revealURLs = urls
     }
 
@@ -150,6 +160,8 @@ final class HUDController {
         cancelButton.isHidden = true
         present()
         dismissTask?.cancel()
+        // 0 means "stay until clicked".
+        guard linger > 0 else { return }
         dismissTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(linger * 1_000_000_000))
             guard !Task.isCancelled else { return }
@@ -161,7 +173,17 @@ final class HUDController {
         guard let screen = NSScreen.main else { return }
         let size = panel.frame.size
         let visible = screen.visibleFrame
-        panel.setFrameOrigin(NSPoint(x: visible.maxX - size.width - 16, y: visible.maxY - size.height - 12))
+        let top = visible.maxY - size.height - 12, bottom = visible.minY + 16
+        let left = visible.minX + 16, right = visible.maxX - size.width - 16
+        let origin: NSPoint
+        switch SettingsStore.shared.hudPosition {
+        case .topRight: origin = NSPoint(x: right, y: top)
+        case .topCenter: origin = NSPoint(x: visible.midX - size.width / 2, y: top)
+        case .topLeft: origin = NSPoint(x: left, y: top)
+        case .bottomRight: origin = NSPoint(x: right, y: bottom)
+        case .bottomLeft: origin = NSPoint(x: left, y: bottom)
+        }
+        panel.setFrameOrigin(origin)
         if !panel.isVisible {
             panel.alphaValue = 0
             panel.orderFrontRegardless()

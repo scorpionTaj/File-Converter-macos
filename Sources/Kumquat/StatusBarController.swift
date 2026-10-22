@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import KumquatCore
 
 /// Menu bar item: enable/disable, open files without dragging, recent results, settings.
@@ -6,11 +7,14 @@ import KumquatCore
 final class StatusBarController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
     private weak var app: AppDelegate?
+    private var iconObserver: AnyCancellable?
 
     init(app: AppDelegate) {
         self.app = app
         super.init()
-        statusItem.button?.image = StatusIcon.make()
+        iconObserver = app.settings.$menuBarIcon.sink { [weak self] style in
+            self?.statusItem.button?.image = StatusIcon.make(style)
+        }
         statusItem.button?.toolTip = "Kumquat — drop files here, or drag a file and tap a key"
         let menu = NSMenu()
         menu.delegate = self
@@ -24,6 +28,21 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             dropView.onDrop = { [weak self] urls in self?.showWheelBelowIcon(for: urls) }
             dropView.onDropFailed = { [weak app] message in app?.hud.failure("Couldn't receive the file", detail: message) }
             button.addSubview(dropView)
+        }
+    }
+
+    /// Shows "42%" next to the icon while a job runs (if enabled); nil restores the plain icon.
+    func showProgress(_ fraction: Double?) {
+        guard let button = statusItem.button else { return }
+        if let fraction, app?.settings.menuBarProgress == true {
+            statusItem.length = NSStatusItem.variableLength
+            button.imagePosition = .imageLeading
+            button.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
+            button.title = "\(Int((min(max(fraction, 0), 1) * 100).rounded()))%"
+        } else {
+            button.title = ""
+            button.imagePosition = .imageOnly
+            statusItem.length = NSStatusItem.squareLength
         }
     }
 
@@ -185,7 +204,17 @@ final class StatusDropView: NSView {
 
 /// A kumquat slice drawn as a template image, so it adapts to light/dark menu bars.
 enum StatusIcon {
-    static func make() -> NSImage {
+    static func make(_ style: MenuBarIconStyle) -> NSImage {
+        if let name = style.symbolName,
+           let symbol = NSImage(systemSymbolName: name, accessibilityDescription: "Kumquat")?
+               .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)) {
+            symbol.isTemplate = true
+            return symbol
+        }
+        return kumquat()
+    }
+
+    static func kumquat() -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
             let center = NSPoint(x: rect.midX, y: rect.midY - 0.5)
             let radius: CGFloat = 6.8

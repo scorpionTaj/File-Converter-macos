@@ -51,6 +51,49 @@ enum OutputMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// Corner of the screen the progress/result notice appears in.
+enum HUDPosition: String, CaseIterable, Identifiable {
+    case topRight, topCenter, topLeft, bottomRight, bottomLeft
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .topRight: return "Top right"
+        case .topCenter: return "Top centre"
+        case .topLeft: return "Top left"
+        case .bottomRight: return "Bottom right"
+        case .bottomLeft: return "Bottom left"
+        }
+    }
+}
+
+enum WheelPosition: String, CaseIterable, Identifiable {
+    case cursor, screenCenter
+    var id: String { rawValue }
+    var title: String { self == .cursor ? "Under the pointer" : "Centre of the screen" }
+}
+
+enum MenuBarIconStyle: String, CaseIterable, Identifiable {
+    case kumquat, arrows, wand, document
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .kumquat: return "Kumquat"
+        case .arrows: return "Arrows"
+        case .wand: return "Magic wand"
+        case .document: return "Document"
+        }
+    }
+    /// SF Symbol, or nil for the drawn kumquat.
+    var symbolName: String? {
+        switch self {
+        case .kumquat: return nil
+        case .arrows: return "arrow.triangle.2.circlepath"
+        case .wand: return "wand.and.stars"
+        case .document: return "doc.on.doc"
+        }
+    }
+}
+
 /// User preferences, persisted in UserDefaults.
 @MainActor
 final class SettingsStore: ObservableObject {
@@ -97,6 +140,19 @@ final class SettingsStore: ObservableObject {
     @Published var audioSampleRate: Int { didSet { defaults.set(audioSampleRate, forKey: "audioSampleRate") } }
     @Published var audioChannels: Int { didSet { defaults.set(audioChannels, forKey: "audioChannels") } }
     @Published var normalizeAudio: Bool { didSet { defaults.set(normalizeAudio, forKey: "normalizeAudio") } }
+    @Published var hudPosition: HUDPosition { didSet { defaults.set(hudPosition.rawValue, forKey: "hudPosition") } }
+    /// Seconds a result stays on screen; 0 keeps it until clicked.
+    @Published var hudDuration: Double { didSet { defaults.set(hudDuration, forKey: "hudDuration") } }
+    /// Show a notice for successful jobs (errors are always shown).
+    @Published var hudShowsSuccess: Bool { didSet { defaults.set(hudShowsSuccess, forKey: "hudShowsSuccess") } }
+    /// System sound names; empty means silent.
+    @Published var successSound: String { didSet { defaults.set(successSound, forKey: "successSound") } }
+    @Published var failureSound: String { didSet { defaults.set(failureSound, forKey: "failureSound") } }
+    @Published var wheelPosition: WheelPosition { didSet { defaults.set(wheelPosition.rawValue, forKey: "wheelPosition") } }
+    @Published var menuBarIcon: MenuBarIconStyle { didSet { defaults.set(menuBarIcon.rawValue, forKey: "menuBarIcon") } }
+    /// Percentage next to the menu bar icon while a job runs.
+    @Published var menuBarProgress: Bool { didSet { defaults.set(menuBarProgress, forKey: "menuBarProgress") } }
+    @Published var recentLimit: Int { didSet { defaults.set(recentLimit, forKey: "recentLimit") } }
     /// Files converted at the same time in a batch.
     @Published var parallelJobs: Int { didSet { defaults.set(parallelJobs, forKey: "parallelJobs") } }
     /// Most recent results (paths), newest first; survives relaunches.
@@ -149,7 +205,25 @@ final class SettingsStore: ObservableObject {
         audioChannels = int("audioChannels", 0)
         normalizeAudio = bool("normalizeAudio", false)
         parallelJobs = min(max(int("parallelJobs", 3), 1), 8)
+        hudPosition = HUDPosition(rawValue: string("hudPosition", "")) ?? .topRight
+        hudDuration = double("hudDuration", 3)
+        hudShowsSuccess = bool("hudShowsSuccess", true)
+        successSound = string("successSound", "Glass")
+        failureSound = string("failureSound", "Basso")
+        wheelPosition = WheelPosition(rawValue: string("wheelPosition", "")) ?? .cursor
+        menuBarIcon = MenuBarIconStyle(rawValue: string("menuBarIcon", "")) ?? .kumquat
+        menuBarProgress = bool("menuBarProgress", true)
+        recentLimit = min(max(int("recentLimit", 15), 5), 50)
         recentPaths = defaults.stringArray(forKey: "recentPaths") ?? []
+    }
+
+    static let systemSounds = ["Basso", "Blow", "Bottle", "Frog", "Funk", "Glass", "Hero", "Morse",
+                               "Ping", "Pop", "Purr", "Sosumi", "Submarine", "Tink"]
+
+    /// Plays a system sound by name if sounds are on.
+    func play(_ name: String) {
+        guard playSound, !name.isEmpty else { return }
+        NSSound(named: NSSound.Name(name))?.play()
     }
 
     /// Forgets every preference (recent files included). Takes effect after a relaunch.

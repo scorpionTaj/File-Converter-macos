@@ -87,16 +87,50 @@ struct GeneralSettings: View {
                 keyPicker("Convert wheel", selection: $settings.convertKey)
                 keyPicker("Tools wheel", selection: $settings.toolsKey)
                 keyPicker("Actions wheel", selection: $settings.actionsKey)
+                Picker("Open the wheel", selection: $settings.wheelPosition) {
+                    ForEach(WheelPosition.allCases) { Text($0.title).tag($0) }
+                }
                 Text("Start dragging a file, then tap the key. Drop the file on a segment.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Section("Feedback") {
+            Section("Notices") {
+                Picker("Position", selection: $settings.hudPosition) {
+                    ForEach(HUDPosition.allCases) { Text($0.title).tag($0) }
+                }
+                Picker("Keep results on screen", selection: $settings.hudDuration) {
+                    Text("2 seconds").tag(2.0)
+                    Text("3 seconds").tag(3.0)
+                    Text("5 seconds").tag(5.0)
+                    Text("10 seconds").tag(10.0)
+                    Text("Until clicked").tag(0.0)
+                }
+                Toggle("Show a notice when a job succeeds", isOn: $settings.hudShowsSuccess)
                 Toggle("Reveal results in Finder", isOn: $settings.revealInFinder)
-                Toggle("Play a sound when done", isOn: $settings.playSound)
-                Toggle("Offer to move Kumquat to Applications", isOn: $settings.offerMoveToApplications)
+            }
+            Section("Sounds") {
+                Toggle("Play sounds", isOn: $settings.playSound)
+                soundPicker("Success", selection: $settings.successSound)
+                soundPicker("Failure", selection: $settings.failureSound)
+            }
+            Section("Menu bar") {
+                Picker("Icon", selection: $settings.menuBarIcon) {
+                    ForEach(MenuBarIconStyle.allCases) { style in
+                        Label {
+                            Text(style.title)
+                        } icon: {
+                            Image(nsImage: StatusIcon.make(style))
+                        }
+                        .tag(style)
+                    }
+                }
+                Toggle("Show progress next to the icon", isOn: $settings.menuBarProgress)
+                Picker("Recent results", selection: $settings.recentLimit) {
+                    ForEach([5, 10, 15, 25, 50], id: \.self) { Text("\($0)").tag($0) }
+                }
             }
             Section("System") {
+                Toggle("Offer to move Kumquat to Applications", isOn: $settings.offerMoveToApplications)
                 Toggle("Launch at login", isOn: Binding(get: { settings.launchAtLogin },
                                                         set: { settings.launchAtLogin = $0 }))
                 Picker("Terminal app", selection: $settings.terminalBundleID) {
@@ -108,6 +142,17 @@ struct GeneralSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func soundPicker(_ title: String, selection: Binding<String>) -> some View {
+        Picker(title, selection: selection) {
+            Text("None").tag("")
+            ForEach(SettingsStore.systemSounds, id: \.self) { Text($0).tag($0) }
+        }
+        .disabled(!settings.playSound)
+        .onChange(of: selection.wrappedValue) { name in
+            if !name.isEmpty { NSSound(named: NSSound.Name(name))?.play() }
+        }
     }
 
     private func keyPicker(_ title: String, selection: Binding<ModifierKey>) -> some View {

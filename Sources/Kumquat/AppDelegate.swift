@@ -123,8 +123,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hud.info("Nothing to \(mode.title.lowercased())", detail: "Kumquat has no \(mode.title.lowercased()) for this file type.")
             return
         }
-        wheel.show(mode: mode, items: wheelItems, urls: urls, at: NSEvent.mouseLocation, interaction: .drag,
+        wheel.show(mode: mode, items: wheelItems, urls: urls, at: wheelPoint(), interaction: .drag,
                    scale: CGFloat(settings.wheelScale))
+    }
+
+    /// Where a drag-summoned wheel opens: under the pointer, or the centre of the pointer's screen.
+    private func wheelPoint() -> NSPoint {
+        let mouse = NSEvent.mouseLocation
+        guard settings.wheelPosition == .screenCenter,
+              let screen = NSScreen.screens.first(where: { NSMouseInRect(mouse, $0.frame, false) }) ?? NSScreen.main else {
+            return mouse
+        }
+        return NSPoint(x: screen.visibleFrame.midX, y: screen.visibleFrame.midY)
     }
 
     /// Shows the click-driven wheel for files that arrived without a drag (menu, Services, Open With, menu-bar drop).
@@ -219,7 +229,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard var fractions = batchProgress[job], index < fractions.count else { return }
         fractions[index] = max(fractions[index], min(fraction, 1))
         batchProgress[job] = fractions
-        hud.progress(fractions.reduce(0, +) / Double(fractions.count), job: job)
+        let overall = fractions.reduce(0, +) / Double(fractions.count)
+        hud.progress(overall, job: job)
+        statusBar?.showProgress(overall)
     }
 
     private func run(_ tool: ToolID, urls: [URL]) {
@@ -246,7 +258,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         jobTasks[job] = Task {
             do {
                 let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions) { [weak self] fraction in
-                    Task { @MainActor in self?.hud.progress(fraction, job: job) }
+                    Task { @MainActor in
+                        self?.hud.progress(fraction, job: job)
+                        self?.statusBar?.showProgress(fraction)
+                    }
                 }
                 if let text = outcome.clipboardText {
                     NSPasteboard.general.clearContents()
@@ -262,12 +277,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func recordOutputs(_ outputs: [URL]) {
         guard !outputs.isEmpty else { return }
         let paths = outputs.map(\.path)
-        settings.recentPaths = Array((paths + settings.recentPaths.filter { !paths.contains($0) }).prefix(15))
+        settings.recentPaths = Array((paths + settings.recentPaths.filter { !paths.contains($0) }).prefix(settings.recentLimit))
         if settings.revealInFinder { NSWorkspace.shared.activateFileViewerSelecting(outputs) }
     }
 
     private func finish(outputs: [URL], failures: [String], message: String?, job: Int) {
         jobTasks[job] = nil
+        if jobTasks.isEmpty { statusBar?.showProgress(nil) }
         recordOutputs(outputs)
         failures.forEach { AppLog.error($0) }
         if cancelledJobs.remove(job) != nil {
@@ -281,10 +297,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if failures.isEmpty {
             let detail = message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : "\(outputs.count) files saved")
             hud.success(outputs.isEmpty ? "Done" : "Saved", detail: detail, reveal: outputs)
-            if settings.playSound { NSSound(named: "Glass")?.play() }
+            settings.play(settings.successSound)
         } else if outputs.isEmpty {
             hud.failure("Couldn't finish", detail: failures.joined(separator: "\n"))
-            if settings.playSound { NSSound(named: "Basso")?.play() }
+            settings.play(settings.failureSound)
         } else {
             hud.failure("\(outputs.count) saved, \(failures.count) failed", detail: failures.joined(separator: "\n"), reveal: outputs)
         }
