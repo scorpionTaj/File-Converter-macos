@@ -47,7 +47,7 @@ Ground rules:
 | ✅ Undo last conversion (move outputs to Trash, restore replaced originals) | Safety net for "replace original" |
 | ✅ Output location rules: add "ask each time", subfolder per batch, and per-category folders (images → Pictures) | Next-to-source / Downloads / custom exist already |
 
-## 0.6 — macOS integration (built, unreleased)
+## 0.6 — macOS integration (released in 0.6.0)
 
 | Item | Status |
 |---|---|
