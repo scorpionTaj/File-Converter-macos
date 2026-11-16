@@ -143,7 +143,20 @@ same `AnnotationRenderer` that writes the file, so what you see is what's saved.
   and results are saved to Downloads, or the custom folder if one is set.
 - **Menu-bar icon** accepts drops (files or promises) and opens the click-mode wheel under the icon.
 - **Services ▸ Open in Kumquat** (`NSServices`, `openFiles:userData:error:`) and **Open With** (a generic
-  `public.item` document type with rank Alternate) open the click-mode wheel at the cursor.
+  `public.item` document type with rank Alternate) open the click-mode wheel at the cursor. The same
+  document type makes a Dock icon the user keeps take drops.
+- **Drop shelf**: a non-activating floating `NSPanel` with the menu-bar icon's drop view; drops open the
+  click-mode wheel at the shelf.
+- **Quick Action and Share extension** (`Sources/KumquatExtension`): one small executable whose entry point
+  is `NSExtensionMain` (a linker flag in `Package.swift`), copied by `scripts/build-app.sh` into
+  `PlugIns/QuickAction.appex` (`com.apple.ui-services`, no UI) and `PlugIns/Share.appex`
+  (`com.apple.share-services`), each signed ad hoc with only the App Sandbox entitlement. They read the
+  file URLs from the request and open them in the containing app with `NSWorkspace`, which lands in
+  `application(_:open:)`. No App Group or IPC needed.
+- **Watch folders**: `WatchFolderTracker` (KumquatCore) decides which files are new (Date Added after the
+  folder's checkpoint) and finished (same size on two scans); `WatchFolderController` drives it from a
+  kqueue source per folder plus a short poll while a file grows, and saves each checkpoint so files that
+  arrived while Kumquat was closed are converted at the next launch.
 
 ### 4.5 Actions (Actions wheel, 7)
 AirDrop (`NSSharingService`), Float (always-on-top Quick Look panel), Copy (file to clipboard), Move to…,

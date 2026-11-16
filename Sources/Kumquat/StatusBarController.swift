@@ -22,9 +22,9 @@ final class StatusBarController: NSObject, NSMenuDelegate {
 
         if let button = statusItem.button {
             // Files dropped on the menu bar icon open the click-driven wheel.
-            let dropView = StatusDropView(frame: button.bounds)
+            let dropView = FileDropView(frame: button.bounds)
             dropView.autoresizingMask = [.width, .height]
-            dropView.onClick = { [weak self] in self?.statusItem.button?.performClick(nil) }
+            dropView.onMouseDown = { [weak self] _ in self?.statusItem.button?.performClick(nil) }
             dropView.onDrop = { [weak self] urls in self?.showWheelBelowIcon(for: urls) }
             dropView.onDropFailed = { [weak app] message in app?.hud.failure("Couldn't receive the file", detail: message) }
             button.addSubview(dropView)
@@ -73,6 +73,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         let open = NSMenuItem(title: "Convert Files…", action: #selector(openFiles), keyEquivalent: "o")
         open.target = self
         menu.addItem(open)
+
+        let shelf = NSMenuItem(title: "Drop Shelf", action: #selector(toggleShelf), keyEquivalent: "")
+        shelf.state = settings.showShelf ? .on : .off
+        shelf.target = self
+        menu.addItem(shelf)
 
         // Without an action, menu validation greys the item out.
         let undo = NSMenuItem(title: app.undoTitle ?? "Undo", action: app.undoTitle == nil ? nil : #selector(undoLast),
@@ -130,6 +135,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         app.setEnabled(!app.settings.isEnabled)
     }
 
+    @objc private func toggleShelf() {
+        app?.settings.showShelf.toggle()
+    }
+
     @objc private func undoLast() {
         app?.undo()
     }
@@ -176,12 +185,15 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     }
 }
 
-/// Transparent overlay on the status item button that accepts file (and file-promise) drops
-/// and forwards clicks to the button so the menu still opens.
-final class StatusDropView: NSView {
+/// Transparent overlay that accepts file (and file-promise) drops: on the status item button (forwarding clicks so
+/// the menu still opens) and on the drop shelf.
+final class FileDropView: NSView {
     var onDrop: (([URL]) -> Void)?
     var onDropFailed: ((String) -> Void)?
-    var onClick: (() -> Void)?
+    var onMouseDown: ((NSEvent) -> Void)?
+    /// Defaults to `onMouseDown`.
+    var onRightMouseDown: ((NSEvent) -> Void)?
+    var highlightRadius: CGFloat = 4
     private var isTargeted = false { didSet { needsDisplay = true } }
 
     override init(frame frameRect: NSRect) {
@@ -194,11 +206,11 @@ final class StatusDropView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard isTargeted else { return }
         NSColor.systemOrange.withAlphaComponent(0.45).setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 2), xRadius: 4, yRadius: 4).fill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 2), xRadius: highlightRadius, yRadius: highlightRadius).fill()
     }
 
-    override func mouseDown(with event: NSEvent) { onClick?() }
-    override func rightMouseDown(with event: NSEvent) { onClick?() }
+    override func mouseDown(with event: NSEvent) { onMouseDown?(event) }
+    override func rightMouseDown(with event: NSEvent) { (onRightMouseDown ?? onMouseDown)?(event) }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         isTargeted = true

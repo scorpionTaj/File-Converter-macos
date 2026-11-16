@@ -12,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var actions = FileActions(settings: settings, hud: hud)
     private lazy var finderHotKey = GlobalHotKey { [weak self] in self?.showWheelForFinderSelection() }
     private var finderShortcutObserver: AnyCancellable?
+    private let shelf = DropShelf()
+    private let watchFolders = WatchFolderController()
+    private var integrationObservers: [AnyCancellable] = []
     /// What running jobs move to the Trash, when they started and what they're called, for undo and notifications.
     private var jobJournals: [Int: UndoJournal] = [:]
     private var jobStarts: [Int: (title: String, date: Date)] = [:]
@@ -100,6 +103,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         linkCommandLineTool()
         // Publishes the current value first, then every change made in Settings.
         finderShortcutObserver = settings.$finderShortcut.sink { [weak self] in self?.registerFinderShortcut($0) }
+
+        shelf.onDrop = { [weak self] urls, point in self?.showWheel(for: urls, at: point) }
+        shelf.onDropFailed = { [weak self] message in self?.hud.failure("Couldn't receive the file", detail: message) }
+        shelf.onHide = { [weak self] in self?.settings.showShelf = false }
+        integrationObservers.append(settings.$showShelf.sink { [weak self] in self?.shelf.setVisible($0) })
+        watchFolders.onReady = { [weak self] folder, urls in self?.convertArrivals(urls, in: folder) }
+        integrationObservers.append(settings.$watchFolders.combineLatest(settings.$presets).sink { [weak self] folders, presets in
+            self?.watchFolders.update(folders, presets: presets)
+        })
 
         if !settings.hasSeenWelcome {
             settings.hasSeenWelcome = true
@@ -246,10 +258,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Options for a job about to start: asks for the folder when set to "Ask each time" (nil if cancelled)
-    /// and names the batch subfolder for multi-file jobs.
-    private func prepareJobOptions(for urls: [URL], separateResults: Bool) -> ConversionOptions? {
+    /// and names the batch subfolder for multi-file jobs. Unattended jobs (watch folders) never ask; with
+    /// "Ask each time" their results go next to the originals.
+    private func prepareJobOptions(for urls: [URL], separateResults: Bool, unattended: Bool = false) -> ConversionOptions? {
         var options = options(for: urls)
-        if settings.outputMode == .ask {
+        if settings.outputMode == .ask, !unattended {
             guard let folder = Prompt.chooseFolder(title: "Save results to") else { return nil }
             options.outputLocation = .folder(folder.path)
             // A folder chosen for this job wins over the per-kind folders.
@@ -273,7 +286,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Converts with the remembered choices for `target`, then `overrides` (a preset), then the options sheet.
     private func convert(_ dropped: [URL], to target: Format, overrides: OptionOverrides? = nil,
-                         askForOptions: Bool = false, title presetName: String? = nil) {
+                         askForOptions: Bool = false, title presetName: String? = nil, unattended: Bool = false) {
         let urls = dropped.filter { FormatRegistry.format(for: $0) != target }
         guard !urls.isEmpty else {
             hud.info("Already \(target.shortName)", detail: "Nothing to convert.")
@@ -293,7 +306,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             extra = extra.merged(with: choice.overrides)
         }
-        guard var prepared = prepareJobOptions(for: urls, separateResults: true) else { return }
+        guard var prepared = prepareJobOptions(for: urls, separateResults: true, unattended: unattended) else { return }
         extra.apply(to: &prepared, target: target)
         let jobOptions = prepared
         let converter = self.converter
@@ -341,6 +354,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             batchProgress[job] = nil
             finish(outputs: outputs.sorted { $0.0 < $1.0 }.map(\.1), failures: failures, message: nil, job: job)
         }
+    }
+
+    /// Files that finished arriving in a watch folder: converted with the folder's preset, no questions asked.
+    private func convertArrivals(_ urls: [URL], in folder: WatchFolder) {
+        guard let preset = settings.presets.first(where: { $0.id == folder.presetID }),
+              let format = preset.targetFormat else { return }
+        let files = WatchFolder.convertible(urls, with: preset, catalog: converter.catalog())
+        guard !files.isEmpty else { return }
+        AppLog.info("Watch folder \(folder.path): \(files.count) new file(s) → \(preset.name)")
+        convert(files, to: format, overrides: preset.overrides, title: "\(preset.name) · \(folder.name)", unattended: true)
     }
 
     private func updateBatch(job: Int, index: Int, fraction: Double) {

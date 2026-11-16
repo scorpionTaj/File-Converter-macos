@@ -5,6 +5,22 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Watch folders**: in Settings ▸ Presets, pick a folder and a preset; every file added to the folder is
+  converted with that preset once it has finished copying or downloading. Files already there are left
+  alone, files added while Kumquat was closed are converted at the next launch, and results follow your
+  Output settings (“Ask each time” saves next to the file). Pause or remove a folder at any time.
+- **Finder Quick Action and Share extension**: right-click files ▸ Quick Actions ▸ **Open in Kumquat**, or
+  **Share ▸ Kumquat**, opens the wheel for them. If they don't show up, turn them on in System Settings ▸
+  General ▸ Login Items & Extensions.
+- **Drop shelf**: a small floating window (Settings ▸ General ▸ Show the drop shelf). Drop files on it to
+  open the wheel without holding a key, which is easier on a trackpad. Drag it anywhere; right-click to hide.
+- Shortcuts and Automator recipes using `kumquat-cli` in the README.
+
+### Changed
+- **Launch at login** says when macOS is waiting for your approval (with a button to open Login Items) and
+  explains why it couldn't be turned on, e.g. when Kumquat runs from the disk image.
+
 ## [0.5.0] - 2026-11-16
 
 ### Added

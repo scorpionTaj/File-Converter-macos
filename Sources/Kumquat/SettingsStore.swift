@@ -123,6 +123,12 @@ final class SettingsStore: ObservableObject {
     @Published var kindFolders: [String: String] { didSet { defaults.set(kindFolders, forKey: "kindFolders") } }
     @Published var wheelPreferences: WheelPreferences { didSet { store(wheelPreferences, "wheelPreferences") } }
     @Published var presets: [OutputPreset] { didSet { store(presets, "presets") } }
+    /// Folders whose new files are converted with a preset.
+    @Published var watchFolders: [WatchFolder] { didSet { store(watchFolders, "watchFolders") } }
+    /// The floating drop shelf is on screen.
+    @Published var showShelf: Bool { didSet { defaults.set(showShelf, forKey: "showShelf") } }
+    /// Why the last launch-at-login change failed, for Settings ▸ General.
+    @Published var launchAtLoginError: String?
     /// Format id → choices remembered from the options sheet, applied to every conversion to that format.
     @Published var formatDefaults: [String: OptionOverrides] { didSet { store(formatDefaults, "formatDefaults") } }
     @Published var askBeforeConverting: Bool { didSet { defaults.set(askBeforeConverting, forKey: "askBeforeConverting") } }
@@ -213,6 +219,8 @@ final class SettingsStore: ObservableObject {
         kindFolders = defaults.dictionary(forKey: "kindFolders") as? [String: String] ?? [:]
         wheelPreferences = Self.load(WheelPreferences.self, "wheelPreferences", from: defaults) ?? WheelPreferences()
         presets = Self.load([OutputPreset].self, "presets", from: defaults) ?? []
+        watchFolders = Self.load([WatchFolder].self, "watchFolders", from: defaults) ?? []
+        showShelf = bool("showShelf", false)
         formatDefaults = Self.load([String: OptionOverrides].self, "formatDefaults", from: defaults) ?? [:]
         askBeforeConverting = bool("askBeforeConverting", false)
         terminalBundleID = string("terminalBundleID", "com.apple.Terminal")
@@ -365,15 +373,24 @@ final class SettingsStore: ObservableObject {
         ])
     }
 
+    /// On, or waiting for the user to allow it in System Settings ▸ General ▸ Login Items.
     var launchAtLogin: Bool {
-        get { SMAppService.mainApp.status == .enabled }
+        get { [.enabled, .requiresApproval].contains(SMAppService.mainApp.status) }
         set {
             objectWillChange.send()
             do {
                 if newValue { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+                launchAtLoginError = nil
             } catch {
-                NSLog("Kumquat: launch at login failed: \(error.localizedDescription)")
+                AppLog.error("Launch at login: \(error.localizedDescription)")
+                let path = Bundle.main.bundleURL.path
+                launchAtLoginError = path.hasPrefix("/Volumes/") || path.contains("/AppTranslocation/")
+                    ? "Move Kumquat to Applications first, then turn this on."
+                    : error.localizedDescription
             }
         }
     }
+
+    /// macOS turned launch at login off until the user allows it.
+    var launchAtLoginNeedsApproval: Bool { SMAppService.mainApp.status == .requiresApproval }
 }

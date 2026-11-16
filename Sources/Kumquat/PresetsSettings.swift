@@ -36,6 +36,7 @@ struct PresetsSettings: View {
                 Text("A preset is a format plus the settings to use, like “WebP 80%, 2048 px”. Presets appear first on the Convert wheel for files that can become their format.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            WatchFoldersSection(settings: settings)
         }
         .formStyle(.grouped)
         .sheet(item: $editing) { preset in
@@ -50,6 +51,68 @@ struct PresetsSettings: View {
                 editing = nil
             }
         }
+    }
+}
+
+/// Folders whose new files are converted with a preset.
+private struct WatchFoldersSection: View {
+    @ObservedObject var settings: SettingsStore
+
+    var body: some View {
+        Section {
+            if settings.watchFolders.isEmpty {
+                Text("No watch folders yet.").foregroundStyle(.secondary)
+            }
+            ForEach($settings.watchFolders) { $folder in
+                HStack {
+                    Toggle("", isOn: $folder.isEnabled)
+                        .labelsHidden()
+                        .help(folder.isEnabled ? "Watching" : "Paused")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(folder.name)
+                        Text(status(of: folder)).font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
+                    Spacer()
+                    Picker("", selection: $folder.presetID) {
+                        if !settings.presets.contains(where: { $0.id == folder.presetID }) {
+                            Text("Choose a preset").tag(folder.presetID)
+                        }
+                        ForEach(settings.presets) { Text($0.name).tag($0.id) }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 160)
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([folder.url])
+                    } label: { Image(systemName: "folder") }
+                        .help("Show in Finder")
+                    Button(role: .destructive) {
+                        settings.watchFolders.removeAll { $0.id == folder.id }
+                    } label: { Image(systemName: "trash") }
+                        .help("Stop watching \(folder.name)")
+                }
+            }
+            Button("Add Watch Folder…") {
+                guard let preset = settings.presets.first,
+                      let url = Prompt.chooseFolder(title: "Watch Folder") else { return }
+                guard !settings.watchFolders.contains(where: { $0.path == url.path }) else { return }
+                settings.watchFolders.append(WatchFolder(path: url.path, presetID: preset.id))
+            }
+            .disabled(settings.presets.isEmpty)
+        } header: {
+            Text("Watch folders")
+        } footer: {
+            Text(settings.presets.isEmpty
+                 ? "Make a preset first: a watch folder converts every new file with one."
+                 : "New files in a watch folder are converted with its preset while Kumquat runs, and files that arrived while it was closed are converted at the next launch. Files already there when you add the folder are left alone. Results follow your Output settings (“Ask each time” saves next to the file).")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func status(of folder: WatchFolder) -> String {
+        if !FileManager.default.fileExists(atPath: folder.path) { return "Folder not found: \(folder.path)" }
+        if !settings.presets.contains(where: { $0.id == folder.presetID }) { return "Its preset was deleted; choose another" }
+        return folder.path
     }
 }
 

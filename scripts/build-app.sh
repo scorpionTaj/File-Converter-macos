@@ -22,6 +22,7 @@ fi
 echo "▸ Building Kumquat $VERSION ($BUILD_NUMBER)"
 swift build -c release --product Kumquat ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
 swift build -c release --product kumquat-cli ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
+swift build -c release --product KumquatExtension ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"}
 BIN_DIR="$(swift build -c release --show-bin-path ${ARCH_FLAGS[@]+"${ARCH_FLAGS[@]}"})"
 
 echo "▸ Assembling $APP"
@@ -31,6 +32,15 @@ cp "$BIN_DIR/Kumquat" "$APP/Contents/MacOS/Kumquat"
 cp "$BIN_DIR/kumquat-cli" "$APP/Contents/Resources/bin/kumquat-cli"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD_NUMBER/" Resources/Info.plist > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
+
+# Finder Quick Action and Share extension: one binary, two bundles, each with its own Info.plist.
+EXTENSIONS=(QuickAction Share)
+for EXT in "${EXTENSIONS[@]}"; do
+  APPEX="$APP/Contents/PlugIns/$EXT.appex"
+  mkdir -p "$APPEX/Contents/MacOS"
+  cp "$BIN_DIR/KumquatExtension" "$APPEX/Contents/MacOS/KumquatExtension"
+  sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD_NUMBER/" "Resources/Extensions/$EXT-Info.plist" > "$APPEX/Contents/Info.plist"
+done
 
 echo "▸ Generating icon"
 ICONSET="$BUILD/AppIcon.iconset"
@@ -50,6 +60,10 @@ if [[ "$SIGN_IDENTITY" != "-" ]]; then
   SIGN_ARGS+=(--options runtime --timestamp)
 fi
 find "$APP/Contents/Resources/bin" -type f -perm +111 -exec codesign "${SIGN_ARGS[@]}" {} \;
+# Inside out: extensions before the app. macOS only loads sandboxed extensions.
+for EXT in "${EXTENSIONS[@]}"; do
+  codesign "${SIGN_ARGS[@]}" --entitlements Resources/Extensions/Extension.entitlements "$APP/Contents/PlugIns/$EXT.appex"
+done
 codesign "${SIGN_ARGS[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 
