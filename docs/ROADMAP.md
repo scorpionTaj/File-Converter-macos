@@ -35,7 +35,7 @@ Ground rules:
 | Advanced: open log, copy diagnostics, clear temporary files, reset all settings | ✅ |
 | Sparkle 2 (signed appcast, in-place install) | ✅ In-place install built in (checksum-verified, Install and Relaunch); Sparkle not needed |
 
-## 0.5 — Everyday workflow
+## 0.5 — Everyday workflow (released in 0.5.0)
 
 | Item | Why |
 |---|---|

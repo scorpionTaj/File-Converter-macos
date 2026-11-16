@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
 ### Added
 - **Wheel for the Finder selection**: select files in Finder and press ⌃⌥K to open the wheel without
   dragging. Choose another shortcut or turn it off in Settings ▸ General. macOS asks once to let Kumquat
@@ -201,7 +203,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.3.1...v0.4.0
