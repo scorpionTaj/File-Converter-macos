@@ -318,6 +318,13 @@ public struct ImageEngine: ConversionEngine {
             let output = context.scratchURL("txt")
             try text.write(to: output, atomically: true, encoding: .utf8)
             return ToolArtifact(url: output, message: "Text copied", clipboardText: text)
+        case .imageUpscale:
+            result = try upscaled(image, factor: 2)
+        case .imageEditMetadata:
+            let edit = try MetadataEdit.parse(parameter ?? "")
+            let output = context.scratchURL(source.fileExtension)
+            try edit.apply(input, to: output)
+            return ToolArtifact(url: output, message: "Metadata updated")
         case .stripMetadata:
             let output = context.scratchURL(format.fileExtension)
             try stripMetadata(input, to: output, format: format, fallbackImage: image, quality: quality)

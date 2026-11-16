@@ -362,6 +362,13 @@ enum ToolRunner {
         case .checksum:
             let digest = try await Checksum.sha256(of: input)
             return ToolArtifact(message: "SHA-256 copied", clipboardText: "\(digest)  \(input.lastPathComponent)")
+        case .batchRename:
+            let name = try RenamePattern.render(parameter ?? "", original: input, index: context.itemIndex,
+                                                count: context.itemCount, date: RenamePattern.date(of: input))
+            // A clone (instant on APFS); "Originals: move to Trash" turns this into a rename.
+            let copy = context.workDirectory.appendingPathComponent(input.lastPathComponent)
+            try FileManager.default.copyItem(at: input, to: copy)
+            return ToolArtifact(url: copy, preferredBaseName: name)
         case .wordCount:
             let text = try await TextExtraction.text(of: input, format: format)
             let words = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count

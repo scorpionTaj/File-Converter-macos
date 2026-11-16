@@ -32,7 +32,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
     // Images
     case imageCompress, imageResizeHalf, imageFit1920, imageRotateLeft, imageRotateRight, imageFlip
     case imageGrayscale, imageRemoveBackground, imageExtractText, imagesToPDF
-    case imageAnnotate, imageResizeCustom, imagesToGIF
+    case imageAnnotate, imageResizeCustom, imagesToGIF, imageUpscale, imageEditMetadata, batchRename
     // PDF
     case pdfCompress, pdfMerge, pdfSplit, pdfRotate, pdfExtractText, pdfOCR
     case pdfEncrypt, pdfDecrypt, pdfRedactPersonalInfo, pdfRedactText
@@ -59,6 +59,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageAnnotate: return "Annotate…"
         case .imageResizeCustom: return "Resize…"
         case .imagesToGIF: return "Make GIF"
+        case .imageUpscale: return "Upscale 2×"
+        case .imageEditMetadata: return "Edit Metadata…"
+        case .batchRename: return "Rename…"
         case .pdfRemovePages: return "Remove Pages…"
         case .pdfExtractPages: return "Keep Pages…"
         case .mediaTrim: return "Trim…"
@@ -106,6 +109,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageAnnotate: return "Draw, add text, highlight, pixelate, crop"
         case .imageResizeCustom: return "Choose a size or percentage"
         case .imagesToGIF: return "Animate the images as a GIF"
+        case .imageUpscale: return "Double the size, sharpened"
+        case .imageEditMetadata: return "Change date taken, title, author, location"
+        case .batchRename: return "Renamed copies: {name}, {n}, {date}"
         case .pdfRemovePages: return "Delete a range of pages"
         case .pdfExtractPages: return "New PDF with only some pages"
         case .mediaTrim: return "Keep only part of the clip"
@@ -159,6 +165,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageAnnotate: return "pencil.tip.crop.circle"
         case .imageResizeCustom: return "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left"
         case .imagesToGIF: return "square.stack.3d.forward.dottedline"
+        case .imageUpscale: return "arrow.up.left.and.arrow.down.right"
+        case .imageEditMetadata: return "tag"
+        case .batchRename: return "character.cursor.ibeam"
         case .pdfRemovePages: return "minus.rectangle"
         case .pdfExtractPages: return "doc.on.doc"
         case .mediaTrim: return "timeline.selection"
@@ -208,13 +217,16 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .stripMetadata: return "clean"
         case .imageAnnotate: return "annotated"
         case .imageResizeCustom: return "resized"
+        case .imageUpscale: return "2x"
+        case .imageEditMetadata: return "edited"
         case .pdfRemovePages: return "edited"
         case .pdfExtractPages: return "pages"
         case .pdfSearchable: return "searchable"
         case .pdfArrange: return "arranged"
         case .pdfAnnotate: return "annotated"
         case .mediaTrim: return "trimmed"
-        case .imagesToPDF, .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount: return nil
+        case .imagesToPDF, .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount,
+             .batchRename: return nil
         }
     }
 
@@ -234,6 +246,8 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfDecrypt: return .password(prompt: "Enter the PDF's current password")
         case .pdfRedactText: return .text(prompt: "Text to black out (case-insensitive)")
         case .imageResizeCustom: return .text(prompt: "New size: a percentage (50%), a width (1280) or width×height (1280x720)")
+        case .batchRename: return .text(prompt: "New name. {name} = current name, {n} = number in drop order, {date} = date taken (or file date). E.g. Holiday {date} {n}")
+        case .imageEditMetadata: return .text(prompt: "Changes separated by ;  e.g. date=2024-05-01 14:30; title=Beach; artist=Sam; copyright=© Sam; location=31.63,-8.01. Leave a value empty to remove it (location= removes GPS).")
         case .pdfRemovePages: return .text(prompt: "Pages to remove, e.g. 1, 3-5")
         case .pdfExtractPages: return .text(prompt: "Pages to keep, e.g. 2-4, 7")
         case .pdfArrange: return .pages(prompt: "New page order; pages left out are dropped. Add r90, r180 or r270 to turn a page, e.g. 3, 1-2, 4r90")
@@ -269,8 +283,12 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
             return all(.image) && formats.count > 1
         case .imageAnnotate:
             return all(.image) && formats.count == 1
-        case .imageResizeCustom:
+        case .imageResizeCustom, .imageUpscale:
             return all(.image)
+        case .imageEditMetadata:
+            return formats.allSatisfy { $0.map(MetadataEdit.editableFormats.contains) ?? false }
+        case .batchRename:
+            return !kinds.contains(.folder) && !formats.isEmpty
         case .pdfRemovePages, .pdfExtractPages, .pdfSearchable, .pdfArrange:
             return all(.pdf)
         case .pdfAnnotate:
