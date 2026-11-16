@@ -9,6 +9,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - **Wheel for the Finder selection**: select files in Finder and press ⌃⌥K to open the wheel without
   dragging. Choose another shortcut or turn it off in Settings ▸ General. macOS asks once to let Kumquat
   read Finder's selection.
+- **Install and Relaunch** for updates: after downloading, Kumquat checks the new app (bundle, version and
+  code signature), quits, replaces itself and opens again. The old version is kept until the new one is in
+  place and restored if the swap fails. Updates installed this way don't need right-click ▸ Open. When the
+  app's folder isn't writable, the disk image opens for a manual install as before.
+
+### Changed
+- The updater uses the renamed `scorpionTaj/Kumquat` repository.
+
+### Security
+- Downloaded updates are checked against the release's SHA-256 sums; a damaged or altered disk image is
+  deleted instead of opened.
 
 ## [0.4.2] - 2026-11-16
 

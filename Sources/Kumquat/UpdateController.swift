@@ -64,7 +64,7 @@ final class UpdateController {
         switch alert.runModal() {
         case .alertFirstButtonReturn:
             if let image = release.diskImage {
-                download(image, version: version, fallback: release.htmlURL)
+                download(image, of: release, version: version)
             } else {
                 NSWorkspace.shared.open(release.htmlURL)
             }
@@ -75,28 +75,88 @@ final class UpdateController {
         }
     }
 
-    private func download(_ asset: ReleaseInfo.Asset, version: String, fallback: URL) {
+    private func download(_ asset: ReleaseInfo.Asset, of release: ReleaseInfo, version: String) {
         let job = hud?.begin("Downloading Kumquat \(version)", detail: asset.name)
         Task { [self] in
+            let image: URL
             do {
                 let (temporary, response) = try await URLSession.shared.download(from: asset.browserDownloadURL)
                 guard (response as? HTTPURLResponse)?.statusCode == 200 else {
                     throw UpdateChecker.CheckError.unreachable((response as? HTTPURLResponse)?.statusCode ?? 0)
                 }
+                // Releases publish SHA-256 sums; a damaged or altered download is deleted, never opened.
+                if let sums = release.checksums {
+                    let (data, _) = try await URLSession.shared.data(from: sums.browserDownloadURL)
+                    do {
+                        try await UpdateInstaller.verify(temporary, as: asset.name, listing: String(decoding: data, as: UTF8.self))
+                    } catch {
+                        try? FileManager.default.removeItem(at: temporary)
+                        throw error
+                    }
+                }
                 let downloads = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
                     ?? FileManager.default.temporaryDirectory
-                let destination = OutputNamer.uniqueURL(in: downloads, fileName: asset.name)
-                try FileManager.default.moveItem(at: temporary, to: destination)
+                image = OutputNamer.uniqueURL(in: downloads, fileName: asset.name)
+                try FileManager.default.moveItem(at: temporary, to: image)
                 if let job { hud?.progress(1, job: job) }
-                hud?.success("Update downloaded", detail: destination.lastPathComponent, reveal: [destination])
-                AppLog.info("Downloaded update \(version) to \(destination.path)")
-                NSWorkspace.shared.open(destination)
-                finishInstall(version: version)
+                hud?.success("Update downloaded", detail: image.lastPathComponent, reveal: [image])
+                AppLog.info("Downloaded and verified update \(version) at \(image.path)")
             } catch {
                 AppLog.error("Update download failed: \(error.localizedDescription)")
-                hud?.failure("Download failed", detail: "Opening the release page instead.")
-                NSWorkspace.shared.open(fallback)
+                hud?.failure("Download failed", detail: error.localizedDescription)
+                NSWorkspace.shared.open(release.htmlURL)
+                return
             }
+            if canInstallInPlace {
+                await offerInstall(image, version: version)
+            } else {
+                NSWorkspace.shared.open(image)
+                finishInstall(version: version)
+            }
+        }
+    }
+
+    /// Replacing the app needs it to live in a writable Applications folder (not the disk image).
+    private var canInstallInPlace: Bool {
+        let bundle = Bundle.main.bundleURL.standardizedFileURL
+        return bundle.pathExtension == "app" && ApplicationsMover.isInstalled(bundle)
+            && FileManager.default.isWritableFile(atPath: bundle.deletingLastPathComponent().path)
+    }
+
+    private func offerInstall(_ image: URL, version: String) async {
+        let alert = NSAlert()
+        alert.messageText = "Kumquat \(version) is ready to install"
+        alert.informativeText = "Kumquat will quit, replace itself with the new version and open again. Running conversions are stopped."
+        alert.addButton(withTitle: "Install and Relaunch")
+        alert.addButton(withTitle: "Later")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let installed = Bundle.main.bundleURL.standardizedFileURL
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let staging = caches.appendingPathComponent("Kumquat/Update/\(version)", isDirectory: true)
+        let job = hud?.begin("Preparing Kumquat \(version)", detail: "Checking the new app")
+        do {
+            try? FileManager.default.removeItem(at: staging)
+            let staged = try await UpdateInstaller.stageApp(fromDiskImage: image, into: staging,
+                                                             bundleIdentifier: Bundle.main.bundleIdentifier ?? "",
+                                                             version: version)
+            if let job { hud?.progress(1, job: job) }
+            let backup = installed.deletingLastPathComponent()
+                .appendingPathComponent(".Kumquat-\(currentVersion)-\(UUID().uuidString.prefix(8)).app")
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", UpdateInstaller.swapScript, "kumquat-update",
+                                 "\(ProcessInfo.processInfo.processIdentifier)", installed.path, staged.path, backup.path]
+            try process.run()
+            AppLog.info("Installing \(version) from \(staged.path); relaunching")
+            NSApp.terminate(nil)
+        } catch {
+            AppLog.error("In-place update failed: \(error.localizedDescription)")
+            hud?.failure("Couldn't install automatically", detail: error.localizedDescription)
+            NSWorkspace.shared.open(image)
+            finishInstall(version: version)
         }
     }
 
