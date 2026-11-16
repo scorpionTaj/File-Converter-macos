@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import KumquatCore
 
 @MainActor
@@ -9,6 +10,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let wheel = RadialMenuController()
     private var statusBar: StatusBarController?
     private lazy var actions = FileActions(settings: settings, hud: hud)
+    private lazy var finderHotKey = GlobalHotKey { [weak self] in self?.showWheelForFinderSelection() }
+    private var finderShortcutObserver: AnyCancellable?
     /// Per-file progress of the running batch, keyed by HUD job id.
     private var batchProgress: [Int: [Double]] = [:]
     /// Running jobs, so the HUD's cancel button can stop them.
@@ -87,6 +90,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         PromiseInbox.cleanUp()
         linkCommandLineTool()
+        // Publishes the current value first, then every change made in Settings.
+        finderShortcutObserver = settings.$finderShortcut.sink { [weak self] in self?.registerFinderShortcut($0) }
 
         if !settings.hasSeenWelcome {
             settings.hasSeenWelcome = true
@@ -171,6 +176,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let mode = WheelMode.allCases.first { !items(for: $0, urls: urls).isEmpty } ?? .actions
         wheel.show(mode: mode, items: items(for: mode, urls: urls), urls: urls, at: point, interaction: .click,
                    scale: CGFloat(settings.wheelScale))
+    }
+
+    private func registerFinderShortcut(_ shortcut: FinderShortcut) {
+        finderHotKey.unregister()
+        guard let key = shortcut.carbonKey else { return }
+        if !finderHotKey.register(code: key.code, modifiers: key.modifiers) {
+            AppLog.error("Couldn't register \(shortcut.title); another app may own it")
+            hud.info("\(shortcut.title) is taken", detail: "Another app uses it. Pick a different shortcut in Settings ▸ General.")
+        }
+    }
+
+    /// The global shortcut: the wheel for whatever is selected in Finder, no drag needed.
+    func showWheelForFinderSelection() {
+        guard settings.isEnabled else { return }
+        switch FinderSelection.urls() {
+        case .success(let urls) where !urls.isEmpty:
+            showWheel(for: urls, at: wheelPoint())
+        case .success:
+            hud.info("Nothing selected in Finder", detail: "Select files in Finder, then press \(settings.finderShortcut.title).")
+        case .failure(let error):
+            AppLog.error("Finder selection: \(error.localizedDescription)")
+            hud.failure("Couldn't read the Finder selection", detail: error.localizedDescription)
+        }
     }
 
     /// "Convert Files…" from the menu bar.

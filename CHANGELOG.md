@@ -5,6 +5,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Wheel for the Finder selection**: select files in Finder and press ⌃⌥K to open the wheel without
+  dragging. Choose another shortcut or turn it off in Settings ▸ General. macOS asks once to let Kumquat
+  read Finder's selection.
+
 ## [0.4.2] - 2026-11-16
 
 ### Added

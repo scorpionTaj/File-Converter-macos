@@ -103,6 +103,7 @@ final class SettingsStore: ObservableObject {
 
     @Published var isEnabled: Bool { didSet { defaults.set(isEnabled, forKey: "enabled") } }
     @Published var convertKey: ModifierKey { didSet { defaults.set(convertKey.rawValue, forKey: "convertKey") } }
+    @Published var finderShortcut: FinderShortcut { didSet { defaults.set(finderShortcut.rawValue, forKey: "finderShortcut") } }
     @Published var toolsKey: ModifierKey { didSet { defaults.set(toolsKey.rawValue, forKey: "toolsKey") } }
     @Published var actionsKey: ModifierKey { didSet { defaults.set(actionsKey.rawValue, forKey: "actionsKey") } }
     @Published var revealInFinder: Bool { didSet { defaults.set(revealInFinder, forKey: "revealInFinder") } }
@@ -184,6 +185,7 @@ final class SettingsStore: ObservableObject {
 
         isEnabled = bool("enabled", true)
         convertKey = ModifierKey(rawValue: string("convertKey", "")) ?? .shift
+        finderShortcut = FinderShortcut(rawValue: string("finderShortcut", "")) ?? .controlOptionK
         toolsKey = ModifierKey(rawValue: string("toolsKey", "")) ?? .command
         actionsKey = ModifierKey(rawValue: string("actionsKey", "")) ?? .control
         revealInFinder = bool("revealInFinder", false)
