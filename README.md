@@ -134,14 +134,17 @@ kumquat-cli tools photo.jpg        # which tools apply?
 kumquat-cli doctor                 # which helpers are installed?
 ```
 
-The app bundle includes the CLI at `Kumquat.app/Contents/Resources/bin/kumquat-cli`. To run it as
-`kumquat-cli` from any folder, link it into a folder on your `PATH` (it then keeps up with app updates):
+The CLI comes with the app: when Kumquat runs from Applications, it links
+`Kumquat.app/Contents/Resources/bin/kumquat-cli` into Homebrew's `bin` folder, so `kumquat-cli` works in
+any new Terminal window and stays in step with app updates. Without Homebrew, use
+**Settings ▸ Advanced ▸ Command Line ▸ Install…** (asks for your password, links into `/usr/local/bin`),
+or link it yourself:
 
 ```bash
-ln -sf /Applications/Kumquat.app/Contents/Resources/bin/kumquat-cli /opt/homebrew/bin/kumquat-cli
+sudo ln -sf /Applications/Kumquat.app/Contents/Resources/bin/kumquat-cli /usr/local/bin/kumquat-cli
 ```
 
-On an Intel Mac use `/usr/local/bin` instead of `/opt/homebrew/bin`. `kumquat-cli --version` prints the version.
+`kumquat-cli --version` prints the version.
 
 ## How it works
 

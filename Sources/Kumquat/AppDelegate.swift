@@ -28,6 +28,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Rebuilt per use so changed tool paths in Settings apply immediately.
     var converter: Converter { Converter(tools: settings.toolLocator) }
 
+    /// Puts `kumquat-cli` on the PATH whenever Kumquat runs from Applications (not from the disk image,
+    /// whose path disappears on eject). Silent: Settings ▸ Advanced offers a password-backed install.
+    private func linkCommandLineTool() {
+        let bundle = Bundle.main.bundleURL.standardizedFileURL
+        guard bundle.pathExtension == "app", ApplicationsMover.isInstalled(bundle) else { return }
+        do {
+            if let link = try CommandLineTool.install(app: bundle) {
+                AppLog.info("kumquat-cli available at \(link.path)")
+            }
+        } catch {
+            AppLog.error("Couldn't link kumquat-cli: \(error.localizedDescription)")
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // One Kumquat at a time: a second copy would add a second menu-bar icon and double every wheel.
         if let identifier = Bundle.main.bundleIdentifier,
@@ -72,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSUpdateDynamicServices()
 
         PromiseInbox.cleanUp()
+        linkCommandLineTool()
 
         if !settings.hasSeenWelcome {
             settings.hasSeenWelcome = true

@@ -6,8 +6,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- `kumquat-cli --version` (or `kumquat-cli version`) prints the version of the app the CLI belongs to,
-  and the README explains how to put `kumquat-cli` on your `PATH`.
+- Installing Kumquat installs `kumquat-cli` too: when Kumquat runs from Applications it links its
+  bundled CLI into Homebrew's `bin` folder, and repairs the link if the app moves. Settings ▸ Advanced ▸
+  Command Line shows where it is and can install it into `/usr/local/bin` with your password on Macs
+  without Homebrew. Files named `kumquat-cli` that Kumquat didn't create are never replaced.
+- `kumquat-cli --version` (or `kumquat-cli version`) prints the version of the app the CLI belongs to.
 
 ## [0.4.1] - 2026-11-16
 

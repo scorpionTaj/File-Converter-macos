@@ -333,9 +333,29 @@ struct AdvancedSettings: View {
     @ObservedObject var settings: SettingsStore
     let isBusy: () -> Bool
     @State private var status: String?
+    @State private var cliStatus = CommandLineTool.status(app: Bundle.main.bundleURL)
+    @State private var cliMessage: String?
 
     var body: some View {
         Form {
+            Section {
+                HStack {
+                    switch cliStatus {
+                    case .linked(let link): Text("Installed at \(link.path)")
+                    case .notLinked: Text("Not installed")
+                    }
+                    Spacer()
+                    Button(cliStatus == .notLinked ? "Install…" : "Reinstall") { installCommandLineTool() }
+                }
+                if let cliMessage {
+                    Text(cliMessage).font(.caption).foregroundStyle(.secondary)
+                }
+            } header: {
+                Text("Command Line")
+            } footer: {
+                Text("Use kumquat-cli in Terminal (try kumquat-cli --help). Kumquat links it automatically when Homebrew's bin folder is writable; otherwise Install asks for your password and links it into /usr/local/bin.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section {
                 Stepper("Convert \(settings.parallelJobs) file\(settings.parallelJobs == 1 ? "" : "s") at a time",
                         value: $settings.parallelJobs, in: 1...8)
@@ -387,6 +407,24 @@ struct AdvancedSettings: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func installCommandLineTool() {
+        let app = Bundle.main.bundleURL.standardizedFileURL
+        Task { @MainActor in
+            do {
+                let link: URL
+                if let placed = try CommandLineTool.install(app: app) {
+                    link = placed
+                } else {
+                    link = try await CommandLineTool.installAsAdministrator(app: app)
+                }
+                cliStatus = CommandLineTool.status(app: app)
+                cliMessage = "kumquat-cli is ready: \(link.path)"
+            } catch {
+                cliMessage = error.localizedDescription
+            }
+        }
     }
 
     private func confirmReset() {
