@@ -72,6 +72,7 @@ brew install ffmpeg            # audio, video, GIF, WebP/AVIF fallback
 brew install --cask libreoffice # best Office ↔ PDF fidelity, slides & sheets
 brew install pandoc            # EPUB & high-quality Markdown
 brew install pngquant          # PNG compression
+brew install ghostscript       # smaller text-heavy PDFs when compressing
 ```
 
 Requires macOS 13 Ventura or later (Apple silicon or Intel). Background removal requires macOS 14.

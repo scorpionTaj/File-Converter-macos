@@ -243,6 +243,7 @@ public struct ToolLocator: Sendable {
     public var soffice: URL? { path(for: "soffice") }
     public var pandoc: URL? { path(for: "pandoc") }
     public var pngquant: URL? { path(for: "pngquant") }
+    public var ghostscript: URL? { path(for: "gs") }
 
     public func applicationInstalled(_ name: String) -> Bool {
         let fm = FileManager.default
@@ -256,6 +257,7 @@ public struct ToolLocator: Sendable {
         case .libreOffice: return soffice != nil
         case .pandoc: return pandoc != nil
         case .pngquant: return pngquant != nil
+        case .ghostscript: return ghostscript != nil
         case .pages: return applicationInstalled("Pages")
         case .keynote: return applicationInstalled("Keynote")
         case .numbers: return applicationInstalled("Numbers")
@@ -303,6 +305,7 @@ extension Dependency {
         case .libreOffice: return "soffice"
         case .pandoc: return "pandoc"
         case .pngquant: return "pngquant"
+        case .ghostscript: return "gs"
         case .pages, .keynote, .numbers: return nil
         }
     }
@@ -314,6 +317,7 @@ extension Dependency {
         case .libreOffice: return "--cask libreoffice"
         case .pandoc: return "pandoc"
         case .pngquant: return "pngquant"
+        case .ghostscript: return "ghostscript"
         case .pages, .keynote, .numbers: return nil
         }
     }

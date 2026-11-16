@@ -146,9 +146,10 @@ final class RealWorldTests: TemporaryDirectoryTestCase {
         }
     }
 
-    /// A page of dense detail, like a scan: only downsampling/re-encoding its image can shrink the PDF.
-    func testPDFCompressShrinksScans() async throws {
-        let width = 2400, height = 3200
+    /// An A4 page holding a ~290 dpi JPEG of dense detail, like a scanner makes: only downsampling and
+    /// re-encoding the image can shrink it.
+    func makeScannedPDF() throws -> URL {
+        let width = 2400, height = 3400
         var seed: UInt32 = 12345
         let noise = try ImageEngine.render(width: width, height: height) { ctx in
             for y in stride(from: 0, to: height, by: 4) {
@@ -160,21 +161,38 @@ final class RealWorldTests: TemporaryDirectoryTestCase {
                 }
             }
         }
-        let pdf = try await converter.convert(try save(noise, "scan.png"), to: .pdf)
-        let outcome = try await converter.run(.pdfCompress, inputs: [pdf])
-        let before = SizeReport.size(of: pdf), after = SizeReport.size(of: outcome.outputs[0])
-        XCTAssertLessThan(after * 10, before * 7, "expected at least 30% saved, got \(before) → \(after)")
-        XCTAssertEqual(PDFDocument(url: outcome.outputs[0])?.pageCount, 1)
+        let jpg = try save(noise, "scan.jpg", format: .jpg)
+        let pdf = directory.appendingPathComponent("scan.pdf")
+        var page = CGRect(x: 0, y: 0, width: 595, height: 842)
+        let context = try XCTUnwrap(CGContext(pdf as CFURL, mediaBox: &page, nil))
+        let provider = try XCTUnwrap(CGDataProvider(url: jpg as CFURL))
+        let image = try XCTUnwrap(CGImage(jpegDataProviderSource: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent))
+        context.beginPDFPage(nil)
+        context.draw(image, in: page)
+        context.endPDFPage()
+        context.closePDF()
+        return pdf
+    }
 
-        // Stronger levels never produce a bigger file than gentler ones.
+    func testPDFCompressShrinksScans() async throws {
+        let pdf = try makeScannedPDF()
+        let before = SizeReport.size(of: pdf)
         var sizes: [Int64] = []
         for level in PDFCompression.allCases {
             var options = ConversionOptions()
             options.pdfCompression = level
             options.outputLocation = .folder(directory.appendingPathComponent(level.rawValue).path)
-            let result = try await converter.run(.pdfCompress, inputs: [pdf], options: options)
-            sizes.append(SizeReport.size(of: result.outputs[0]))
+            let outcome: ToolOutcome
+            do {
+                outcome = try await converter.run(.pdfCompress, inputs: [pdf], options: options)
+            } catch {
+                return XCTFail("\(level): \(error.localizedDescription) (input \(before) bytes)")
+            }
+            XCTAssertEqual(PDFDocument(url: outcome.outputs[0])?.pageCount, 1)
+            sizes.append(SizeReport.size(of: outcome.outputs[0]))
         }
+        // Balanced saves at least 30%, and stronger levels never produce a bigger file than gentler ones.
+        XCTAssertLessThan(sizes[1] * 10, before * 7, "expected at least 30% saved: \(before) → \(sizes)")
         XCTAssertEqual(sizes, sizes.sorted(by: >), "light, balanced, strong: \(sizes)")
     }
 
@@ -187,6 +205,23 @@ final class RealWorldTests: TemporaryDirectoryTestCase {
         } catch KumquatError.nothingToDo {
             let siblings = try FileManager.default.contentsOfDirectory(atPath: directory.path)
             XCTAssertFalse(siblings.contains { $0.contains("(compressed)") })
+        }
+    }
+
+    func testGhostscriptCompressionKeepsTextAndPages() async throws {
+        guard converter.tools.ghostscript != nil else { throw XCTSkip("Ghostscript not installed") }
+        let letter = directory.appendingPathComponent("long.txt")
+        let paragraph = "Kumquat keeps every word of this sentence when it compresses the document. "
+        try String(repeating: paragraph + "\n", count: 400).write(to: letter, atomically: true, encoding: .utf8)
+        let pdf = try await converter.convert(letter, to: .pdf)
+        let pages = try XCTUnwrap(PDFDocument(url: pdf)).pageCount
+        do {
+            let outcome = try await converter.run(.pdfCompress, inputs: [pdf])
+            let result = try XCTUnwrap(PDFDocument(url: outcome.outputs[0]))
+            XCTAssertEqual(result.pageCount, pages)
+            XCTAssertTrue(result.string?.contains("keeps every word") ?? false)
+        } catch KumquatError.nothingToDo {
+            // Acceptable: Quartz already wrote this PDF compactly.
         }
     }
 

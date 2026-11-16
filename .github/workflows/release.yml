@@ -155,7 +155,7 @@ jobs:
 
           ---
           **Install:** open the `.dmg` and drag Kumquat onto **Applications**. Builds are ad-hoc signed, so on first launch right-click → **Open** (or run `xattr -dr com.apple.quarantine /Applications/Kumquat.app`).
-          Optional helpers: `brew install ffmpeg pandoc pngquant webp` and `brew install --cask libreoffice`, or use Settings ▸ Engines ▸ Install.
+          Optional helpers: `brew install ffmpeg pandoc pngquant webp ghostscript` and `brew install --cask libreoffice`, or use Settings ▸ Engines ▸ Install.
           NOTES
           } > dist/RELEASE_NOTES.md
 

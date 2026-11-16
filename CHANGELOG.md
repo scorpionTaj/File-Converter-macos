@@ -13,6 +13,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   (default) or **Strong** (smallest file, e.g. a 1.2 MB scan → 46 KB). The CLI takes
   `--pdf-compression light|balanced|strong`.
 
+- Optional **Ghostscript** helper (`brew install ghostscript`, or Settings ▸ Engines ▸ Install): PDF
+  Compress then also rewrites fonts and page content, which shrinks PDFs that are mostly text. The
+  smallest result still wins, and results missing pages are never used.
 - Images → PDF (and Make PDF) embed JPEGs as they are instead of re-encoding them, so the PDF is about
   the size of the photos instead of roughly double. Rotated phone photos stay upright.
 - Tools process several files at once, using the "files at a time" setting (the CLI takes `--jobs`).

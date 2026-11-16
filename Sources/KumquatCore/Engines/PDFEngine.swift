@@ -175,7 +175,7 @@ public struct PDFEngine: ConversionEngine {
 
         switch tool {
         case .pdfCompress:
-            let smallest = try compress(document, original: input, context: context)
+            let smallest = try await compress(document, original: input, context: context)
             return ToolArtifact(url: smallest, message: SizeReport.savings(original: input, result: smallest))
 
         case .pdfSplit:
@@ -273,8 +273,10 @@ public struct PDFEngine: ConversionEngine {
     /// Shrinks a PDF by downsampling and re-encoding its images; text, fonts and vector art are kept.
     /// Core Graphics sometimes writes a *larger* file at a given resolution (it re-encodes images that
     /// were already compact), so the level's steps are tried in turn until one saves at least a fifth,
-    /// and the smallest result wins. Throws `nothingToDo` when nothing beats the original.
-    static func compress(_ document: PDFDocument, original: URL, context: EngineContext) throws -> URL {
+    /// and the smallest result wins. Ghostscript, when installed, adds a candidate that also rewrites
+    /// fonts and content streams, which is what shrinks PDFs that are mostly text.
+    /// Throws `nothingToDo` when nothing beats the original.
+    static func compress(_ document: PDFDocument, original: URL, context: EngineContext) async throws -> URL {
         let originalSize = SizeReport.size(of: original)
         var best: (url: URL, size: Int64)?
         func consider(_ url: URL, written: Bool) {
@@ -290,6 +292,26 @@ public struct PDFEngine: ConversionEngine {
             let url = context.scratchURL("pdf")
             consider(url, written: document.write(to: url, withOptions: [.saveImagesAsJPEGOption: true,
                                                                          .optimizeImagesForScreenOption: true]))
+        }
+        if let gs = context.tools.ghostscript {
+            let url = context.scratchURL("pdf")
+            let written: Bool
+            do {
+                try await ProcessRunner.runChecked(gs, [
+                    "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.5",
+                    "-dPDFSETTINGS=\(context.options.pdfCompression.ghostscriptPreset)",
+                    "-dDetectDuplicateImages=true", "-dCompressFonts=true",
+                    "-dNOPAUSE", "-dBATCH", "-dQUIET", "-dSAFER",
+                    "-sOutputFile=\(url.path)", original.path,
+                ], timeout: 300)
+                written = true
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // A PDF Ghostscript can't handle still gets the built-in compression.
+                written = false
+            }
+            consider(url, written: written)
         }
         let steps = context.options.pdfCompression.steps
         for (index, step) in steps.enumerated() {
