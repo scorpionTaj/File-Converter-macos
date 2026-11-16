@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-16
+
 ### Added
 - Installing Kumquat installs `kumquat-cli` too: when Kumquat runs from Applications it links its
   bundled CLI into Homebrew's `bin` folder, and repairs the link if the app moves. Settings ▸ Advanced ▸
@@ -166,7 +168,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.0...v0.3.1
