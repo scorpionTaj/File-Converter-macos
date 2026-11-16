@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import KumquatCore
+import ServiceManagement
 
 /// Hosts the SwiftUI Settings and Welcome windows (Kumquat has no SwiftUI App lifecycle).
 @MainActor
@@ -153,6 +154,19 @@ struct GeneralSettings: View {
                 Toggle("Offer to move Kumquat to Applications", isOn: $settings.offerMoveToApplications)
                 Toggle("Launch at login", isOn: Binding(get: { settings.launchAtLogin },
                                                         set: { settings.launchAtLogin = $0 }))
+                if let error = settings.launchAtLoginError {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                } else if settings.launchAtLoginNeedsApproval {
+                    HStack {
+                        Text("Allow Kumquat in System Settings ▸ General ▸ Login Items.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
+                    }
+                }
+                Toggle("Show the drop shelf", isOn: $settings.showShelf)
+                Text("A small floating window: drop files on it to open the wheel without holding a key. Handy on a trackpad.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Picker("Terminal app", selection: $settings.terminalBundleID) {
                     Text("Terminal").tag("com.apple.Terminal")
                     Text("iTerm2").tag("com.googlecode.iterm2")

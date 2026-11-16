@@ -52,7 +52,18 @@ jobs:
       - name: Smoke-test the app bundle and CLI
         run: |
           plutil -lint build/Kumquat.app/Contents/Info.plist
-          codesign --verify --strict build/Kumquat.app
+          codesign --verify --deep --strict build/Kumquat.app
+          # Finder Quick Action and Share extension: sandboxed, signed, and accepted by PlugInKit.
+          for EXT in QuickAction Share; do
+            APPEX="build/Kumquat.app/Contents/PlugIns/$EXT.appex"
+            plutil -lint "$APPEX/Contents/Info.plist"
+            codesign -d --entitlements - "$APPEX" 2>&1 | grep -q com.apple.security.app-sandbox
+            pluginkit -a "$APPEX"
+          done
+          sleep 2
+          pluginkit -m -A -D -v | grep -i kumquat
+          pluginkit -m -A -D -i io.github.scorpiontaj.kumquat.share | grep -q kumquat.share
+          pluginkit -m -A -D -i io.github.scorpiontaj.kumquat.quickaction | grep -q kumquat.quickaction
           CLI=build/Kumquat.app/Contents/Resources/bin/kumquat-cli
           $CLI doctor
           $CLI count

@@ -47,15 +47,15 @@ Ground rules:
 | ✅ Undo last conversion (move outputs to Trash, restore replaced originals) | Safety net for "replace original" |
 | ✅ Output location rules: add "ask each time", subfolder per batch, and per-category folders (images → Pictures) | Next-to-source / Downloads / custom exist already |
 
-## 0.6 — macOS integration
+## 0.6 — macOS integration (built, unreleased)
 
-| Item | Why |
+| Item | Status |
 |---|---|
-| App Intents / **Shortcuts** actions: Convert, Run Tool, Run Action | Automation without the CLI |
-| Finder Quick Actions (Action extension) and Share extension | Right-click convert in Finder and share sheets |
-| Watch folders: auto-convert anything dropped into a folder with a preset | Hands-free pipelines |
-| Drop zone on the Dock icon and a floating shelf window | Alternatives for trackpad users |
-| Launch at login (SMAppService) toggle in Settings | Menu bar apps need it |
+| App Intents / **Shortcuts** actions: Convert, Run Tool, Run Action | ⛔ Not possible with this build. Shortcuts only finds App Intents through metadata that Xcode's build step extracts (`appintentsmetadataprocessor`); SwiftPM doesn't run it and Command Line Tools don't ship it. Instead: `kumquat-cli` in Shortcuts' **Run Shell Script**, or **Open File** with Kumquat for the wheel (README ▸ Shortcuts and Automator). Revisit with the Xcode project wrapper planned for 1.0's UI tests |
+| Finder Quick Actions (Action extension) and Share extension | ✅ **Open in Kumquat** in Finder ▸ Quick Actions and **Share ▸ Kumquat**, built by `scripts/build-app.sh` without Xcode (sandboxed, ad-hoc signed `.appex`). Both hand the files to the app, which opens the wheel. Files only: apps that share data rather than a file aren't supported |
+| Watch folders: auto-convert anything dropped into a folder with a preset | ✅ Settings ▸ Presets ▸ Watch folders |
+| Drop zone on the Dock icon and a floating shelf window | ✅ Floating drop shelf (Settings ▸ General). The Dock icon already took drops (`CFBundleDocumentTypes`); Kumquat stays out of the Dock unless you keep it there |
+| Launch at login (SMAppService) toggle in Settings | ✅ Was already there; now shows when macOS needs approval (with a button to Login Items) and why it failed |
 
 ## 0.7 — More power
 

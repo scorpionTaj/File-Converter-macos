@@ -16,6 +16,10 @@ let package = Package(
         .executableTarget(name: "Kumquat", dependencies: ["KumquatCore"]),
         // Scriptable front end to the same engines.
         .executableTarget(name: "KumquatCLI", dependencies: ["KumquatCore"]),
+        // Finder Quick Action and Share extension: hand files to the app. Packaged into two .appex bundles by
+        // scripts/build-app.sh; an app extension starts in NSExtensionMain instead of main.
+        .executableTarget(name: "KumquatExtension",
+                          linkerSettings: [.unsafeFlags(["-Xlinker", "-e", "-Xlinker", "_NSExtensionMain"])]),
         .testTarget(name: "KumquatCoreTests", dependencies: ["KumquatCore"]),
     ]
 )

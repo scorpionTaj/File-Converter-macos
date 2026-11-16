@@ -37,7 +37,12 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
   size, bitrate or PDF pages first.
 - **Output rules**: save next to the original, to Downloads, a custom folder or **ask each time**; put
   batches in their own folder; send images, videos or PDFs to their own folders.
-- **More ways in**: drop files on the menu-bar icon, use Finder ▸ Services ▸ **Open in Kumquat**, or **Open With ▸ Kumquat**.
+- **More ways in**: drop files on the menu-bar icon, the floating **drop shelf** or Kumquat's Dock icon (if you
+  keep it in the Dock); right-click files in Finder ▸ Quick Actions ▸ **Open in Kumquat**; **Share ▸ Kumquat**;
+  Finder ▸ Services ▸ **Open in Kumquat**; or **Open With ▸ Kumquat**. Each opens the wheel for those files.
+- **Watch folders**: pick a folder and a preset in Settings ▸ Presets, and every new file dropped into the
+  folder is converted with that preset, no wheel needed.
+- **Launch at login** from Settings ▸ General.
 - **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.
 - **Smart routing**: multi-step conversions (e.g. XLSX → CSV → JSON) are found automatically, and stream copy
@@ -152,6 +157,18 @@ sudo ln -sf /Applications/Kumquat.app/Contents/Resources/bin/kumquat-cli /usr/lo
 ```
 
 `kumquat-cli --version` prints the version.
+
+### Shortcuts and Automator
+
+Kumquat has no Shortcuts actions of its own (see [the roadmap](docs/ROADMAP.md) for
+why). Use the CLI from Shortcuts' **Run Shell Script** action (set "Pass input" to **as arguments**) or
+Automator's **Run Shell Script**:
+
+```bash
+/Applications/Kumquat.app/Contents/Resources/bin/kumquat-cli convert "$@" --to webp --max-size 2048
+```
+
+To get the wheel instead, use Shortcuts' **Open File** action with **Kumquat** as the app.
 
 ## How it works
 
