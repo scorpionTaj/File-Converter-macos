@@ -123,7 +123,7 @@ final class UpdateController {
 @MainActor
 enum CrashReporter {
     private static var wroteMarker = false
-    static let issuesURL = "https://github.com/scorpionTaj/File-Converter-macos/issues/new"
+    static let issuesURL = "https://github.com/scorpionTaj/Kumquat/issues/new"
 
     private static var markerURL: URL {
         FileManager.default.homeDirectoryForCurrentUser

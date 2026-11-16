@@ -80,8 +80,8 @@ Requires macOS 13 Ventura or later (Apple silicon or Intel). Background removal 
 ## Build from source
 
 ```bash
-git clone https://github.com/scorpionTaj/File-Converter-macos.git
-cd File-Converter-macos
+git clone https://github.com/scorpionTaj/Kumquat.git
+cd Kumquat
 swift test                    # unit + integration tests
 scripts/build-app.sh          # → build/Kumquat.app, Kumquat.zip, Kumquat.dmg
 open build/Kumquat.app

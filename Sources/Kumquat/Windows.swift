@@ -620,7 +620,7 @@ struct AboutView: View {
             Text("Free and open source (MIT). Everything runs on your Mac — files are never uploaded.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
-            Link("github.com/scorpionTaj/File-Converter-macos", destination: URL(string: "https://github.com/scorpionTaj/File-Converter-macos")!)
+            Link("github.com/scorpionTaj/Kumquat", destination: URL(string: "https://github.com/scorpionTaj/Kumquat")!)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

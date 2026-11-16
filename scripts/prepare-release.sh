@@ -60,7 +60,7 @@ section = f"## [{version}] - {date}\n\n{body}\n\n"
 text = text[:body_start] + "\n" + section + text[body_end:]
 
 # Compare links at the bottom.
-base = "https://github.com/scorpionTaj/File-Converter-macos"
+base = "https://github.com/scorpionTaj/Kumquat"
 text = re.sub(r"^\[Unreleased\]: .*$", f"[Unreleased]: {base}/compare/v{version}...HEAD", text, flags=re.M)
 if f"[{version}]:" not in text:
     link = f"[{version}]: {base}/compare/v{previous}...v{version}" if previous else f"[{version}]: {base}/releases/tag/v{version}"

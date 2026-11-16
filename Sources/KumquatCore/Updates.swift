@@ -89,7 +89,7 @@ public struct ReleaseInfo: Decodable, Equatable, Sendable {
 
 /// Finds newer releases on GitHub. No account or framework needed: the public Releases API is enough.
 public enum UpdateChecker {
-    public static let releasesURL = URL(string: "https://api.github.com/repos/scorpionTaj/File-Converter-macos/releases?per_page=30")!
+    public static let releasesURL = URL(string: "https://api.github.com/repos/scorpionTaj/Kumquat/releases?per_page=30")!
 
     /// The newest release above `current`. Drafts and tags that aren't versions (e.g. "nightly") are ignored;
     /// pre-releases only count when asked for.
