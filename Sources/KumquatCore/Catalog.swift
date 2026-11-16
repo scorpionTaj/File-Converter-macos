@@ -322,6 +322,7 @@ public enum ActionID: String, CaseIterable, Codable, Sendable {
 public struct WheelItem: Identifiable, Hashable, Sendable {
     public enum Payload: Hashable, Sendable {
         case convert(Format)
+        case preset(OutputPreset)
         case tool(ToolID)
         case action(ActionID)
     }
@@ -332,10 +333,13 @@ public struct WheelItem: Identifiable, Hashable, Sendable {
     public let symbol: String
     /// Why the item can't run right now (missing helper app, macOS too old). Nil when ready.
     public let unavailableReason: String?
+    /// Pinned to the front of the wheel for this file type (see `WheelPreferences`).
+    public var isPinned = false
 
     public var id: String {
         switch payload {
         case .convert(let format): return "convert.\(format.id)"
+        case .preset(let preset): return "preset.\(preset.id.uuidString)"
         case .tool(let tool): return "tool.\(tool.rawValue)"
         case .action(let action): return "action.\(action.rawValue)"
         }
@@ -402,6 +406,20 @@ public struct Catalog: Sendable {
                              detail: "Convert to \(target.name)",
                              symbol: target.kind.symbol,
                              unavailableReason: Self.reason(for: missing))
+        }
+    }
+
+    /// Presets whose format the dropped files can be converted to, shown on the Convert wheel.
+    public func presets(_ presets: [OutputPreset], for inputs: [URL]) -> [WheelItem] {
+        let reachable = Dictionary(uniqueKeysWithValues: conversions(for: inputs).compactMap { item -> (String, WheelItem)? in
+            guard case .convert(let format) = item.payload else { return nil }
+            return (format.id, item)
+        })
+        return presets.compactMap { preset in
+            guard let conversion = reachable[preset.target], let format = preset.targetFormat else { return nil }
+            return WheelItem(payload: .preset(preset), title: preset.name, detail: preset.detail,
+                             symbol: format.kind == .image ? "star.square" : "star.circle",
+                             unavailableReason: conversion.unavailableReason)
         }
     }
 
