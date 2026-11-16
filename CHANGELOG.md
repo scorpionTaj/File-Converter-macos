@@ -5,6 +5,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Undo**: the menu bar's **Undo** (⌘Z while the menu is open) reverses the last conversion or tool run.
+  Its results go to the Trash and any file it replaced or moved to the Trash is put back. The last 10 jobs
+  can be undone; a file is never overwritten to put something back, and anything that can't be restored
+  is listed.
+- **Notifications** when a job finishes, with **Show in Finder**, **Open** and **Undo** buttons. Choose
+  never, jobs over 10 seconds (default) or always in Settings ▸ General ▸ Notices.
+
 ## [0.4.2] - 2026-11-16
 
 ### Added

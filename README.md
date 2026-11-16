@@ -29,7 +29,8 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 - **Themes**: Catppuccin (Latte, Frappé, Macchiato, Mocha), Dracula, Monokai, Nord, Gruvbox, Tokyo Night,
   One Dark, Rosé Pine, Solarized and the adaptive Kumquat default.
 - **Helper management**: Settings ▸ Engines shows versions and paths and installs missing helpers in one click.
-- **Cancel** any running job from the progress popup.
+- **Cancel** any running job from the progress popup, and **Undo** finished ones from the menu bar or the
+  "job finished" notification (results go to the Trash, replaced files come back).
 - **More ways in**: drop files on the menu-bar icon, use Finder ▸ Services ▸ **Open in Kumquat**, or **Open With ▸ Kumquat**.
 - **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.

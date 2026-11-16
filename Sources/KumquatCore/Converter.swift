@@ -152,7 +152,7 @@ public final class Converter: @unchecked Sendable {
         if options.originals == .trash,
            original.standardizedFileURL.path != result.standardizedFileURL.path,
            fm.fileExists(atPath: original.path) {
-            try? fm.trashItem(at: original, resultingItemURL: nil)
+            try? UndoJournal.trash(original, fileManager: fm)
         }
     }
 
@@ -173,7 +173,7 @@ public final class Converter: @unchecked Sendable {
                     if conflict == .skip {
                         throw KumquatError.nothingToDo("\(destination.lastPathComponent) already exists, so it was skipped.")
                     }
-                    try fm.trashItem(at: destination, resultingItemURL: nil)
+                    try UndoJournal.trash(destination, fileManager: fm)
                 }
                 try fm.moveItem(at: item, to: destination)
                 return destination

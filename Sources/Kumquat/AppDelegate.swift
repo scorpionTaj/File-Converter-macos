@@ -9,6 +9,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let wheel = RadialMenuController()
     private var statusBar: StatusBarController?
     private lazy var actions = FileActions(settings: settings, hud: hud)
+    /// What running jobs move to the Trash, when they started and what they're called, for undo and notifications.
+    private var jobJournals: [Int: UndoJournal] = [:]
+    private var jobStarts: [Int: (title: String, date: Date)] = [:]
+    /// Finished jobs that can be undone, oldest first.
+    private var undoHistory: [(job: Int, record: JobRecord)] = []
     /// Per-file progress of the running batch, keyed by HUD job id.
     private var batchProgress: [Int: [Double]] = [:]
     /// Running jobs, so the HUD's cancel button can stop them.
@@ -86,6 +91,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSUpdateDynamicServices()
 
         PromiseInbox.cleanUp()
+        JobNotifier.shared.configure()
+        JobNotifier.shared.onUndo = { [weak self] job in self?.undo(job: job) }
         linkCommandLineTool()
 
         if !settings.hasSeenWelcome {
@@ -216,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? "\(urls[0].lastPathComponent) → \(target.shortName)"
             : "\(urls.count) files → \(target.shortName)"
         let job = hud.begin(title)
+        let journal = beginJob(job, title: title)
         batchProgress[job] = Array(repeating: 0, count: urls.count)
 
         jobTasks[job] = Task {
@@ -229,8 +237,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     next += 1
                     group.addTask {
                         do {
-                            let output = try await converter.convert(urls[index], to: target, options: jobOptions) { [weak self] fraction in
-                                Task { @MainActor in self?.updateBatch(job: job, index: index, fraction: fraction) }
+                            let output = try await UndoJournal.$current.withValue(journal) {
+                                try await converter.convert(urls[index], to: target, options: jobOptions) { [weak self] fraction in
+                                    Task { @MainActor in self?.updateBatch(job: job, index: index, fraction: fraction) }
+                                }
                             }
                             return (index, output, nil)
                         } catch {
@@ -284,13 +294,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let concurrency = settings.parallelJobs
         let jobOptions = options(for: urls)
         let job = hud.begin(tool.title, detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
+        let journal = beginJob(job, title: urls.count == 1 ? "\(tool.title) \(urls[0].lastPathComponent)" : "\(tool.title) (\(urls.count) files)")
         jobTasks[job] = Task {
             do {
-                let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions,
-                                                      concurrency: concurrency) { [weak self] fraction in
-                    Task { @MainActor in
-                        self?.hud.progress(fraction, job: job)
-                        self?.statusBar?.showProgress(fraction)
+                let outcome = try await UndoJournal.$current.withValue(journal) {
+                    try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions,
+                                            concurrency: concurrency) { [weak self] fraction in
+                        Task { @MainActor in
+                            self?.hud.progress(fraction, job: job)
+                            self?.statusBar?.showProgress(fraction)
+                        }
                     }
                 }
                 if let text = outcome.clipboardText {
@@ -301,6 +314,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 finish(outputs: [], failures: [error.localizedDescription], message: nil, job: job)
             }
+        }
+    }
+
+    private func beginJob(_ job: Int, title: String) -> UndoJournal {
+        let journal = UndoJournal()
+        jobJournals[job] = journal
+        jobStarts[job] = (title, Date())
+        return journal
+    }
+
+    /// "Undo <last job>" for the menu bar; nil when there's nothing to undo.
+    var undoTitle: String? { undoHistory.last.map { "Undo \($0.record.title)" } }
+
+    /// Moves a finished job's results to the Trash and puts back the files it replaced or trashed.
+    /// `job` nil undoes the most recent job.
+    func undo(job: Int? = nil) {
+        let index = job.map { job in undoHistory.lastIndex { $0.job == job } } ?? undoHistory.indices.last
+        guard let index else {
+            hud.info("Nothing to undo", detail: "That job was already undone, or it's older than the last 10 jobs.")
+            return
+        }
+        let record = undoHistory.remove(at: index).record
+        let report = Undo.undo(record)
+        let undone = Set(record.outputs.map(\.path))
+        settings.recentPaths.removeAll { undone.contains($0) }
+        var summary: [String] = []
+        if report.removed > 0 { summary.append("\(report.removed) result\(report.removed == 1 ? "" : "s") moved to the Trash") }
+        if report.restored > 0 { summary.append("\(report.restored) file\(report.restored == 1 ? "" : "s") put back") }
+        AppLog.info("Undid \(record.title): \(summary.joined(separator: ", ")); problems: \(report.problems.count)")
+        report.problems.forEach { AppLog.error("Undo: \($0)") }
+        if report.problems.isEmpty {
+            hud.success("Undone", detail: summary.isEmpty ? record.title : summary.joined(separator: ", "))
+        } else {
+            hud.failure("Partly undone", detail: (summary + report.problems).joined(separator: "\n"))
         }
     }
 
@@ -316,11 +363,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if jobTasks.isEmpty { statusBar?.showProgress(nil) }
         recordOutputs(outputs)
         failures.forEach { AppLog.error($0) }
+        let start = jobStarts.removeValue(forKey: job)
+        let record = JobRecord(title: start?.title ?? "Last job", outputs: outputs,
+                               trashed: jobJournals.removeValue(forKey: job)?.trashed ?? [])
+        if !record.isEmpty {
+            undoHistory.append((job, record))
+            if undoHistory.count > 10 { undoHistory.removeFirst(undoHistory.count - 10) }
+        }
         if cancelledJobs.remove(job) != nil {
             if hud.isCurrent(job) {
                 hud.info("Cancelled", detail: outputs.isEmpty ? "Nothing was saved." : "\(outputs.count) file(s) finished before cancelling.")
             }
             return
+        }
+        if let start, settings.notifyWhenDone.shouldNotify(after: Date().timeIntervalSince(start.date)),
+           !(outputs.isEmpty && failures.isEmpty && message == nil) {
+            let headline = failures.isEmpty ? "Done: \(start.title)"
+                : outputs.isEmpty ? "Couldn't finish: \(start.title)" : "Partly done: \(start.title)"
+            let body = failures.isEmpty
+                ? message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : "\(outputs.count) files saved")
+                : failures.joined(separator: "\n")
+            JobNotifier.shared.notify(title: headline, body: body, outputs: outputs, job: job, undoable: !record.isEmpty)
         }
         // A newer job owns the HUD; don't replace its progress with this result.
         guard hud.isCurrent(job) else { return }

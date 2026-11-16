@@ -159,6 +159,7 @@ final class SettingsStore: ObservableObject {
     @Published var hudPosition: HUDPosition { didSet { defaults.set(hudPosition.rawValue, forKey: "hudPosition") } }
     /// Seconds a result stays on screen; 0 keeps it until clicked.
     @Published var hudDuration: Double { didSet { defaults.set(hudDuration, forKey: "hudDuration") } }
+    @Published var notifyWhenDone: NotificationPolicy { didSet { defaults.set(notifyWhenDone.rawValue, forKey: "notifyWhenDone") } }
     /// Show a notice for successful jobs (errors are always shown).
     @Published var hudShowsSuccess: Bool { didSet { defaults.set(hudShowsSuccess, forKey: "hudShowsSuccess") } }
     /// System sound names; empty means silent.
@@ -234,6 +235,7 @@ final class SettingsStore: ObservableObject {
         skippedVersion = string("skippedVersion", "")
         hudPosition = HUDPosition(rawValue: string("hudPosition", "")) ?? .topRight
         hudDuration = double("hudDuration", 3)
+        notifyWhenDone = NotificationPolicy(rawValue: string("notifyWhenDone", "")) ?? .longJobs
         hudShowsSuccess = bool("hudShowsSuccess", true)
         successSound = string("successSound", "Glass")
         failureSound = string("failureSound", "Basso")
