@@ -85,6 +85,9 @@ public struct ReleaseInfo: Decodable, Equatable, Sendable {
 
     /// The disk image to download, if the release has one.
     public var diskImage: Asset? { assets.first { $0.name.lowercased().hasSuffix(".dmg") } }
+
+    /// The `shasum -a 256` listing the release workflow publishes.
+    public var checksums: Asset? { assets.first { $0.name == "SHA256SUMS.txt" } }
 }
 
 /// Finds newer releases on GitHub. No account or framework needed: the public Releases API is enough.

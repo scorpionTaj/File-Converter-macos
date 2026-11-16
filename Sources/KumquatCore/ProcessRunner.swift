@@ -283,6 +283,8 @@ enum SystemTool {
     static let ditto = URL(fileURLWithPath: "/usr/bin/ditto")
     static let osascript = URL(fileURLWithPath: "/usr/bin/osascript")
     static let qlmanage = URL(fileURLWithPath: "/usr/bin/qlmanage")
+    static let hdiutil = URL(fileURLWithPath: "/usr/bin/hdiutil")
+    static let codesign = URL(fileURLWithPath: "/usr/bin/codesign")
 }
 
 /// What Settings shows for each optional helper.

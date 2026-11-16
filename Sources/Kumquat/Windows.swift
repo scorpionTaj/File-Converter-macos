@@ -93,6 +93,12 @@ struct GeneralSettings: View {
                 Text("Start dragging a file, then tap the key. Drop the file on a segment.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Picker("Wheel for Finder selection", selection: $settings.finderShortcut) {
+                    ForEach(FinderShortcut.allCases) { Text($0.title).tag($0) }
+                }
+                Text("Select files in Finder and press the shortcut to open the wheel without dragging.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Notices") {
                 Picker("Position", selection: $settings.hudPosition) {

@@ -44,7 +44,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Kumquat asks Pages, Keynote and Numbers to export documents when you convert iWork files.</string>
+	<string>Kumquat reads the files selected in Finder when you press the wheel shortcut, and asks Pages, Keynote and Numbers to export documents when you convert iWork files.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
