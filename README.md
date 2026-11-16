@@ -32,6 +32,11 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 - **Cancel** any running job from the progress popup, and **Undo** finished ones from the menu bar or the
   "job finished" notification (results go to the Trash, replaced files come back).
 - **No drag needed**: select files in Finder and press **⌃⌥K** to open the wheel (Settings ▸ General).
+- **Your wheel, your order**: recently used formats come first, right-click pins a slice, and **presets**
+  (e.g. “WebP 80%, 2048 px”) become one-tap slices. Hold **⌥** when choosing a format to adjust quality,
+  size, bitrate or PDF pages first.
+- **Output rules**: save next to the original, to Downloads, a custom folder or **ask each time**; put
+  batches in their own folder; send images, videos or PDFs to their own folders.
 - **More ways in**: drop files on the menu-bar icon, use Finder ▸ Services ▸ **Open in Kumquat**, or **Open With ▸ Kumquat**.
 - **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.

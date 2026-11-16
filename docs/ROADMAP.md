@@ -40,12 +40,12 @@ Ground rules:
 | Item | Why |
 |---|---|
 | ✅ Global hotkey: open the wheel for the current **Finder selection** (no drag needed) | Fastest path for keyboard users |
-| Favourites & ordering on the wheel; pin per source format; "recent targets first" | 646 conversions is a lot to scan |
-| Presets: saved conversion + options (e.g. "WebP 80% max 2048px"), shown as wheel slices | Repeated tasks become one tap |
-| Options sheet before converting (quality, size, bitrate, page range) with "remember" | Defaults are not always right |
+| ✅ Favourites & ordering on the wheel; pin per source format; "recent targets first" | 646 conversions is a lot to scan |
+| ✅ Presets: saved conversion + options (e.g. "WebP 80% max 2048px"), shown as wheel slices | Repeated tasks become one tap |
+| ✅ Options sheet before converting (quality, size, bitrate, page range) with "remember" | Defaults are not always right |
 | ✅ Finished-job notifications (UserNotifications) with Reveal / Open / Undo | HUD is easy to miss on long jobs |
 | ✅ Undo last conversion (move outputs to Trash, restore replaced originals) | Safety net for "replace original" |
-| Output location rules: add "ask each time", subfolder per batch, and per-category folders (images → Pictures) | Next-to-source / Downloads / custom exist already |
+| ✅ Output location rules: add "ask each time", subfolder per batch, and per-category folders (images → Pictures) | Next-to-source / Downloads / custom exist already |
 
 ## 0.6 — macOS integration
 

@@ -63,6 +63,8 @@ struct SettingsView: View {
                 .tabItem { Label("Output", systemImage: "folder") }
             ConversionSettings(settings: settings)
                 .tabItem { Label("Quality", systemImage: "slider.horizontal.3") }
+            PresetsSettings(settings: settings)
+                .tabItem { Label("Presets", systemImage: "star") }
             AppearanceSettings(settings: settings)
                 .tabItem { Label("Appearance", systemImage: "paintpalette") }
             EngineSettings(settings: settings)
@@ -99,6 +101,15 @@ struct GeneralSettings: View {
                 Text("Select files in Finder and press the shortcut to open the wheel without dragging.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Recently used first", isOn: $settings.wheelPreferences.recentFirst)
+                HStack {
+                    Text("Right-click a slice on a clicked-open wheel to pin it to the front for that file type.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Clear Pins") { settings.wheelPreferences.pinned = [:] }
+                        .disabled(settings.wheelPreferences.pinned.isEmpty)
+                }
             }
             Section("Notices") {
                 Picker("Position", selection: $settings.hudPosition) {
@@ -174,6 +185,18 @@ struct GeneralSettings: View {
 struct OutputSettings: View {
     @ObservedObject var settings: SettingsStore
 
+    private static let kinds: [FileKind] = [.image, .video, .audio, .pdf, .document]
+
+    private static func kindTitle(_ kind: FileKind) -> String {
+        switch kind {
+        case .image: return "Images"
+        case .video: return "Videos"
+        case .audio: return "Audio"
+        case .pdf: return "PDFs"
+        default: return "Documents"
+        }
+    }
+
     var body: some View {
         Form {
             Section("Location") {
@@ -188,6 +211,33 @@ struct OutputSettings: View {
                         }
                     }
                 }
+                Toggle("Put each batch in its own folder", isOn: $settings.batchSubfolders)
+            }
+            Section {
+                ForEach(Self.kinds, id: \.self) { kind in
+                    HStack {
+                        Text(Self.kindTitle(kind))
+                        Spacer()
+                        let path = settings.kindFolders[kind.rawValue] ?? ""
+                        Text(path.isEmpty ? "Same as above" : (path as NSString).abbreviatingWithTildeInPath)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Button("Choose…") {
+                            if let url = Prompt.chooseFolder(title: "Save \(Self.kindTitle(kind).lowercased()) to") {
+                                settings.kindFolders[kind.rawValue] = url.path
+                            }
+                        }
+                        if !path.isEmpty {
+                            Button("Clear") { settings.kindFolders[kind.rawValue] = nil }
+                        }
+                    }
+                }
+            } header: {
+                Text("Folders by kind")
+            } footer: {
+                Text("Send results of one kind somewhere else, e.g. images to Pictures. A folder chosen with “Ask each time” wins over these.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 TextField("Name", text: $settings.fileNameTemplate, prompt: Text(FileNameTemplate.default))
@@ -259,6 +309,22 @@ struct ConversionSettings: View {
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Ask for options before converting", isOn: $settings.askBeforeConverting)
+                ForEach(settings.formatDefaults.keys.sorted(), id: \.self) { id in
+                    HStack {
+                        let name = FormatRegistry.all.first { $0.id == id }?.shortName ?? id.uppercased()
+                        Text("\(name): \(settings.formatDefaults[id]?.summary ?? "")")
+                        Spacer()
+                        Button("Forget") { settings.formatDefaults[id] = nil }
+                    }
+                }
+            } header: {
+                Text("Before converting")
+            } footer: {
+                Text("Or hold ⌥ while choosing a format. “Remember” in that window keeps the settings for that format, listed here.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Images") {
                 Slider(value: $settings.imageQuality, in: 0.4...1, step: 0.05) {
                     Text("Default quality: \(Int(settings.imageQuality * 100))%")

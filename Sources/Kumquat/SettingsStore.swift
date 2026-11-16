@@ -40,13 +40,14 @@ enum ModifierKey: String, CaseIterable, Identifiable {
 }
 
 enum OutputMode: String, CaseIterable, Identifiable {
-    case beside, downloads, custom
+    case beside, downloads, custom, ask
     var id: String { rawValue }
     var title: String {
         switch self {
         case .beside: return "Next to the original"
         case .downloads: return "Downloads folder"
         case .custom: return "Custom folder"
+        case .ask: return "Ask each time"
         }
     }
 }
@@ -116,6 +117,15 @@ final class SettingsStore: ObservableObject {
     @Published var pdfCompression: PDFCompression { didSet { defaults.set(pdfCompression.rawValue, forKey: "pdfCompression") } }
     @Published var outputMode: OutputMode { didSet { defaults.set(outputMode.rawValue, forKey: "outputMode") } }
     @Published var customFolder: String { didSet { defaults.set(customFolder, forKey: "customFolder") } }
+    /// Multi-file jobs save into a dated subfolder.
+    @Published var batchSubfolders: Bool { didSet { defaults.set(batchSubfolders, forKey: "batchSubfolders") } }
+    /// FileKind raw value → folder for results of that kind.
+    @Published var kindFolders: [String: String] { didSet { defaults.set(kindFolders, forKey: "kindFolders") } }
+    @Published var wheelPreferences: WheelPreferences { didSet { store(wheelPreferences, "wheelPreferences") } }
+    @Published var presets: [OutputPreset] { didSet { store(presets, "presets") } }
+    /// Format id → choices remembered from the options sheet, applied to every conversion to that format.
+    @Published var formatDefaults: [String: OptionOverrides] { didSet { store(formatDefaults, "formatDefaults") } }
+    @Published var askBeforeConverting: Bool { didSet { defaults.set(askBeforeConverting, forKey: "askBeforeConverting") } }
     @Published var terminalBundleID: String { didSet { defaults.set(terminalBundleID, forKey: "terminalBundleID") } }
     @Published var ffmpegPath: String { didSet { defaults.set(ffmpegPath, forKey: "ffmpegPath") } }
     @Published var sofficePath: String { didSet { defaults.set(sofficePath, forKey: "sofficePath") } }
@@ -199,6 +209,12 @@ final class SettingsStore: ObservableObject {
         pdfCompression = PDFCompression(rawValue: string("pdfCompression", "")) ?? .balanced
         outputMode = OutputMode(rawValue: string("outputMode", "")) ?? .beside
         customFolder = string("customFolder", "")
+        batchSubfolders = bool("batchSubfolders", false)
+        kindFolders = defaults.dictionary(forKey: "kindFolders") as? [String: String] ?? [:]
+        wheelPreferences = Self.load(WheelPreferences.self, "wheelPreferences", from: defaults) ?? WheelPreferences()
+        presets = Self.load([OutputPreset].self, "presets", from: defaults) ?? []
+        formatDefaults = Self.load([String: OptionOverrides].self, "formatDefaults", from: defaults) ?? [:]
+        askBeforeConverting = bool("askBeforeConverting", false)
         terminalBundleID = string("terminalBundleID", "com.apple.Terminal")
         ffmpegPath = string("ffmpegPath", "")
         sofficePath = string("sofficePath", "")
@@ -273,6 +289,14 @@ final class SettingsStore: ObservableObject {
         if darkThemeID == id { darkThemeID = Theme.kumquatDark.id }
     }
 
+    private func store<Value: Encodable>(_ value: Value, _ key: String) {
+        defaults.set(try? JSONEncoder().encode(value), forKey: key)
+    }
+
+    private static func load<Value: Decodable>(_ type: Value.Type, _ key: String, from defaults: UserDefaults) -> Value? {
+        defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(type, from: $0) }
+    }
+
     /// Forgets every preference (recent files included). Takes effect after a relaunch.
     func resetAll() {
         if let domain = Bundle.main.bundleIdentifier {
@@ -325,7 +349,10 @@ final class SettingsStore: ObservableObject {
         case .beside: options.outputLocation = .besideOriginal
         case .downloads: options.outputLocation = .downloads
         case .custom: options.outputLocation = customFolder.isEmpty ? .besideOriginal : .folder(customFolder)
+        // The app asks for a folder before the job starts and replaces this.
+        case .ask: options.outputLocation = .besideOriginal
         }
+        options.kindFolders = kindFolders.filter { !$0.value.isEmpty }
         return options
     }
 
