@@ -39,7 +39,7 @@ Ground rules:
 
 | Item | Why |
 |---|---|
-| Global hotkey: open the wheel for the current **Finder selection** (no drag needed) | Fastest path for keyboard users |
+| ✅ Global hotkey: open the wheel for the current **Finder selection** (no drag needed) | Fastest path for keyboard users |
 | Favourites & ordering on the wheel; pin per source format; "recent targets first" | 646 conversions is a lot to scan |
 | Presets: saved conversion + options (e.g. "WebP 80% max 2048px"), shown as wheel slices | Repeated tasks become one tap |
 | Options sheet before converting (quality, size, bitrate, page range) with "remember" | Defaults are not always right |

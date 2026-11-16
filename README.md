@@ -30,6 +30,7 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
   One Dark, Rosé Pine, Solarized and the adaptive Kumquat default.
 - **Helper management**: Settings ▸ Engines shows versions and paths and installs missing helpers in one click.
 - **Cancel** any running job from the progress popup.
+- **No drag needed**: select files in Finder and press **⌃⌥K** to open the wheel (Settings ▸ General).
 - **More ways in**: drop files on the menu-bar icon, use Finder ▸ Services ▸ **Open in Kumquat**, or **Open With ▸ Kumquat**.
 - **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.
