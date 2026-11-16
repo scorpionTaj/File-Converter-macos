@@ -74,6 +74,12 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         open.target = self
         menu.addItem(open)
 
+        // Without an action, menu validation greys the item out.
+        let undo = NSMenuItem(title: app.undoTitle ?? "Undo", action: app.undoTitle == nil ? nil : #selector(undoLast),
+                              keyEquivalent: "z")
+        undo.target = self
+        menu.addItem(undo)
+
         let recent = NSMenuItem(title: "Recent", action: nil, keyEquivalent: "")
         let recentMenu = NSMenu()
         if app.recentOutputs.isEmpty {
@@ -122,6 +128,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func toggleEnabled() {
         guard let app else { return }
         app.setEnabled(!app.settings.isEnabled)
+    }
+
+    @objc private func undoLast() {
+        app?.undo()
     }
 
     @objc private func openFiles() {

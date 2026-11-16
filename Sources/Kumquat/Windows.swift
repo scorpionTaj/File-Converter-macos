@@ -113,6 +113,9 @@ struct GeneralSettings: View {
                 }
                 Toggle("Show a notice when a job succeeds", isOn: $settings.hudShowsSuccess)
                 Toggle("Reveal results in Finder", isOn: $settings.revealInFinder)
+                Picker("Notify when a job finishes", selection: $settings.notifyWhenDone) {
+                    ForEach(NotificationPolicy.allCases) { Text($0.title).tag($0) }
+                }
             }
             Section("Sounds") {
                 Toggle("Play sounds", isOn: $settings.playSound)

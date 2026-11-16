@@ -13,6 +13,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
   code signature), quits, replaces itself and opens again. The old version is kept until the new one is in
   place and restored if the swap fails. Updates installed this way don't need right-click ▸ Open. When the
   app's folder isn't writable, the disk image opens for a manual install as before.
+- **Undo**: the menu bar's **Undo** (⌘Z while the menu is open) reverses the last conversion or tool run.
+  Its results go to the Trash and any file it replaced or moved to the Trash is put back. The last 10 jobs
+  can be undone; a file is never overwritten to put something back, and anything that can't be restored
+  is listed.
+- **Notifications** when a job finishes, with **Show in Finder**, **Open** and **Undo** buttons. Choose
+  never, jobs over 10 seconds (default) or always in Settings ▸ General ▸ Notices.
 
 ### Changed
 - The updater uses the renamed `scorpionTaj/Kumquat` repository.

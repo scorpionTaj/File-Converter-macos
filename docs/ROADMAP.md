@@ -22,7 +22,7 @@ Ground rules:
 | Crash reporting: notice after an unexpected quit, "Report a Problem…" with a prefilled GitHub issue | ✅ |
 | File name template (`{name}`, `{format}`, `{date}`, `{time}`) with live example | ✅ (`{n}`, `{width}x{height}` ⏳) |
 | When the name exists: keep both / replace (to Trash) / skip | ✅ ("ask" ⏳) |
-| Originals: keep / move to Trash; keep the original's file dates | ✅ (undo ⏳ in 0.5) |
+| Originals: keep / move to Trash; keep the original's file dates | ✅ (undo ✅ in 0.5) |
 | Metadata: keep / remove location / remove all (images, audio, video) | ✅ |
 | Per-format JPEG/HEIC/WebP/AVIF quality, maximum image size | ✅ (PNG optimisation level ⏳) |
 | Video: encoder (auto/hardware/software), speed preset, max resolution, frame-rate cap, remove audio | ✅ |
@@ -33,7 +33,7 @@ Ground rules:
 | Menu bar: icon style, progress percentage, recent results count | ✅ |
 | Custom themes: editor, import/export JSON, light/dark pairs | ✅ |
 | Advanced: open log, copy diagnostics, clear temporary files, reset all settings | ✅ |
-| Sparkle 2 (signed appcast, in-place install) | ⏳ Optional; revisit if in-place install is wanted |
+| Sparkle 2 (signed appcast, in-place install) | ✅ In-place install built in (checksum-verified, Install and Relaunch); Sparkle not needed |
 
 ## 0.5 — Everyday workflow
 
@@ -43,8 +43,8 @@ Ground rules:
 | Favourites & ordering on the wheel; pin per source format; "recent targets first" | 646 conversions is a lot to scan |
 | Presets: saved conversion + options (e.g. "WebP 80% max 2048px"), shown as wheel slices | Repeated tasks become one tap |
 | Options sheet before converting (quality, size, bitrate, page range) with "remember" | Defaults are not always right |
-| Finished-job notifications (UserNotifications) with Reveal / Open / Undo | HUD is easy to miss on long jobs |
-| Undo last conversion (move outputs to Trash, restore replaced originals) | Safety net for "replace original" |
+| ✅ Finished-job notifications (UserNotifications) with Reveal / Open / Undo | HUD is easy to miss on long jobs |
+| ✅ Undo last conversion (move outputs to Trash, restore replaced originals) | Safety net for "replace original" |
 | Output location rules: add "ask each time", subfolder per batch, and per-category folders (images → Pictures) | Next-to-source / Downloads / custom exist already |
 
 ## 0.6 — macOS integration
