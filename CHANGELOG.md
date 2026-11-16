@@ -5,14 +5,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-16
+
 ### Changed
-- **Compress** for PDFs now downsamples and re-encodes the images inside the file (150, 120 or 96 dpi,
-  picking the gentlest level that saves at least a fifth), so scanned PDFs shrink by 70–85% instead of
-  not at all. Text, fonts and vector art are kept. It also works on macOS 13.0–13.3 now.
+- **Compress** for PDFs now downsamples and re-encodes the images inside the file, so scanned PDFs
+  shrink by 70–95% instead of not at all. Text, fonts and vector art are kept. It also works on
+  macOS 13.0–13.3 now.
 - Choose how hard PDF Compress works in Settings ▸ Quality: **Light** (best quality), **Balanced**
   (default) or **Strong** (smallest file, e.g. a 1.2 MB scan → 46 KB). The CLI takes
   `--pdf-compression light|balanced|strong`.
-
 - Optional **Ghostscript** helper (`brew install ghostscript`, or Settings ▸ Engines ▸ Install): PDF
   Compress then also rewrites fonts and page content, which shrinks PDFs that are mostly text. The
   smallest result still wins, and results missing pages are never used.
@@ -158,7 +159,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/scorpionTaj/File-Converter-macos/compare/v0.2.0...v0.3.0
