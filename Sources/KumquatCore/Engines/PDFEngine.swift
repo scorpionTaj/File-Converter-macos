@@ -81,7 +81,9 @@ public struct PDFEngine: ConversionEngine {
         let dpi = context.options.pdfRenderDPI
         let quality = context.options.quality(for: format)
         guard document.pageCount > 0 else { throw KumquatError.nothingToDo("The PDF has no pages.") }
-        if document.pageCount == 1, let page = document.page(at: 0) {
+        let pages = try context.options.pdfPageRange.map { try PageRanges.parse($0, pageCount: document.pageCount) }
+            ?? Array(0..<document.pageCount)
+        if pages.count == 1, let page = document.page(at: pages[0]) {
             try await ImageEngine.write(render(page, dpi: dpi), to: output, format: format, quality: quality, context: context)
             return output
         }
@@ -89,13 +91,14 @@ public struct PDFEngine: ConversionEngine {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let base = output.deletingPathExtension().lastPathComponent
         let digits = String(document.pageCount).count
-        for index in 0..<document.pageCount {
+        for (done, index) in pages.enumerated() {
             try Task.checkCancellation()
             guard let page = document.page(at: index) else { continue }
+            // Numbered by page, not by position, so "3-5" gives "… 3", "… 4", "… 5".
             let number = String(repeating: "0", count: max(0, digits - String(index + 1).count)) + String(index + 1)
             let url = folder.appendingPathComponent("\(base) \(number).\(format.fileExtension)")
             try await ImageEngine.write(render(page, dpi: dpi), to: url, format: format, quality: quality, context: context)
-            context.progress?(Double(index + 1) / Double(document.pageCount))
+            context.progress?(Double(done + 1) / Double(pages.count))
         }
         return folder
     }

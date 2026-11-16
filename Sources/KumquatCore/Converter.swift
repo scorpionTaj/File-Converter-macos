@@ -128,7 +128,7 @@ public final class Converter: @unchecked Sendable {
         }
         progress?(1)
 
-        let directory = OutputNamer.destinationDirectory(for: input, location: options.outputLocation)
+        let directory = OutputNamer.destinationDirectory(for: input, options: options, outputKind: target.kind)
         let base = FormatRegistry.baseName(of: input)
         let name = FileNameTemplate.render(options.fileNameTemplate, name: base, format: target.shortName)
         let placed = fm.isDirectory(current)
@@ -288,7 +288,8 @@ public final class Converter: @unchecked Sendable {
             if let message = artifact.message { messages.append(message) }
             if let text = artifact.clipboardText { clipboard.append(text) }
             guard let url = artifact.url else { continue }
-            let directory = OutputNamer.destinationDirectory(for: original, location: options.outputLocation)
+            let kind: FileKind? = fm.isDirectory(url) ? nil : FormatRegistry.format(for: url)?.kind
+            let directory = OutputNamer.destinationDirectory(for: original, options: options, outputKind: kind)
             let base: String
             if let preferred = artifact.preferredBaseName {
                 base = preferred

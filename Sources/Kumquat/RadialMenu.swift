@@ -45,6 +45,8 @@ final class RadialMenuView: NSView {
     var onCancel: (() -> Void)?
     /// Click on the hub in click mode: switch to the next wheel.
     var onCycleMode: (() -> Void)?
+    /// Right-click on a slice in click mode: pin it to (or unpin it from) the front.
+    var onTogglePin: ((WheelItem) -> Void)?
     /// A file-promise drop couldn't be received.
     var onDropFailed: ((String) -> Void)?
     private(set) var isPerformingDrop = false
@@ -144,6 +146,11 @@ final class RadialMenuView: NSView {
                 var color = isHovered && item.isAvailable ? theme.accentText : textColor
                 if !item.isAvailable { color = color.withAlphaComponent(0.35) }
                 drawLabel(for: item, at: labelCenter, color: color, compact: ring.outer - ring.inner < 90)
+                if item.isPinned {
+                    let pinRadius = (ring.outer - 9) * scale
+                    let pinCenter = CGPoint(x: hub.x + CGFloat(cos(radians)) * pinRadius, y: hub.y + CGFloat(sin(radians)) * pinRadius)
+                    drawPin(at: pinCenter, color: color)
+                }
             }
         }
         drawHub(base: theme.hub, stroke: stroke, textColor: textColor, accent: accent, shadow: shadow)
@@ -168,6 +175,14 @@ final class RadialMenuView: NSView {
         } else {
             title.draw(at: NSPoint(x: point.x - titleSize.width / 2, y: point.y - titleSize.height / 2))
         }
+    }
+
+    private func drawPin(at point: CGPoint, color: NSColor) {
+        let configuration = NSImage.SymbolConfiguration(pointSize: 8 * scale, weight: .bold)
+        guard let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")?
+            .withSymbolConfiguration(configuration)?.tinted(color.withAlphaComponent(0.8)) else { return }
+        pin.draw(in: NSRect(x: point.x - pin.size.width / 2, y: point.y - pin.size.height / 2,
+                            width: pin.size.width, height: pin.size.height))
     }
 
     private func drawHub(base: NSColor, stroke: NSColor, textColor: NSColor, accent: NSColor, shadow: NSShadow) {
@@ -213,7 +228,7 @@ final class RadialMenuView: NSView {
         detailText.draw(with: NSRect(x: hub.x - width / 2, y: hub.y - 34 * scale, width: width, height: 34 * scale),
                         options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
         if interaction == .click {
-            let hint = NSAttributedString(string: "click to switch", attributes: [
+            let hint = NSAttributedString(string: "click to switch · right-click pins", attributes: [
                 .font: NSFont.systemFont(ofSize: 8 * scale),
                 .foregroundColor: textColor.withAlphaComponent(0.45),
                 .paragraphStyle: paragraph,
@@ -324,6 +339,11 @@ final class RadialMenuView: NSView {
         guard item.isAvailable else { NSSound.beep(); return }
         onSelect?(item, urls)
     }
+
+    override func rightMouseUp(with event: NSEvent) {
+        guard interaction == .click, let slot = index(at: convert(event.locationInWindow, from: nil)) else { return }
+        onTogglePin?(items[slot])
+    }
 }
 
 /// Owns the wheel panel's lifecycle.
@@ -336,6 +356,8 @@ final class RadialMenuController {
 
     var onSelect: ((WheelItem, [URL]) -> Void)?
     var onDropFailed: ((String) -> Void)?
+    /// Toggles the pin; returns the wheel's items in their new order.
+    var onTogglePin: ((WheelItem, WheelMode, [URL]) -> [WheelItem])?
     /// Supplies items when the user cycles wheels in click mode.
     var itemsProvider: ((WheelMode, [URL]) -> [WheelItem])?
 
@@ -354,6 +376,10 @@ final class RadialMenuController {
             self?.onDropFailed?(message)
         }
         view.onCycleMode = { [weak self] in self?.cycleMode() }
+        view.onTogglePin = { [weak self] item in
+            guard let self, let mode = self.currentMode, let items = self.onTogglePin?(item, mode, self.view.urls) else { return }
+            self.view.items = items
+        }
     }
 
     func show(mode: WheelMode, items: [WheelItem], urls: [URL], at point: NSPoint,

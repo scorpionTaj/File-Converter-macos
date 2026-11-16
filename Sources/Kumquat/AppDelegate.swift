@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.hud.failure("Couldn't receive the file", detail: message)
         }
         wheel.itemsProvider = { [weak self] mode, urls in self?.items(for: mode, urls: urls) ?? [] }
+        wheel.onTogglePin = { [weak self] item, mode, urls in self?.togglePin(item, mode: mode, urls: urls) ?? [] }
 
         // Finder ▸ Services ▸ "Open in Kumquat".
         NSApp.servicesProvider = self
@@ -146,8 +147,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: Wheel
 
+    /// Wheel items in the user's order: pinned, then recently used, then the usual order. Presets lead the
+    /// Convert wheel's usual order.
     func items(for mode: WheelMode, urls: [URL]) -> [WheelItem] {
-        converter.catalog().items(for: mode, inputs: urls)
+        let catalog = converter.catalog()
+        var items = catalog.items(for: mode, inputs: urls)
+        if mode == .convert { items = catalog.presets(settings.presets, for: urls) + items }
+        return settings.wheelPreferences.ordered(items, source: WheelPreferences.sourceKey(for: urls))
+    }
+
+    private func togglePin(_ item: WheelItem, mode: WheelMode, urls: [URL]) -> [WheelItem] {
+        settings.wheelPreferences.togglePin(item.id, source: WheelPreferences.sourceKey(for: urls))
+        return items(for: mode, urls: urls)
     }
 
     private func modifierPressed(_ flag: NSEvent.ModifierFlags, urls: [URL]) {
@@ -218,14 +229,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Running
 
     func perform(_ item: WheelItem, urls: [URL]) {
+        settings.wheelPreferences.noteUsed(item.id, source: WheelPreferences.sourceKey(for: urls))
         switch item.payload {
         case .action(let action):
             actions.perform(action, urls: urls)
         case .convert(let format):
-            convert(urls, to: format)
+            // ⌥ while choosing a format (or the setting) shows the options first.
+            let askForOptions = settings.askBeforeConverting || NSEvent.modifierFlags.contains(.option)
+            convert(urls, to: format, askForOptions: askForOptions)
+        case .preset(let preset):
+            guard let format = preset.targetFormat else { return }
+            convert(urls, to: format, overrides: preset.overrides, title: preset.name)
         case .tool(let tool):
             run(tool, urls: urls)
         }
+    }
+
+    /// Options for a job about to start: asks for the folder when set to "Ask each time" (nil if cancelled)
+    /// and names the batch subfolder for multi-file jobs.
+    private func prepareJobOptions(for urls: [URL], separateResults: Bool) -> ConversionOptions? {
+        var options = options(for: urls)
+        if settings.outputMode == .ask {
+            guard let folder = Prompt.chooseFolder(title: "Save results to") else { return nil }
+            options.outputLocation = .folder(folder.path)
+            // A folder chosen for this job wins over the per-kind folders.
+            options.kindFolders = [:]
+        }
+        if settings.batchSubfolders, separateResults, urls.count > 1 {
+            options.batchSubfolder = FileNameTemplate.render("Kumquat {date} {time}", name: "Kumquat", format: "")
+        }
+        return options
     }
 
     /// Options for this drop. Files received from a promise live in a cache folder, so their results go to
@@ -238,18 +271,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return options
     }
 
-    private func convert(_ dropped: [URL], to target: Format) {
+    /// Converts with the remembered choices for `target`, then `overrides` (a preset), then the options sheet.
+    private func convert(_ dropped: [URL], to target: Format, overrides: OptionOverrides? = nil,
+                         askForOptions: Bool = false, title presetName: String? = nil) {
         let urls = dropped.filter { FormatRegistry.format(for: $0) != target }
         guard !urls.isEmpty else {
             hud.info("Already \(target.shortName)", detail: "Nothing to convert.")
             return
         }
+        var extra = settings.formatDefaults[target.id] ?? OptionOverrides()
+        if let overrides { extra = extra.merged(with: overrides) }
+        if askForOptions {
+            var current = options(for: urls)
+            extra.apply(to: &current, target: target)
+            guard let choice = OptionsSheet.ask(target: target, sources: urls.compactMap(FormatRegistry.format(for:)),
+                                                options: current, fileCount: urls.count) else { return }
+            if choice.remember {
+                var remembered = choice.overrides
+                remembered.pdfPages = nil // page lists belong to one file
+                settings.formatDefaults[target.id] = (settings.formatDefaults[target.id] ?? OptionOverrides()).merged(with: remembered)
+            }
+            extra = extra.merged(with: choice.overrides)
+        }
+        guard var prepared = prepareJobOptions(for: urls, separateResults: true) else { return }
+        extra.apply(to: &prepared, target: target)
+        let jobOptions = prepared
         let converter = self.converter
-        let jobOptions = options(for: urls)
         let concurrency = settings.parallelJobs
+        let label = presetName ?? target.shortName
         let title = urls.count == 1
-            ? "\(urls[0].lastPathComponent) → \(target.shortName)"
-            : "\(urls.count) files → \(target.shortName)"
+            ? "\(urls[0].lastPathComponent) → \(label)"
+            : "\(urls.count) files → \(label)"
         let job = hud.begin(title)
         let journal = beginJob(job, title: title)
         batchProgress[job] = Array(repeating: 0, count: urls.count)
@@ -320,7 +372,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let toolParameter = parameter
         let converter = self.converter
         let concurrency = settings.parallelJobs
-        let jobOptions = options(for: urls)
+        guard let jobOptions = prepareJobOptions(for: urls, separateResults: !tool.combinesInputs) else { return }
         let job = hud.begin(tool.title, detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
         let journal = beginJob(job, title: urls.count == 1 ? "\(tool.title) \(urls[0].lastPathComponent)" : "\(tool.title) (\(urls.count) files)")
         jobTasks[job] = Task {

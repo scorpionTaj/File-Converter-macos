@@ -190,8 +190,22 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
     public var metadata: MetadataPolicy = .keep
     /// Give results the original's creation and modification dates.
     public var preserveFileDates: Bool = false
+    /// Pages to render when converting a PDF to images, e.g. "1, 3-5"; nil renders every page.
+    public var pdfPageRange: String?
+    /// Results of a multi-file job go into this subfolder of their destination (e.g. "Kumquat 2026-11-16 14.05").
+    public var batchSubfolder: String?
+    /// Folder per kind of result (`FileKind.rawValue` → path), overriding `outputLocation`; e.g. images → Pictures.
+    public var kindFolders: [String: String] = [:]
 
     public init() {}
+
+    /// Where a result of `kind` goes: its kind's folder when one is set, otherwise `outputLocation`.
+    public func outputLocation(for kind: FileKind?) -> OutputLocation {
+        if let kind, let path = kindFolders[kind.rawValue]?.trimmingCharacters(in: .whitespaces), !path.isEmpty {
+            return .folder(path)
+        }
+        return outputLocation
+    }
 
     /// Quality for a lossy image format, honouring per-format overrides.
     public func quality(for format: Format) -> Double {
@@ -320,6 +334,18 @@ public enum OutputNamer {
         let base = FormatRegistry.baseName(of: url)
         let ext = String(fileName.dropFirst(base.count)).drop(while: { $0 == "." })
         return uniqueURL(in: directory, baseName: base, extension: ext.isEmpty ? nil : String(ext), fileManager: fileManager)
+    }
+
+    /// Folder for a result of `kind` made from `input`, honouring per-kind folders and the batch subfolder.
+    public static func destinationDirectory(for input: URL, options: ConversionOptions, outputKind: FileKind?,
+                                            fileManager: FileManager = .default) -> URL {
+        let base = destinationDirectory(for: input, location: options.outputLocation(for: outputKind), fileManager: fileManager)
+        guard let name = options.batchSubfolder?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return base }
+        let safe = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+        let folder = base.appendingPathComponent(safe, isDirectory: true)
+        guard (try? fileManager.createDirectory(at: folder, withIntermediateDirectories: true)) != nil,
+              fileManager.isWritableFile(atPath: folder.path) else { return base }
+        return folder
     }
 
     /// Folder results for `input` should go in, falling back to Downloads when the original folder is read-only.

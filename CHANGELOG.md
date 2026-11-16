@@ -19,6 +19,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
   is listed.
 - **Notifications** when a job finishes, with **Show in Finder**, **Open** and **Undo** buttons. Choose
   never, jobs over 10 seconds (default) or always in Settings ▸ General ▸ Notices.
+- **Wheel order**: recently used formats and tools come first for each file type, and right-clicking a
+  slice (on a wheel opened by click, the Finder shortcut or the menu) pins it to the front. Settings ▸
+  General can turn recents off and clear pins.
+- **Presets**: save a format plus settings (e.g. “WebP, 80%, 2048 px”) in Settings ▸ Presets; presets
+  appear first on the Convert wheel for files that can become their format.
+- **Options before converting**: hold ⌥ while choosing a format (or turn it on in Settings ▸ Quality) to
+  set quality, size, video quality, bitrate or the PDF pages to export for that conversion. “Remember”
+  keeps them for that format.
+- **Output rules**: “Ask each time” as a save location, “Put each batch in its own folder”, and folders
+  by kind (e.g. images to Pictures) in Settings ▸ Output.
+- PDF → image conversions can export a page range.
 
 ### Changed
 - The updater uses the renamed `scorpionTaj/Kumquat` repository.
