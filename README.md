@@ -4,11 +4,11 @@
 
 Start dragging any file, then tap a key. A wheel opens around the cursor; drop the file on what you want.
 
-| Tap while dragging | Wheel | Examples |
-|---|---|---|
-| **⇧ Shift** | **Convert** | HEIC → JPG, MOV → MP4, DOCX → PDF, XLSX → CSV, SRT → VTT, ZIP → TAR.GZ |
-| **⌘ Command** | **Tools** | Annotate, compress, resize, rotate, remove background, OCR, make GIFs, merge/split/trim/lock/redact PDFs, trim & mute video, normalize audio |
-| **⌃ Control** | **Actions** | AirDrop, Float on top, Copy, Move to…, Copy to…, Copy Path, open in Terminal |
+| Tap while dragging   | Wheel             | Examples                                                                                                                                     |
+| -------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **⇧ Shift**   | **Convert** | HEIC → JPG, MOV → MP4, DOCX → PDF, XLSX → CSV, SRT → VTT, ZIP → TAR.GZ                                                                 |
+| **⌘ Command** | **Tools**   | Annotate, compress, resize, rotate, remove background, OCR, make GIFs, merge/split/trim/lock/redact PDFs, trim & mute video, normalize audio |
+| **⌃ Control** | **Actions** | AirDrop, Float on top, Copy, Move to…, Copy to…, Copy Path, open in Terminal                                                               |
 
 The result is saved **next to the original**, which is never modified. Nothing is uploaded: Kumquat uses
 macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional local tools such as FFmpeg.
@@ -41,18 +41,18 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 
 ### Supported formats
 
-| Kind | Read | Write |
-|---|---|---|
-| Images | JPG PNG HEIC WebP AVIF TIFF GIF BMP ICO ICNS JPEG 2000 PSD SVG RAW (DNG/CR2/CR3/NEF/ARW…) TGA | JPG PNG HEIC WebP AVIF TIFF GIF BMP ICO ICNS JP2 PDF |
-| Audio¹ | MP3 M4A AAC WAV FLAC OGG Opus AIFF WMA CAF | MP3 M4A AAC WAV FLAC OGG Opus AIFF WMA |
-| Video¹ | MP4 MOV MKV WebM AVI WMV M4V FLV MPEG 3GP MTS, GIF | MP4 MOV MKV WebM AVI WMV M4V GIF, and any audio format |
-| PDF | PDF | PNG JPG HEIC TIFF (per page), TXT RTF DOCX ODT HTML Markdown Pages |
-| Documents | DOCX DOC RTF ODT TXT HTML Markdown, Pages², EPUB³ | DOCX DOC RTF ODT TXT HTML Markdown PDF, Pages², EPUB³ |
-| Slides | PPTX PPT ODP⁴, Keynote² | PDF PPTX ODP⁴, Keynote² |
-| Spreadsheets | XLSX XLS ODS⁴, CSV TSV, Numbers² | XLSX ODS⁴, CSV TSV JSON HTML Markdown PDF, Numbers² |
-| Subtitles | SRT VTT, ASS/SSA¹ | SRT VTT TXT |
-| Archives | ZIP TAR TAR.GZ TAR.BZ2 TAR.XZ GZ 7Z RAR | ZIP TAR TAR.GZ TAR.BZ2 TAR.XZ |
-| Data | JSON plist CSV | JSON plist CSV |
+| Kind         | Read                                                                                           | Write                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Images       | JPG PNG HEIC WebP AVIF TIFF GIF BMP ICO ICNS JPEG 2000 PSD SVG RAW (DNG/CR2/CR3/NEF/ARW…) TGA | JPG PNG HEIC WebP AVIF TIFF GIF BMP ICO ICNS JP2 PDF               |
+| Audio¹      | MP3 M4A AAC WAV FLAC OGG Opus AIFF WMA CAF                                                     | MP3 M4A AAC WAV FLAC OGG Opus AIFF WMA                             |
+| Video¹      | MP4 MOV MKV WebM AVI WMV M4V FLV MPEG 3GP MTS, GIF                                             | MP4 MOV MKV WebM AVI WMV M4V GIF, and any audio format             |
+| PDF          | PDF                                                                                            | PNG JPG HEIC TIFF (per page), TXT RTF DOCX ODT HTML Markdown Pages |
+| Documents    | DOCX DOC RTF ODT TXT HTML Markdown, Pages², EPUB³                                            | DOCX DOC RTF ODT TXT HTML Markdown PDF, Pages², EPUB³            |
+| Slides       | PPTX PPT ODP⁴, Keynote²                                                                      | PDF PPTX ODP⁴, Keynote²                                          |
+| Spreadsheets | XLSX XLS ODS⁴, CSV TSV, Numbers²                                                             | XLSX ODS⁴, CSV TSV JSON HTML Markdown PDF, Numbers²              |
+| Subtitles    | SRT VTT, ASS/SSA¹                                                                             | SRT VTT TXT                                                        |
+| Archives     | ZIP TAR TAR.GZ TAR.BZ2 TAR.XZ GZ 7Z RAR                                                        | ZIP TAR TAR.GZ TAR.BZ2 TAR.XZ                                      |
+| Data         | JSON plist CSV                                                                                 | JSON plist CSV                                                     |
 
 ¹ FFmpeg · ² Pages/Keynote/Numbers installed · ³ Pandoc · ⁴ LibreOffice. Items that need a missing helper
 appear dimmed on the wheel, with the install command.
@@ -95,11 +95,11 @@ You can also open `Package.swift` in Xcode and run the **Kumquat** scheme.
 
 ## Releases (CI/CD)
 
-| Channel | How it's made | Where |
-|---|---|---|
-| **Stable** | Push a `vX.Y.Z` tag, or run the **Release** workflow manually | [Releases](../../releases): universal `.dmg`, `.zip`, `kumquat-cli` tarball, `SHA256SUMS.txt` |
-| **Nightly** | Every push to `main` that passes all tests | The `nightly` pre-release |
-| **Per commit** | Every push and pull request | The `Kumquat` artifact on each [CI run](../../actions) |
+| Channel              | How it's made                                                         | Where                                                                                                |
+| -------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Stable**     | Push a `vX.Y.Z` tag, or run the **Release** workflow manually | [Releases](../../releases): universal `.dmg`, `.zip`, `kumquat-cli` tarball, `SHA256SUMS.txt` |
+| **Nightly**    | Every push to `main` that passes all tests                          | The `nightly` pre-release                                                                          |
+| **Per commit** | Every push and pull request                                           | The `Kumquat` artifact on each [CI run](../../actions)                                              |
 
 The Release workflow first runs the **full test suite** on macOS as a reusable workflow. It then
 checks that the tag matches `VERSION` and that `CHANGELOG.md` has a section for it. Next it builds a
@@ -134,7 +134,14 @@ kumquat-cli tools photo.jpg        # which tools apply?
 kumquat-cli doctor                 # which helpers are installed?
 ```
 
-The app bundle includes the CLI at `Kumquat.app/Contents/Resources/bin/kumquat-cli`.
+The app bundle includes the CLI at `Kumquat.app/Contents/Resources/bin/kumquat-cli`. To run it as
+`kumquat-cli` from any folder, link it into a folder on your `PATH` (it then keeps up with app updates):
+
+```bash
+ln -sf /Applications/Kumquat.app/Contents/Resources/bin/kumquat-cli /opt/homebrew/bin/kumquat-cli
+```
+
+On an Intel Mac use `/usr/local/bin` instead of `/opt/homebrew/bin`. `kumquat-cli --version` prints the version.
 
 ## How it works
 

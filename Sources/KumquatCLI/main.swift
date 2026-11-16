@@ -13,6 +13,7 @@ USAGE
   kumquat-cli formats               Every known format
   kumquat-cli doctor                Which optional helpers are installed
   kumquat-cli count                 Number of supported conversions
+  kumquat-cli version               Kumquat version (also --version)
 
 OUTPUT OPTIONS (convert and tool)
   --name <template>         Result name, e.g. "{name}-web" ({name} {format} {date} {time}); convert only
@@ -94,6 +95,19 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
+/// The version of the Kumquat.app this CLI ships in (Contents/Resources/bin/kumquat-cli), following
+/// symlinks such as /usr/local/bin/kumquat-cli; "dev" for a build outside the app.
+func cliVersion() -> String {
+    // argv[0] is often just "kumquat-cli"; the executable URL is the real path the system launched.
+    guard let executable = Bundle.main.executableURL?.resolvingSymlinksInPath() else { return "dev" }
+    let plist = executable.deletingLastPathComponent()   // bin
+        .deletingLastPathComponent()                      // Resources
+        .deletingLastPathComponent()                      // Contents
+        .appendingPathComponent("Info.plist")
+    let info = NSDictionary(contentsOf: plist)
+    return info?["CFBundleShortVersionString"] as? String ?? "dev"
+}
+
 func printProgress(_ fraction: Double) {
     let percent = Int(fraction * 100)
     FileHandle.standardError.write(Data("\r  \(percent)%".utf8))
@@ -113,6 +127,10 @@ guard let command = args.positional.first else {
 let operands = Array(args.positional.dropFirst())
 
 switch command {
+case "version", "--version", "-v":
+    print("kumquat-cli \(cliVersion())")
+    exit(0)
+
 case "convert":
     guard let to = args.flags["to"], let target = FormatRegistry.format(id: to) ?? FormatRegistry.format(forExtension: to) else {
         fail("--to <format> is required (see `kumquat-cli formats`).")

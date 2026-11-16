@@ -5,6 +5,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `kumquat-cli --version` (or `kumquat-cli version`) prints the version of the app the CLI belongs to,
+  and the README explains how to put `kumquat-cli` on your `PATH`.
+
 ## [0.4.1] - 2026-11-16
 
 ### Changed
