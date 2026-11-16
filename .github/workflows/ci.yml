@@ -19,7 +19,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@main
         with:
           fetch-depth: 0
       - name: Toolchain
@@ -69,7 +69,7 @@ jobs:
           printf 'name,age\nAda,36\n' > build/smoke.csv
           $CLI convert build/smoke.csv --to json
           grep -q '"Ada"' build/smoke.json
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@main
         if: always()
         with:
           name: test-results-macos
@@ -78,7 +78,7 @@ jobs:
             build/coverage.txt
             build/dmg-background/background@2x.png
           if-no-files-found: ignore
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@main
         with:
           name: Kumquat
           path: |
@@ -94,8 +94,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/download-artifact@v5
+      - uses: actions/checkout@main
+      - uses: actions/download-artifact@main
         with:
           name: Kumquat
           path: dist
@@ -108,7 +108,7 @@ jobs:
           mv dist/Kumquat.dmg dist/Kumquat-nightly.dmg
           mv dist/Kumquat.zip dist/Kumquat-nightly.zip
           (cd dist && sha256sum Kumquat-nightly.* > SHA256SUMS.txt)
-      - uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@master
         with:
           tag_name: nightly
           name: Kumquat nightly
