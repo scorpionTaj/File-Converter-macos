@@ -108,7 +108,7 @@ public struct MediaEngine: ConversionEngine {
 
         var message: String?
         if tool == .videoCompress || tool == .audioCompress {
-            message = SizeReport.savings(original: input, result: output)
+            message = try SizeReport.requireSavings(original: input, result: output)
         }
         return ToolArtifact(url: output, message: message)
     }
@@ -119,7 +119,16 @@ enum SizeReport {
         Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
     }
 
-    /// "Saved 42%" / "No smaller".
+    /// "Saved 42%", or `nothingToDo` when the result isn't smaller, so a larger "(compressed)" copy is never saved.
+    static func requireSavings(original: URL, result: URL) throws -> String {
+        let after = size(of: result)
+        guard after > 0, after < size(of: original) else {
+            throw KumquatError.nothingToDo("\(original.lastPathComponent) is already as small as Kumquat can make it.")
+        }
+        return savings(original: original, result: result)
+    }
+
+    /// "Saved 42%" / "Already compact".
     static func savings(original: URL, result: URL) -> String {
         let before = size(of: original), after = size(of: result)
         guard before > 0, after > 0 else { return "Done" }

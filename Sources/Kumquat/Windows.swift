@@ -262,6 +262,9 @@ struct ConversionSettings: View {
                     ForEach(Self.imageSizes, id: \.self) { Text($0 == 0 ? "Original" : "\($0) px longest side").tag($0) }
                 }
                 Stepper("PDF page render: \(settings.pdfDPI) dpi", value: $settings.pdfDPI, in: 72...600, step: 24)
+                Picker("PDF compression", selection: $settings.pdfCompression) {
+                    ForEach(PDFCompression.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
             }
             Section {
                 Stepper("H.264 quality (CRF): \(settings.videoCRF)", value: $settings.videoCRF, in: 14...36)

@@ -266,11 +266,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let toolParameter = parameter
         let converter = self.converter
+        let concurrency = settings.parallelJobs
         let jobOptions = options(for: urls)
         let job = hud.begin(tool.title, detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
         jobTasks[job] = Task {
             do {
-                let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions) { [weak self] fraction in
+                let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions,
+                                                      concurrency: concurrency) { [weak self] fraction in
                     Task { @MainActor in
                         self?.hud.progress(fraction, job: job)
                         self?.statusBar?.showProgress(fraction)

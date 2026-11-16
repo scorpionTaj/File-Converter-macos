@@ -328,7 +328,7 @@ public struct ImageEngine: ConversionEngine {
 
         let output = context.scratchURL(format.fileExtension)
         try await write(result, to: output, format: format, quality: quality, context: context)
-        let message = tool == .imageCompress ? SizeReport.savings(original: input, result: output) : nil
+        let message = tool == .imageCompress ? try SizeReport.requireSavings(original: input, result: output) : nil
         return ToolArtifact(url: output, message: message)
     }
 

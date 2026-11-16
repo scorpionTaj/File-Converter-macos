@@ -146,6 +146,92 @@ final class RealWorldTests: TemporaryDirectoryTestCase {
         }
     }
 
+    /// A page of dense detail, like a scan: only downsampling/re-encoding its image can shrink the PDF.
+    func testPDFCompressShrinksScans() async throws {
+        let width = 2400, height = 3200
+        var seed: UInt32 = 12345
+        let noise = try ImageEngine.render(width: width, height: height) { ctx in
+            for y in stride(from: 0, to: height, by: 4) {
+                for x in stride(from: 0, to: width, by: 4) {
+                    seed = seed &* 1_664_525 &+ 1_013_904_223
+                    let gray = CGFloat(seed >> 24) / 255
+                    ctx.setFillColor(CGColor(red: gray, green: gray, blue: gray, alpha: 1))
+                    ctx.fill(CGRect(x: x, y: y, width: 4, height: 4))
+                }
+            }
+        }
+        let pdf = try await converter.convert(try save(noise, "scan.png"), to: .pdf)
+        let outcome = try await converter.run(.pdfCompress, inputs: [pdf])
+        let before = SizeReport.size(of: pdf), after = SizeReport.size(of: outcome.outputs[0])
+        XCTAssertLessThan(after * 10, before * 7, "expected at least 30% saved, got \(before) → \(after)")
+        XCTAssertEqual(PDFDocument(url: outcome.outputs[0])?.pageCount, 1)
+
+        // Stronger levels never produce a bigger file than gentler ones.
+        var sizes: [Int64] = []
+        for level in PDFCompression.allCases {
+            var options = ConversionOptions()
+            options.pdfCompression = level
+            options.outputLocation = .folder(directory.appendingPathComponent(level.rawValue).path)
+            let result = try await converter.run(.pdfCompress, inputs: [pdf], options: options)
+            sizes.append(SizeReport.size(of: result.outputs[0]))
+        }
+        XCTAssertEqual(sizes, sizes.sorted(by: >), "light, balanced, strong: \(sizes)")
+    }
+
+    func testImageCompressNeverGrowsTheFile() async throws {
+        let url = directory.appendingPathComponent("tiny.jpg")
+        try ImageEngine.encode(try textImage("PHOTO"), to: url, format: .jpg, quality: 0.1)
+        do {
+            let outcome = try await converter.run(.imageCompress, inputs: [url])
+            XCTAssertLessThan(SizeReport.size(of: outcome.outputs[0]), SizeReport.size(of: url))
+        } catch KumquatError.nothingToDo {
+            let siblings = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            XCTAssertFalse(siblings.contains { $0.contains("(compressed)") })
+        }
+    }
+
+    func testJPEGToPDFKeepsTheJPEGData() async throws {
+        let jpg = try save(try textImage("PHOTO", width: 1600, height: 1200), "photo.jpg", format: .jpg)
+        let pdf = try await converter.convert(jpg, to: .pdf)
+        // Embedded as-is: the PDF is the JPEG plus a little structure, not a re-encoded copy.
+        XCTAssertLessThan(SizeReport.size(of: pdf), SizeReport.size(of: jpg) + 20_000)
+        let page = try XCTUnwrap(PDFDocument(url: pdf)?.page(at: 0))
+        XCTAssertEqual(page.bounds(for: .mediaBox).size, CGSize(width: 1600, height: 1200))
+    }
+
+    func testRedactPersonalInfoSkipsPlainNumbers() async throws {
+        let letter = directory.appendingPathComponent("letter.txt")
+        try "Card 4111 1111 1111 1111 and mobile 06 12 34 56 78.\nInvoice 20261116, order 1234567890123, total 1234.56"
+            .write(to: letter, atomically: true, encoding: .utf8)
+        let pdf = try await converter.convert(letter, to: .pdf)
+        let outcome = try await converter.run(.pdfRedactPersonalInfo, inputs: [pdf])
+        XCTAssertEqual(outcome.message, "Redacted 2 matches")
+    }
+
+    func testLuhnFilter() {
+        XCTAssertTrue(Redaction.isPersonalInfo("4111 1111 1111 1111"))
+        XCTAssertFalse(Redaction.isPersonalInfo("1234567890123"))
+        XCTAssertTrue(Redaction.isPersonalInfo("+1 415 555 0134"))
+    }
+
+    func testParallelToolsKeepSameNamedInputsApart() async throws {
+        var inputs: [URL] = []
+        for (folder, pages) in [("a", 2), ("b", 3)] {
+            let dir = directory.appendingPathComponent(folder, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let images = try (0..<pages).map { try save(try textImage("P\($0)"), "\(folder)\($0).png") }
+            let made = try await converter.run(.imagesToPDF, inputs: images).outputs[0]
+            let doc = dir.appendingPathComponent("doc.pdf")
+            try FileManager.default.moveItem(at: made, to: doc)
+            inputs.append(doc)
+        }
+        var options = ConversionOptions()
+        options.outputLocation = .folder(directory.appendingPathComponent("out").path)
+        let outcome = try await converter.run(.pdfSplit, inputs: inputs, options: options, concurrency: 2)
+        let counts = try outcome.outputs.map { try FileManager.default.contentsOfDirectory(atPath: $0.path).count }
+        XCTAssertEqual(counts, [2, 3])
+    }
+
     func testCustomOutputFolder() async throws {
         let out = directory.appendingPathComponent("Exports", isDirectory: true)
         var options = ConversionOptions()

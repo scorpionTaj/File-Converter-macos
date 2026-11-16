@@ -112,6 +112,7 @@ final class SettingsStore: ObservableObject {
     @Published var videoCRF: Int { didSet { defaults.set(videoCRF, forKey: "videoCRF") } }
     @Published var audioBitrate: Int { didSet { defaults.set(audioBitrate, forKey: "audioBitrate") } }
     @Published var pdfDPI: Int { didSet { defaults.set(pdfDPI, forKey: "pdfDPI") } }
+    @Published var pdfCompression: PDFCompression { didSet { defaults.set(pdfCompression.rawValue, forKey: "pdfCompression") } }
     @Published var outputMode: OutputMode { didSet { defaults.set(outputMode.rawValue, forKey: "outputMode") } }
     @Published var customFolder: String { didSet { defaults.set(customFolder, forKey: "customFolder") } }
     @Published var terminalBundleID: String { didSet { defaults.set(terminalBundleID, forKey: "terminalBundleID") } }
@@ -192,6 +193,7 @@ final class SettingsStore: ObservableObject {
         videoCRF = int("videoCRF", 23)
         audioBitrate = int("audioBitrate", 192)
         pdfDPI = int("pdfDPI", 200)
+        pdfCompression = PDFCompression(rawValue: string("pdfCompression", "")) ?? .balanced
         outputMode = OutputMode(rawValue: string("outputMode", "")) ?? .beside
         customFolder = string("customFolder", "")
         terminalBundleID = string("terminalBundleID", "com.apple.Terminal")
@@ -296,6 +298,7 @@ final class SettingsStore: ObservableObject {
         options.videoCRF = videoCRF
         options.audioBitrateKbps = audioBitrate
         options.pdfRenderDPI = Double(pdfDPI)
+        options.pdfCompression = pdfCompression
         for (format, value) in [(Format.jpg, jpegQuality), (Format.heic, heicQuality), (Format.webp, webpQuality), (Format.avif, avifQuality)]
         where (0...1).contains(value) {
             options.formatQuality[format.id] = value

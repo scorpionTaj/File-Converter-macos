@@ -5,6 +5,33 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Compress** for PDFs now downsamples and re-encodes the images inside the file (150, 120 or 96 dpi,
+  picking the gentlest level that saves at least a fifth), so scanned PDFs shrink by 70–85% instead of
+  not at all. Text, fonts and vector art are kept. It also works on macOS 13.0–13.3 now.
+- Choose how hard PDF Compress works in Settings ▸ Quality: **Light** (best quality), **Balanced**
+  (default) or **Strong** (smallest file, e.g. a 1.2 MB scan → 46 KB). The CLI takes
+  `--pdf-compression light|balanced|strong`.
+
+- Images → PDF (and Make PDF) embed JPEGs as they are instead of re-encoding them, so the PDF is about
+  the size of the photos instead of roughly double. Rotated phone photos stay upright.
+- Tools process several files at once, using the "files at a time" setting (the CLI takes `--jobs`).
+  Results keep the order the files were dropped in.
+- Redact PII is more precise: phone numbers need a country code, a leading 0 or (415) 555-0134 style
+  grouping, and card numbers must pass the Luhn check, so invoice, order and reference numbers stay.
+
+### Fixed
+- Redact PII and Redact… no longer save a file when a match can't be located on the page (it would
+  have stayed visible), and overlapping matches are counted once.
+- Two files with the same name from different folders no longer mix their results in Split Pages or
+  Extract.
+- Compress never saves an image, video or audio copy that is larger than the original.
+- Cancelling a job just before its helper process launched no longer lets the helper run to the end.
+- A helper's timeout no longer signals its process id after the helper has already exited.
+- Split Pages reports a page that couldn't be saved instead of silently skipping it.
+- Converting a property list with NaN/infinite numbers (or a non-container root) to JSON fails with a
+  message instead of crashing.
+
 ## [0.4.0] - 2026-10-22
 
 ### Added
