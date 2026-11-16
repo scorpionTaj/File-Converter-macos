@@ -23,6 +23,8 @@ OUTPUT OPTIONS (convert and tool)
   --max-size <px>           Longest side of converted images
   --max-height <px>         Maximum video height, e.g. 1080
   --encoder <name>          automatic, hardware (VideoToolbox) or software
+  --pdf-compression <level> light, balanced (default) or strong, for the pdfCompress tool
+  --jobs <n>                Files a tool processes at once, 1-8 (default 3)
 
 EXAMPLES
   kumquat-cli convert IMG_0001.HEIC --to jpg
@@ -80,6 +82,10 @@ func makeOptions(_ args: Arguments) -> ConversionOptions {
         guard let preference = VideoEncoderPreference(rawValue: value) else { fail("--encoder must be automatic, hardware or software") }
         options.videoEncoder = preference
     }
+    if let value = args.flags["pdf-compression"] {
+        guard let level = PDFCompression(rawValue: value) else { fail("--pdf-compression must be light, balanced or strong") }
+        options.pdfCompression = level
+    }
     return options
 }
 
@@ -134,7 +140,9 @@ case "tool":
     let urls = operands.dropFirst().map(fileURL)
     guard !urls.isEmpty else { fail("No input files.") }
     do {
-        let outcome = try await converter.run(tool, inputs: Array(urls), parameter: args.flags["param"], options: makeOptions(args))
+        let jobs = args.flags["jobs"].flatMap(Int.init).map { min(max($0, 1), 8) } ?? 3
+        let outcome = try await converter.run(tool, inputs: Array(urls), parameter: args.flags["param"], options: makeOptions(args),
+                                              concurrency: jobs)
         FileHandle.standardError.write(Data("\r".utf8))
         outcome.outputs.forEach { print("✓ \($0.path)") }
         if let message = outcome.message { print(message) }

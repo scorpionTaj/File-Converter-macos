@@ -2,7 +2,7 @@ import Foundation
 
 /// External helpers some conversions rely on. Everything else uses frameworks built into macOS.
 public enum Dependency: String, CaseIterable, Codable, Sendable {
-    case ffmpeg, libreOffice, pandoc, pages, keynote, numbers, pngquant
+    case ffmpeg, libreOffice, pandoc, pages, keynote, numbers, pngquant, ghostscript
 
     public var displayName: String {
         switch self {
@@ -13,6 +13,7 @@ public enum Dependency: String, CaseIterable, Codable, Sendable {
         case .keynote: return "Keynote"
         case .numbers: return "Numbers"
         case .pngquant: return "pngquant"
+        case .ghostscript: return "Ghostscript"
         }
     }
 
@@ -26,6 +27,7 @@ public enum Dependency: String, CaseIterable, Codable, Sendable {
         case .keynote: return "Keynote presentations"
         case .numbers: return "Numbers spreadsheets"
         case .pngquant: return "Much smaller PNGs when compressing"
+        case .ghostscript: return "Smaller text-heavy PDFs when compressing"
         }
     }
 
@@ -38,6 +40,7 @@ public enum Dependency: String, CaseIterable, Codable, Sendable {
         case .keynote: return "Install Keynote from the Mac App Store"
         case .numbers: return "Install Numbers from the Mac App Store"
         case .pngquant: return "brew install pngquant"
+        case .ghostscript: return "brew install ghostscript"
         }
     }
 }
@@ -112,6 +115,42 @@ public enum VideoEncoderPreference: String, Codable, CaseIterable, Sendable {
     case software
 }
 
+/// How hard PDF Compress works on the images inside a PDF. Text, fonts and vector art are never touched.
+public enum PDFCompression: String, Codable, CaseIterable, Sendable {
+    /// Images stay sharp enough to print; smaller savings.
+    case light
+    /// Comfortable on screen and readable when zoomed; the default.
+    case balanced
+    /// Smallest file; scanned text gets soft.
+    case strong
+
+    public var title: String {
+        switch self {
+        case .light: return "Light (best quality)"
+        case .balanced: return "Balanced"
+        case .strong: return "Strong (smallest file)"
+        }
+    }
+
+    /// Image resolution (pixels per inch on the page) and JPEG quality to try, in order.
+    var steps: [(dpi: Int, quality: Double)] {
+        switch self {
+        case .light: return [(200, 0.75), (150, 0.65), (120, 0.6)]
+        case .balanced: return [(150, 0.6), (120, 0.5), (96, 0.4)]
+        case .strong: return [(72, 0.3), (96, 0.4)]
+        }
+    }
+
+    /// Ghostscript's matching preset (300, 150 and 72 dpi images).
+    var ghostscriptPreset: String {
+        switch self {
+        case .light: return "/printer"
+        case .balanced: return "/ebook"
+        case .strong: return "/screen"
+        }
+    }
+}
+
 /// User-tunable knobs passed to every engine.
 public struct ConversionOptions: Codable, Hashable, Sendable {
     /// 0...1 quality for lossy image formats.
@@ -140,6 +179,7 @@ public struct ConversionOptions: Codable, Hashable, Sendable {
     public var normalizeAudio: Bool = false
     /// Resolution used when rendering PDF pages to images.
     public var pdfRenderDPI: Double = 200
+    public var pdfCompression: PDFCompression = .balanced
     public var gifFPS: Int = 12
     public var gifMaxWidth: Int = 640
     public var outputLocation: OutputLocation = .besideOriginal

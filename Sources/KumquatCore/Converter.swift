@@ -198,9 +198,11 @@ public final class Converter: @unchecked Sendable {
 
     // MARK: Tools
 
-    /// Runs a tool on the dropped files. Combining tools (merge, zip…) produce one result; others one per file.
+    /// Runs a tool on the dropped files. Combining tools (merge, zip…) produce one result; others one per
+    /// file, `concurrency` files at a time, with results reported in the order the files were given.
     public func run(_ tool: ToolID, inputs: [URL], parameter: String? = nil,
                     options: ConversionOptions = ConversionOptions(),
+                    concurrency: Int = 1,
                     progress: (@Sendable (Double) -> Void)? = nil) async throws -> ToolOutcome {
         guard !inputs.isEmpty else { throw KumquatError.nothingToDo("Nothing to process.") }
         let missing = tool.requirements.subtracting(tools.availableDependencies)
@@ -216,25 +218,53 @@ public final class Converter: @unchecked Sendable {
             return try finalize([artifact], for: [inputs[0]], tool: tool, options: options, combined: true)
         }
 
+        let tracker = BatchProgress(count: inputs.count, report: progress)
+        let results = try await withThrowingTaskGroup(of: (Int, Result<ToolArtifact, Error>).self) { group in
+            var collected: [(Int, Result<ToolArtifact, Error>)] = []
+            var next = 0
+            func enqueue() throws {
+                guard next < inputs.count else { return }
+                let index = next
+                next += 1
+                // Each file gets its own scratch folder: tools name results after the input, and two
+                // inputs can share a name ("scan.pdf" from two folders).
+                var itemContext = context
+                itemContext.workDirectory = work.appendingPathComponent("item\(index)", isDirectory: true)
+                try fm.createDirectory(at: itemContext.workDirectory, withIntermediateDirectories: true)
+                itemContext.progress = { tracker.update(index, $0) }
+                group.addTask {
+                    do {
+                        return (index, .success(try await ToolRunner.run(tool, input: inputs[index], parameter: parameter,
+                                                                         context: itemContext)))
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        // Keep going: one bad file shouldn't throw away the others' results.
+                        return (index, .failure(error))
+                    }
+                }
+            }
+            for _ in 0..<min(max(concurrency, 1), inputs.count) { try enqueue() }
+            while let result = try await group.next() {
+                collected.append(result)
+                tracker.update(result.0, 1)
+                try Task.checkCancellation()
+                try enqueue()
+            }
+            return collected.sorted { $0.0 < $1.0 }
+        }
+
         var artifacts: [ToolArtifact] = []
         var originals: [URL] = []
         var failures: [String] = []
         var firstError: Error?
-        for (index, input) in inputs.enumerated() {
-            try Task.checkCancellation()
-            var itemContext = context
-            itemContext.progress = { fraction in
-                progress?((Double(index) + fraction) / Double(inputs.count))
-            }
-            do {
-                let artifact = try await ToolRunner.run(tool, input: input, parameter: parameter, context: itemContext)
+        for (index, result) in results {
+            switch result {
+            case .success(let artifact):
                 artifacts.append(artifact)
-                originals.append(input)
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                // Keep going: one bad file shouldn't throw away the others' results.
-                failures.append("\(input.lastPathComponent): \(error.localizedDescription)")
+                originals.append(inputs[index])
+            case .failure(let error):
+                failures.append("\(inputs[index].lastPathComponent): \(error.localizedDescription)")
                 firstError = firstError ?? error
             }
         }
@@ -283,6 +313,27 @@ public final class Converter: @unchecked Sendable {
         outcome.clipboardText = clipboard.isEmpty ? nil : clipboard.joined(separator: "\n")
         if outcome.outputs.isEmpty, outcome.message == nil, outcome.clipboardText == nil, let firstError { throw firstError }
         return outcome
+    }
+}
+
+/// Overall progress of files processed in parallel, each reporting its own 0…1 fraction.
+private final class BatchProgress: @unchecked Sendable {
+    private let lock = NSLock()
+    private var fractions: [Double]
+    private let report: (@Sendable (Double) -> Void)?
+
+    init(count: Int, report: (@Sendable (Double) -> Void)?) {
+        fractions = Array(repeating: 0, count: count)
+        self.report = report
+    }
+
+    func update(_ index: Int, _ fraction: Double) {
+        guard let report else { return }
+        lock.lock()
+        fractions[index] = max(fractions[index], min(max(fraction, 0), 1))
+        let overall = fractions.reduce(0, +) / Double(fractions.count)
+        lock.unlock()
+        report(overall)
     }
 }
 

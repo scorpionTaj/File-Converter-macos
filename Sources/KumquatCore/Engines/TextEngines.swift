@@ -17,7 +17,12 @@ public struct DataEngine: ConversionEngine {
             return output
         case (.plist, .json):
             let object = try PropertyListSerialization.propertyList(from: Data(contentsOf: input), options: [], format: nil)
-            let data = try JSONSerialization.data(withJSONObject: Self.jsonCompatible(object), options: [.prettyPrinted, .sortedKeys])
+            let json = Self.jsonCompatible(object)
+            // JSONSerialization raises an exception (a crash) on NaN/infinite numbers, which a plist can hold.
+            guard JSONSerialization.isValidJSONObject(json) else {
+                throw KumquatError.invalidInput("\(input.lastPathComponent) holds values JSON can't represent.")
+            }
+            let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
             try (data + Data("\n".utf8)).write(to: output)
             return output
         case (.json, _):

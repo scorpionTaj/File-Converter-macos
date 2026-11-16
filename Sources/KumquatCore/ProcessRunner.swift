@@ -52,6 +52,7 @@ private final class ProcessBox: @unchecked Sendable {
     let process = Process()
     private let lock = NSLock()
     private var didTimeOut = false
+    private var didCancel = false
 
     var timedOut: Bool {
         lock.lock()
@@ -59,7 +60,23 @@ private final class ProcessBox: @unchecked Sendable {
         return didTimeOut
     }
 
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return didCancel
+    }
+
+    /// Cancellation can arrive before the process launches; the flag lets the launcher stop it then.
+    func cancel() {
+        lock.lock()
+        didCancel = true
+        lock.unlock()
+        if process.isRunning { process.terminate() }
+    }
+
     func killForTimeout() {
+        // Already exited: its pid may belong to another process by now.
+        guard process.isRunning else { return }
         lock.lock()
         didTimeOut = true
         lock.unlock()
@@ -143,6 +160,7 @@ public enum ProcessRunner {
 
                 do {
                     try process.run()
+                    if box.isCancelled { process.terminate() }
                     if let timeout {
                         DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { box.killForTimeout() }
                     }
@@ -154,7 +172,7 @@ public enum ProcessRunner {
                 }
             }
         } onCancel: {
-            if box.process.isRunning { box.process.terminate() }
+            box.cancel()
         }
     }
 
@@ -225,6 +243,7 @@ public struct ToolLocator: Sendable {
     public var soffice: URL? { path(for: "soffice") }
     public var pandoc: URL? { path(for: "pandoc") }
     public var pngquant: URL? { path(for: "pngquant") }
+    public var ghostscript: URL? { path(for: "gs") }
 
     public func applicationInstalled(_ name: String) -> Bool {
         let fm = FileManager.default
@@ -238,6 +257,7 @@ public struct ToolLocator: Sendable {
         case .libreOffice: return soffice != nil
         case .pandoc: return pandoc != nil
         case .pngquant: return pngquant != nil
+        case .ghostscript: return ghostscript != nil
         case .pages: return applicationInstalled("Pages")
         case .keynote: return applicationInstalled("Keynote")
         case .numbers: return applicationInstalled("Numbers")
@@ -285,6 +305,7 @@ extension Dependency {
         case .libreOffice: return "soffice"
         case .pandoc: return "pandoc"
         case .pngquant: return "pngquant"
+        case .ghostscript: return "gs"
         case .pages, .keynote, .numbers: return nil
         }
     }
@@ -296,6 +317,7 @@ extension Dependency {
         case .libreOffice: return "--cask libreoffice"
         case .pandoc: return "pandoc"
         case .pngquant: return "pngquant"
+        case .ghostscript: return "ghostscript"
         case .pages, .keynote, .numbers: return nil
         }
     }
