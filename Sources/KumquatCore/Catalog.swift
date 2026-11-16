@@ -17,6 +17,14 @@ public enum WheelMode: String, CaseIterable, Codable, Sendable {
 public enum ToolInput: Sendable, Equatable {
     case password(prompt: String)
     case text(prompt: String)
+    /// A page order (`PageArrangement`); the app shows page thumbnails to arrange for a single PDF.
+    case pages(prompt: String)
+
+    public var prompt: String {
+        switch self {
+        case .password(let prompt), .text(let prompt), .pages(let prompt): return prompt
+        }
+    }
 }
 
 /// Editing tools shown on the Tools wheel.
@@ -28,7 +36,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
     // PDF
     case pdfCompress, pdfMerge, pdfSplit, pdfRotate, pdfExtractText, pdfOCR
     case pdfEncrypt, pdfDecrypt, pdfRedactPersonalInfo, pdfRedactText
-    case pdfRemovePages, pdfExtractPages
+    case pdfRemovePages, pdfExtractPages, pdfSearchable, pdfArrange, pdfAnnotate
     // Video
     case videoCompress, video720p, videoMute, videoExtractAudio, videoRotate, videoSpeedUp, videoFirstFrame
     // Audio
@@ -59,6 +67,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfRotate, .videoRotate: return "Rotate"
         case .pdfExtractText: return "Extract Text"
         case .pdfOCR: return "OCR Text"
+        case .pdfSearchable: return "Make Searchable"
+        case .pdfArrange: return "Arrange Pages…"
+        case .pdfAnnotate: return "Annotate…"
         case .pdfEncrypt: return "Add Password"
         case .pdfDecrypt: return "Unlock"
         case .pdfRedactPersonalInfo: return "Redact PII"
@@ -104,6 +115,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfRotate: return "Rotate every page 90°"
         case .pdfExtractText: return "Save the text layer as TXT"
         case .pdfOCR: return "Recognise text in scanned pages"
+        case .pdfSearchable: return "Add a hidden text layer to scans (OCR)"
+        case .pdfArrange: return "Reorder, rotate or drop pages"
+        case .pdfAnnotate: return "Highlight, add notes, text and drawings"
         case .pdfEncrypt: return "Protect with a password"
         case .pdfDecrypt: return "Remove the password"
         case .pdfRedactPersonalInfo: return "Black out emails, phones, cards"
@@ -138,6 +152,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageGrayscale: return "circle.lefthalf.filled"
         case .imageRemoveBackground: return "wand.and.stars"
         case .imageExtractText, .pdfOCR: return "text.viewfinder"
+        case .pdfSearchable: return "doc.text.magnifyingglass"
+        case .pdfArrange: return "square.grid.3x3.square"
+        case .pdfAnnotate: return "highlighter"
         case .imagesToPDF: return "doc.richtext"
         case .imageAnnotate: return "pencil.tip.crop.circle"
         case .imageResizeCustom: return "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left"
@@ -193,6 +210,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageResizeCustom: return "resized"
         case .pdfRemovePages: return "edited"
         case .pdfExtractPages: return "pages"
+        case .pdfSearchable: return "searchable"
+        case .pdfArrange: return "arranged"
+        case .pdfAnnotate: return "annotated"
         case .mediaTrim: return "trimmed"
         case .imagesToPDF, .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount: return nil
         }
@@ -216,6 +236,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .imageResizeCustom: return .text(prompt: "New size: a percentage (50%), a width (1280) or width×height (1280x720)")
         case .pdfRemovePages: return .text(prompt: "Pages to remove, e.g. 1, 3-5")
         case .pdfExtractPages: return .text(prompt: "Pages to keep, e.g. 2-4, 7")
+        case .pdfArrange: return .pages(prompt: "New page order; pages left out are dropped. Add r90, r180 or r270 to turn a page, e.g. 3, 1-2, 4r90")
         case .mediaTrim: return .text(prompt: "Part to keep, e.g. 0:05-1:30 (leave the end empty to keep the rest)")
         default: return nil
         }
@@ -233,7 +254,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
 
     /// Tools that open a window in the app instead of running in the background.
     public var isInteractive: Bool {
-        self == .imageAnnotate
+        [.imageAnnotate, .pdfAnnotate].contains(self)
     }
 
     /// Whether the tool applies to this drop. `formats` has one entry per dropped item (nil for folders/unknown).
@@ -250,8 +271,10 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
             return all(.image) && formats.count == 1
         case .imageResizeCustom:
             return all(.image)
-        case .pdfRemovePages, .pdfExtractPages:
+        case .pdfRemovePages, .pdfExtractPages, .pdfSearchable, .pdfArrange:
             return all(.pdf)
+        case .pdfAnnotate:
+            return all(.pdf) && formats.count == 1
         case .mediaTrim:
             return all(.audio) || all(.video)
         case .pdfMerge:

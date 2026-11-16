@@ -5,15 +5,7 @@ import ImageIO
 import PDFKit
 @testable import KumquatCore
 
-/// Behaviour checks against real frameworks and helpers (skipped when a helper isn't installed).
-final class RealWorldTests: TemporaryDirectoryTestCase {
-    let converter = Converter()
-
-    override func setUpWithError() throws {
-        try super.setUpWithError()
-        _ = NSApplication.shared
-    }
-
+extension TemporaryDirectoryTestCase {
     /// Black text on white, big enough for OCR.
     func textImage(_ text: String, width: Int = 900, height: Int = 220) throws -> CGImage {
         try ImageEngine.render(width: width, height: height) { ctx in
@@ -34,6 +26,16 @@ final class RealWorldTests: TemporaryDirectoryTestCase {
         let url = directory.appendingPathComponent(name)
         try ImageEngine.encode(image, to: url, format: format, quality: 0.9)
         return url
+    }
+}
+
+/// Behaviour checks against real frameworks and helpers (skipped when a helper isn't installed).
+final class RealWorldTests: TemporaryDirectoryTestCase {
+    let converter = Converter()
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        _ = NSApplication.shared
     }
 
     func testImageOCR() async throws {

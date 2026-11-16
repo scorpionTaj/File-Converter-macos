@@ -7,6 +7,9 @@ public struct EngineContext: Sendable {
     /// Scratch space, deleted when the job ends.
     public var workDirectory: URL
     public var progress: (@Sendable (Double) -> Void)?
+    /// Position of this file in the drop, and how many files were dropped (for numbering, e.g. Rename).
+    public var itemIndex = 0
+    public var itemCount = 1
 
     public init(options: ConversionOptions, tools: ToolLocator, workDirectory: URL, progress: (@Sendable (Double) -> Void)? = nil) {
         self.options = options
@@ -232,6 +235,8 @@ public final class Converter: @unchecked Sendable {
                 itemContext.workDirectory = work.appendingPathComponent("item\(index)", isDirectory: true)
                 try fm.createDirectory(at: itemContext.workDirectory, withIntermediateDirectories: true)
                 itemContext.progress = { tracker.update(index, $0) }
+                itemContext.itemIndex = index
+                itemContext.itemCount = inputs.count
                 group.addTask {
                     do {
                         return (index, .success(try await ToolRunner.run(tool, input: inputs[index], parameter: parameter,

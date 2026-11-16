@@ -113,3 +113,64 @@ public struct TimeRange: Equatable, Sendable {
         String(format: "%.3f", seconds)
     }
 }
+
+/// "3, 1-2, 5r90, 8-6" → pages in a new order, each with an extra clockwise rotation. Pages that aren't
+/// listed are left out; a page may appear more than once (duplicated). Descending ranges reverse.
+public enum PageArrangement {
+    public struct Entry: Equatable, Sendable {
+        /// Zero-based page index in the source document.
+        public var page: Int
+        /// Extra clockwise rotation: 0, 90, 180 or 270.
+        public var rotation: Int
+
+        public init(page: Int, rotation: Int = 0) {
+            self.page = page
+            self.rotation = ((rotation % 360) + 360) % 360
+        }
+    }
+
+    public static func parse(_ text: String, pageCount: Int) throws -> [Entry] {
+        var entries: [Entry] = []
+        for rawPart in text.split(whereSeparator: { $0 == "," || $0 == ";" }) {
+            var part = rawPart.trimmingCharacters(in: .whitespaces).lowercased()
+            guard !part.isEmpty else { continue }
+            var rotation = 0
+            if let marker = part.firstIndex(of: "r") {
+                guard let degrees = Int(part[part.index(after: marker)...]), [0, 90, 180, 270, -90].contains(degrees) else {
+                    throw KumquatError.invalidInput("“\(rawPart)”: rotation must be r90, r180 or r270.")
+                }
+                rotation = degrees
+                part = String(part[..<marker]).trimmingCharacters(in: .whitespaces)
+            }
+            let bounds = part.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+            guard let first = Int(bounds[0]), bounds.count == 1 || Int(bounds[1]) != nil else {
+                throw KumquatError.invalidInput("“\(text)” isn't a page order like 3, 1-2, 4r90.")
+            }
+            let last = bounds.count == 2 ? Int(bounds[1])! : first
+            guard (1...pageCount).contains(first), (1...pageCount).contains(last) else {
+                throw KumquatError.invalidInput("“\(rawPart.trimmingCharacters(in: .whitespaces))” is outside pages 1–\(pageCount).")
+            }
+            let pages = first <= last ? Array(first...last) : Array((last...first).reversed())
+            entries += pages.map { Entry(page: $0 - 1, rotation: rotation) }
+        }
+        guard !entries.isEmpty else { throw KumquatError.invalidInput("No pages given.") }
+        return entries
+    }
+
+    /// The spec for `entries`, compressing consecutive unrotated runs ("1-3, 5r90").
+    public static func format(_ entries: [Entry]) -> String {
+        var parts: [String] = []
+        var index = 0
+        while index < entries.count {
+            let start = entries[index]
+            var end = index
+            while end + 1 < entries.count, entries[end + 1].rotation == start.rotation,
+                  entries[end + 1].page == entries[end].page + 1 { end += 1 }
+            let range = end > index ? "\(start.page + 1)-\(entries[end].page + 1)" : "\(start.page + 1)"
+            parts.append(start.rotation == 0 ? range : "\(range)r\(start.rotation)")
+            index = end + 1
+        }
+        return parts.joined(separator: ", ")
+    }
+}

@@ -376,10 +376,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func run(_ tool: ToolID, urls: [URL]) {
-        if tool == .imageAnnotate, let url = urls.first {
+        if tool == .imageAnnotate || tool == .pdfAnnotate, let url = urls.first {
             let directory = OutputNamer.destinationDirectory(for: url, location: options(for: urls).outputLocation)
-            AnnotationWindowController.present(url: url, outputDirectory: directory, hud: hud) { [weak self] saved in
-                self?.recordOutputs([saved])
+            let onSaved: (URL) -> Void = { [weak self] saved in self?.recordOutputs([saved]) }
+            if tool == .pdfAnnotate {
+                PDFAnnotationWindowController.present(url: url, outputDirectory: directory, hud: hud, onSaved: onSaved)
+            } else {
+                AnnotationWindowController.present(url: url, outputDirectory: directory, hud: hud, onSaved: onSaved)
             }
             return
         }
@@ -389,9 +392,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             switch input {
             case .password(let prompt): parameter = Prompt.ask(title: tool.title, message: prompt, secure: true)
             case .text(let prompt): parameter = Prompt.ask(title: tool.title, message: prompt, secure: false)
+            case .pages(let prompt):
+                // One PDF: arrange thumbnails. Several: the same page order applies to each, typed.
+                if urls.count == 1 {
+                    PageArrangerWindowController.present(url: urls[0], hud: hud) { [weak self] spec in
+                        self?.start(tool, urls: urls, parameter: spec)
+                    }
+                    return
+                }
+                parameter = Prompt.ask(title: tool.title, message: prompt, secure: false)
             }
             guard parameter != nil else { return }
         }
+        start(tool, urls: urls, parameter: parameter)
+    }
+
+    /// Runs a tool in the background once its input (if any) is known.
+    private func start(_ tool: ToolID, urls: [URL], parameter: String?) {
         let toolParameter = parameter
         let converter = self.converter
         let concurrency = settings.parallelJobs

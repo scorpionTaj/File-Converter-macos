@@ -66,6 +66,11 @@ public struct PDFEngine: ConversionEngine {
             ctx.scaleBy(x: scale, y: scale)
             ctx.translateBy(x: -box.minX, y: -box.minY)
             ctx.drawPDFPage(cgPage)
+            // Core Graphics skips annotations (highlights, notes, filled form fields); PDFKit draws them
+            // in the same unrotated page space.
+            for annotation in page.annotations where annotation.shouldDisplay {
+                annotation.draw(with: .cropBox, in: ctx)
+            }
             ctx.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
             overlay.forEach { ctx.fill($0) }
         }
@@ -238,6 +243,15 @@ public struct PDFEngine: ConversionEngine {
             let textURL = context.scratchURL("txt")
             try text.write(to: textURL, atomically: true, encoding: .utf8)
             return ToolArtifact(url: textURL, message: "Recognised \(document.pageCount) page(s)")
+
+        case .pdfSearchable:
+            let count = try makeSearchable(document, output: output, context: context)
+            return ToolArtifact(url: output, message: "Recognised \(count) of \(document.pageCount) page(s)")
+
+        case .pdfArrange:
+            let entries = try PageArrangement.parse(parameter ?? "", pageCount: document.pageCount)
+            try arrange(document, entries: entries, output: output)
+            return ToolArtifact(url: output, message: "\(entries.count) page(s)")
 
         case .pdfEncrypt:
             guard let password = parameter, !password.isEmpty else { throw KumquatError.nothingToDo("No password entered.") }
