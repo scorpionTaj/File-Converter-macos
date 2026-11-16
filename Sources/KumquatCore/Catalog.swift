@@ -19,10 +19,12 @@ public enum ToolInput: Sendable, Equatable {
     case text(prompt: String)
     /// A page order (`PageArrangement`); the app shows page thumbnails to arrange for a single PDF.
     case pages(prompt: String)
+    /// A `TimeRange`; the app shows a player with a trimming scrubber for a single file.
+    case timeRange(prompt: String)
 
     public var prompt: String {
         switch self {
-        case .password(let prompt), .text(let prompt), .pages(let prompt): return prompt
+        case .password(let prompt), .text(let prompt), .pages(let prompt), .timeRange(let prompt): return prompt
         }
     }
 }
@@ -39,6 +41,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
     case pdfRemovePages, pdfExtractPages, pdfSearchable, pdfArrange, pdfAnnotate
     // Video
     case videoCompress, video720p, videoMute, videoExtractAudio, videoRotate, videoSpeedUp, videoFirstFrame
+    case videoToGIF, videoBurnSubtitles, mediaSplitChapters
     // Audio
     case audioNormalize, audioCompress, audioMono, audioTrimSilence
     // Shared
@@ -82,6 +85,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .videoExtractAudio: return "Get Audio"
         case .videoSpeedUp: return "Speed 2×"
         case .videoFirstFrame: return "Poster Frame"
+        case .videoToGIF: return "GIF from Clip…"
+        case .videoBurnSubtitles: return "Burn Subtitles"
+        case .mediaSplitChapters: return "Split Chapters"
         case .audioNormalize: return "Normalize"
         case .audioMono: return "Mono"
         case .audioTrimSilence: return "Trim Silence"
@@ -135,6 +141,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .videoRotate: return "Rotate 90° clockwise"
         case .videoSpeedUp: return "Play twice as fast"
         case .videoFirstFrame: return "Save the first frame as PNG"
+        case .videoToGIF: return "Animated GIF of a chosen part"
+        case .videoBurnSubtitles: return "Draw subtitles into the picture"
+        case .mediaSplitChapters: return "One file per chapter, no re-encoding"
         case .audioNormalize: return "Even out loudness (−16 LUFS)"
         case .audioCompress: return "Lower bitrate copy"
         case .audioMono: return "Mix down to one channel"
@@ -181,6 +190,9 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .videoExtractAudio: return "waveform"
         case .videoSpeedUp: return "hare"
         case .videoFirstFrame: return "photo"
+        case .videoToGIF: return "photo.stack"
+        case .videoBurnSubtitles: return "captions.bubble"
+        case .mediaSplitChapters: return "list.number"
         case .audioNormalize: return "speaker.wave.3"
         case .audioMono: return "speaker"
         case .audioTrimSilence: return "scissors"
@@ -211,6 +223,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .videoExtractAudio: return "audio"
         case .videoSpeedUp: return "2x"
         case .videoFirstFrame: return "frame"
+        case .videoToGIF: return "clip"
         case .audioNormalize: return "normalized"
         case .audioMono: return "mono"
         case .audioTrimSilence: return "trimmed"
@@ -226,14 +239,15 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfAnnotate: return "annotated"
         case .mediaTrim: return "trimmed"
         case .imagesToPDF, .imagesToGIF, .pdfMerge, .pdfSplit, .extractArchive, .compressZip, .checksum, .wordCount,
-             .batchRename: return nil
+             .batchRename, .videoBurnSubtitles, .mediaSplitChapters: return nil
         }
     }
 
     public var requirements: Set<Dependency> {
         switch self {
         case .videoCompress, .video720p, .videoMute, .videoExtractAudio, .videoRotate, .videoSpeedUp, .videoFirstFrame,
-             .audioNormalize, .audioCompress, .audioMono, .audioTrimSilence, .mediaTrim:
+             .audioNormalize, .audioCompress, .audioMono, .audioTrimSilence, .mediaTrim,
+             .videoToGIF, .videoBurnSubtitles, .mediaSplitChapters:
             return [.ffmpeg]
         default:
             return []
@@ -251,7 +265,8 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
         case .pdfRemovePages: return .text(prompt: "Pages to remove, e.g. 1, 3-5")
         case .pdfExtractPages: return .text(prompt: "Pages to keep, e.g. 2-4, 7")
         case .pdfArrange: return .pages(prompt: "New page order; pages left out are dropped. Add r90, r180 or r270 to turn a page, e.g. 3, 1-2, 4r90")
-        case .mediaTrim: return .text(prompt: "Part to keep, e.g. 0:05-1:30 (leave the end empty to keep the rest)")
+        case .mediaTrim: return .timeRange(prompt: "Part to keep, e.g. 0:05-1:30 (leave the end empty to keep the rest)")
+        case .videoToGIF: return .timeRange(prompt: "Part to turn into a GIF, e.g. 0:05-0:09")
         default: return nil
         }
     }
@@ -263,7 +278,7 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
 
     /// Tools that combine all dropped files into one result.
     public var combinesInputs: Bool {
-        [.imagesToPDF, .imagesToGIF, .pdfMerge, .compressZip].contains(self)
+        [.imagesToPDF, .imagesToGIF, .pdfMerge, .compressZip, .videoBurnSubtitles].contains(self)
     }
 
     /// Tools that open a window in the app instead of running in the background.
@@ -293,8 +308,13 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
             return all(.pdf)
         case .pdfAnnotate:
             return all(.pdf) && formats.count == 1
-        case .mediaTrim:
+        case .mediaTrim, .mediaSplitChapters:
             return all(.audio) || all(.video)
+        case .videoToGIF:
+            return all(.video)
+        case .videoBurnSubtitles:
+            let videos = kinds.filter { $0 == .video }.count, subtitles = kinds.filter { $0 == .subtitle }.count
+            return videos == 1 && subtitles <= 1 && videos + subtitles == kinds.count
         case .pdfMerge:
             return all(.pdf) && formats.count > 1
         case .pdfCompress, .pdfSplit, .pdfRotate, .pdfExtractText, .pdfOCR, .pdfEncrypt, .pdfDecrypt,

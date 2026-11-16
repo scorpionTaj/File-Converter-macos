@@ -57,6 +57,8 @@ struct ToolArtifact {
     var clipboardText: String?
     /// Overrides the default "<name> (<suffix>)" naming.
     var preferredBaseName: String?
+    /// For combined tools: the dropped file the result belongs with (saved beside it). Defaults to the first.
+    var original: URL?
 }
 
 /// Front door to every conversion and tool.
@@ -218,7 +220,7 @@ public final class Converter: @unchecked Sendable {
 
         if tool.combinesInputs {
             let artifact = try await ToolRunner.runCombined(tool, inputs: inputs, context: context)
-            return try finalize([artifact], for: [inputs[0]], tool: tool, options: options, combined: true)
+            return try finalize([artifact], for: [artifact.original ?? inputs[0]], tool: tool, options: options, combined: true)
         }
 
         let tracker = BatchProgress(count: inputs.count, report: progress)
@@ -402,6 +404,8 @@ enum ToolRunner {
             let output = context.scratchURL("gif")
             try await ImageEngine.makeAnimatedGIF(from: inputs, output: output, context: context)
             return ToolArtifact(url: output, preferredBaseName: FormatRegistry.baseName(of: inputs[0]))
+        case .videoBurnSubtitles:
+            return try await MediaEngine.burnSubtitles(inputs, context: context)
         case .imagesToPDF, .pdfMerge:
             let output = context.scratchURL("pdf")
             if tool == .pdfMerge {

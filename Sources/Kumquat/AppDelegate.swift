@@ -391,7 +391,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let input = tool.input {
             switch input {
             case .password(let prompt): parameter = Prompt.ask(title: tool.title, message: prompt, secure: true)
-            case .text(let prompt): parameter = Prompt.ask(title: tool.title, message: prompt, secure: false)
+            case .text(let prompt), .timeRange(let prompt):
+                parameter = Prompt.ask(title: tool.title, message: prompt, secure: false)
             case .pages(let prompt):
                 // One PDF: arrange thumbnails. Several: the same page order applies to each, typed.
                 if urls.count == 1 {

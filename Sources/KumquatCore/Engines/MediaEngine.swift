@@ -95,6 +95,8 @@ public struct MediaEngine: ConversionEngine {
             try await run(ffmpeg, args, duration: length, context: context)
             return ToolArtifact(url: output)
         }
+        if tool == .mediaSplitChapters { return try await splitChapters(input, source: source, context: context) }
+        if tool == .videoToGIF { return try await makeGIF(input, parameter: parameter, context: context) }
         if tool == .videoExtractAudio, probe?.hasAudio == false {
             throw KumquatError.nothingToDo("\(input.lastPathComponent) has no audio track.")
         }
