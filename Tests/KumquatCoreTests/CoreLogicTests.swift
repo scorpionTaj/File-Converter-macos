@@ -351,14 +351,47 @@ final class FFmpegRecipeTests: XCTestCase {
 final class IWorkScriptTests: XCTestCase {
     func testExportScript() throws {
         let script = try XCTUnwrap(IWorkScripts.script(input: "/a/My \"Doc\".pages", output: "/b/out.pdf", source: .pages, target: .pdf))
-        XCTAssertTrue(script.contains("tell application \"Pages\""))
+        XCTAssertTrue(script.contains("tell application id \"com.apple.Pages\""), "by id: the app may be called Pages Creator Studio")
         XCTAssertTrue(script.contains("export theDoc to outFile as PDF"))
         XCTAssertTrue(script.contains("POSIX file \"/a/My \\\"Doc\\\".pages\""))
     }
 
     func testImportScriptSavesNatively() throws {
         let script = try XCTUnwrap(IWorkScripts.script(input: "/a.pptx", output: "/a.key", source: .pptx, target: .key))
-        XCTAssertTrue(script.contains("tell application \"Keynote\""))
+        XCTAssertTrue(script.contains("tell application id \"com.apple.Keynote\""))
         XCTAssertTrue(script.contains("save theDoc in outFile"))
+    }
+}
+
+final class AppHelperDetectionTests: TemporaryDirectoryTestCase {
+    func makeApp(_ name: String, identifier: String, version: String = "15.0") throws -> URL {
+        let app = directory.appendingPathComponent("\(name).app")
+        let contents = app.appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let info: [String: Any] = ["CFBundleIdentifier": identifier, "CFBundleShortVersionString": version,
+                                   "CFBundlePackageType": "APPL", "CFBundleName": name]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        return app
+    }
+
+    func testFindsRenamedAppleAppsByIdentifier() throws {
+        let pages = try makeApp("Pages Creator Studio", identifier: "com.apple.Pages")
+        _ = try makeApp("Numbers", identifier: "com.example.not-numbers")
+        let none: (String) -> URL? = { _ in nil }
+        XCTAssertEqual(ToolLocator.findApplication(bundleIdentifier: "com.apple.Pages", names: Dependency.pages.applicationNames,
+                                                   in: [directory], launchServices: none)?.lastPathComponent,
+                       "Pages Creator Studio.app")
+        XCTAssertNil(ToolLocator.findApplication(bundleIdentifier: "com.apple.Numbers", names: Dependency.numbers.applicationNames,
+                                                 in: [directory], launchServices: none),
+                     "an app with the right name but another identifier isn't Numbers")
+        // LaunchServices wins, wherever the app lives.
+        XCTAssertEqual(ToolLocator.findApplication(bundleIdentifier: "com.apple.Pages", names: [], in: [],
+                                                   launchServices: { _ in pages }), pages)
+        XCTAssertNil(ToolLocator.findApplication(bundleIdentifier: "com.apple.Pages", names: [], in: [],
+                                                 launchServices: { _ in self.directory.appendingPathComponent("gone.app") }),
+                     "a stale LaunchServices entry doesn't count")
+        XCTAssertEqual(Dependency.keynote.bundleIdentifier, "com.apple.Keynote")
+        XCTAssertNil(Dependency.ffmpeg.bundleIdentifier)
     }
 }

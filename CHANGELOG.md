@@ -15,6 +15,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   neighbouring slices (long translations, and a few English titles such as “Strip Metadata”).
 - Translations live in a String Catalog; `scripts/strings.py` keeps it in step with the code, and CI checks
   that every language is complete.
+### Fixed
+- **Pages, Numbers and Keynote showed as not installed** on Macs where they're called "Pages Creator Studio"
+  (and so on), or live outside Applications. Kumquat now finds them by bundle identifier through Launch
+  Services, and talks to them by identifier too, so their conversions work again.
 
 ## [0.7.1] - 2026-11-17
 
