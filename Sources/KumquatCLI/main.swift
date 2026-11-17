@@ -12,6 +12,7 @@ USAGE
   kumquat-cli tools <file>...       Tools that apply to the files
   kumquat-cli formats               Every known format
   kumquat-cli doctor                Which optional helpers are installed
+  kumquat-cli recipes               Your recipes (~/Library/Application Support/Kumquat/recipes) and any problems
   kumquat-cli count                 Number of supported conversions
   kumquat-cli version               Kumquat version (also --version)
 
@@ -117,7 +118,8 @@ func printProgress(_ fraction: Double) {
 _ = NSApplication.shared
 
 let args = Arguments(Array(CommandLine.arguments.dropFirst()))
-let converter = Converter()
+let recipes = UserRecipes.load()
+let converter = Converter(recipes: recipes.recipes)
 let catalog = converter.catalog()
 
 guard let command = args.positional.first else {
@@ -132,6 +134,7 @@ case "version", "--version", "-v":
     exit(0)
 
 case "convert":
+    recipes.problems.forEach { FileHandle.standardError.write(Data("warning: recipe \($0)\n".utf8)) }
     guard let to = args.flags["to"], let target = FormatRegistry.format(id: to) ?? FormatRegistry.format(forExtension: to) else {
         fail("--to <format> is required (see `kumquat-cli formats`).")
     }
@@ -202,6 +205,16 @@ case "doctor":
         if !locator.isAvailable(dependency) { print("    → \(dependency.installHint)") }
     }
     print("\nEngines: " + converter.availableEngines.map(\.rawValue).sorted().joined(separator: ", "))
+
+case "recipes":
+    print("Folder: \(UserRecipes.directory.path)")
+    if recipes.recipes.isEmpty && recipes.problems.isEmpty { print("No recipes yet (see README ▸ User recipes).") }
+    for recipe in recipes.recipes {
+        let from = recipe.from.map { $0.shortName.lowercased() }.joined(separator: ", ")
+        print("✓ \(recipe.name): \(from) → \(recipe.to.shortName.lowercased())  (\(recipe.file.lastPathComponent), timeout \(Int(recipe.timeout))s)")
+    }
+    recipes.problems.forEach { print("✗ \($0)") }
+    exit(recipes.problems.isEmpty ? 0 : 1)
 
 case "count":
     print("\(converter.graph.conversionCount(engines: converter.availableEngines)) conversions, \(ToolID.allCases.count) tools, \(ActionID.allCases.count) actions")

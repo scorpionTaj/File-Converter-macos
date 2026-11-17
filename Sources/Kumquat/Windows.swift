@@ -624,6 +624,7 @@ struct EngineSettings: View {
                           prompt: "/Applications/LibreOffice.app/Contents/MacOS/soffice")
                 pathField("pandoc", text: $settings.pandocPath, tool: "pandoc", prompt: "/opt/homebrew/bin/pandoc")
             }
+            RecipesSection()
         }
         .formStyle(.grouped)
         .onAppear { monitor.refresh() }
@@ -697,7 +698,7 @@ struct DependencyRow: View {
 
 struct AboutView: View {
     var body: some View {
-        let converter = Converter()
+        let converter = Converter(recipes: RecipeLibrary.shared.loaded.recipes)
         VStack(spacing: 12) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()

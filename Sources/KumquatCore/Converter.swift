@@ -67,10 +67,14 @@ public final class Converter: @unchecked Sendable {
     public let tools: ToolLocator
     let engines: [EngineID: any ConversionEngine]
 
-    public init(graph: ConversionGraph = .standard, tools: ToolLocator = ToolLocator()) {
-        self.graph = graph
+    /// - Parameter recipes: the user's recipes (`UserRecipes.load()`), added to the graph.
+    public init(graph: ConversionGraph = .standard, tools: ToolLocator = ToolLocator(), recipes: [UserRecipe] = []) {
+        self.graph = recipes.isEmpty ? graph
+            : ConversionGraph(edges: graph.edges + UserRecipes.edges(for: recipes), maxHops: graph.maxHops)
         self.tools = tools
-        self.engines = Self.makeEngines()
+        var engines = Self.makeEngines()
+        if !recipes.isEmpty { engines[.recipe] = RecipeEngine(recipes) }
+        self.engines = engines
     }
 
     static func makeEngines() -> [EngineID: any ConversionEngine] {

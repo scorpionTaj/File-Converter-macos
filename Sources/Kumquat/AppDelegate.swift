@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var hasRunningJobs: Bool { !jobTasks.isEmpty }
 
     /// Rebuilt per use so changed tool paths in Settings apply immediately.
-    var converter: Converter { Converter(tools: settings.toolLocator) }
+    var converter: Converter { Converter(tools: settings.toolLocator, recipes: RecipeLibrary.shared.recipes) }
 
     /// Puts `kumquat-cli` on the PATH whenever Kumquat runs from Applications (not from the disk image,
     /// whose path disappears on eject). Silent: Settings ▸ Advanced offers a password-backed install.
