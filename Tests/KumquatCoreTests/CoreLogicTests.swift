@@ -292,6 +292,13 @@ final class FFmpegRecipeTests: XCTestCase {
         XCTAssertEqual(probe, MediaProbe(duration: 12.5, videoCodec: nil, audioCodec: "mp3", sampleRate: 44100))
     }
 
+    func testProbeFallsBackToStreamDuration() {
+        let json = #"{"streams":[{"codec_type":"video","codec_name":"h264","duration":"3.9"},{"codec_type":"audio","codec_name":"aac","duration":"4.01"}],"format":{"duration":"N/A"}}"#
+        XCTAssertEqual(FFmpegRecipes.parseProbe(Data(json.utf8))?.duration, 4.01)
+        let none = #"{"streams":[{"codec_type":"audio","codec_name":"aac"}],"format":{}}"#
+        XCTAssertNil(FFmpegRecipes.parseProbe(Data(none.utf8))?.duration)
+    }
+
     func testProgressParsing() {
         XCTAssertEqual(FFmpegRecipes.progressSeconds(fromLine: "out_time_us=2500000"), 2.5)
         XCTAssertNil(FFmpegRecipes.progressSeconds(fromLine: "frame=10"))

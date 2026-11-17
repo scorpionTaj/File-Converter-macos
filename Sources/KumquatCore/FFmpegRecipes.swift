@@ -60,7 +60,7 @@ public enum FFmpegRecipes {
     static let lossyAudio: Set<Format> = [.mp3, .m4a, .aac, .ogg, .opus, .wma]
 
     public static func probeArguments(input: String) -> [String] {
-        ["-v", "error", "-show_entries", "format=duration:stream=codec_type,codec_name,sample_rate,width,height",
+        ["-v", "error", "-show_entries", "format=duration:stream=codec_type,codec_name,sample_rate,width,height,duration",
          "-of", "json", input]
     }
 
@@ -69,6 +69,12 @@ public enum FFmpegRecipes {
         var probe = MediaProbe()
         if let format = root["format"] as? [String: Any], let duration = format["duration"] as? String {
             probe.duration = Double(duration)
+        }
+        // Some files have no container duration ("N/A"); the longest stream's is the next best thing.
+        if probe.duration == nil {
+            probe.duration = (root["streams"] as? [[String: Any]] ?? [])
+                .compactMap { ($0["duration"] as? String).flatMap(Double.init) }
+                .max()
         }
         for stream in root["streams"] as? [[String: Any]] ?? [] {
             let codec = stream["codec_name"] as? String

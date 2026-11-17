@@ -284,7 +284,13 @@ final class MediaPowerToolTests: TemporaryDirectoryTestCase {
         let after = bottomDifference(try await frame(video, at: 3.5), try await frame(burned, at: 3.5))
         XCTAssertGreaterThan(during, after + 3, "text drawn while the cue shows (\(during) vs \(after))")
         let length = await duration(burned)
-        XCTAssertEqual(length, 4, accuracy: 0.3)
+        if length == 0, let ffprobe = converter.tools.ffprobe {
+            // Say what ffprobe saw, if the length can't be read.
+            let raw = try await ProcessRunner.run(ffprobe, FFmpegRecipes.probeArguments(input: burned.path))
+            XCTFail("no duration; ffprobe exit \(raw.status): \(raw.stdout) \(raw.stderr)")
+        } else {
+            XCTAssertEqual(length, 4, accuracy: 0.3)
+        }
 
         // Sidecar with the video's name, VTT.
         _ = try file("clip.vtt", "WEBVTT\n\n00:00.500 --> 00:02.000\nSIDECAR\n")
