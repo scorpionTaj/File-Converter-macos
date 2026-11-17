@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-17
+
 ### Added
 - **Make Searchable** (PDF): adds an invisible, positioned text layer to scanned pages with on-device OCR, so
   the PDF can be searched, selected and copied. Pages that already have text are kept as they are; sideways
@@ -252,7 +254,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.2...v0.5.0
 [0.4.2]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.1...v0.4.2

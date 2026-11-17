@@ -57,7 +57,7 @@ Ground rules:
 | Drop zone on the Dock icon and a floating shelf window | ✅ Floating drop shelf (Settings ▸ General). The Dock icon already took drops (`CFBundleDocumentTypes`); Kumquat stays out of the Dock unless you keep it there |
 | Launch at login (SMAppService) toggle in Settings | ✅ Was already there; now shows when macOS needs approval (with a button to Login Items) and why it failed |
 
-## 0.7 — More power (built, unreleased)
+## 0.7 — More power (released in 0.7.0)
 
 | Item | Status |
 |---|---|
