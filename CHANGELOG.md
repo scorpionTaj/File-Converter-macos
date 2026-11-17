@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-17
+
 ### Added
 - **Kumquat speaks French, Spanish, German and Arabic.** Menus, settings, the wheels (tool and action names
   and descriptions), prompts, progress notices, notifications and the editors are translated, and Arabic
@@ -15,6 +17,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   neighbouring slices (long translations, and a few English titles such as “Strip Metadata”).
 - Translations live in a String Catalog; `scripts/strings.py` keeps it in step with the code, and CI checks
   that every language is complete.
+
 ### Fixed
 - **Pages, Numbers and Keynote showed as not installed** on Macs where they're called "Pages Creator Studio"
   (and so on), or live outside Applications. Kumquat now finds them by bundle identifier through Launch
@@ -278,7 +281,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.5.0...v0.6.0

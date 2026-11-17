@@ -67,7 +67,7 @@ Ground rules:
 | User recipes: shell-command edges in `~/Library/Application Support/Kumquat/recipes` added to the graph | ✅ JSON per recipe: formats, an argument list (no shell), `{input}`/`{output}`, timeout ≤ 1 h. Only your own, not-group/world-writable regular files load; problems show in Settings ▸ Engines and `kumquat-cli recipes`. Formats must be ones Kumquat knows (new extensions ⏳) |
 | Conversion queue window: pause/resume, reorder, retry failed, per-file progress | ✅ Menu bar ▸ Queue… (⌘J). Pause lets running files finish; tools are one queue item per drop |
 
-## 0.8 — Localisation (built, unreleased)
+## 0.8 — Localisation (released in 0.8.0)
 
 | Item | Status |
 |---|---|
