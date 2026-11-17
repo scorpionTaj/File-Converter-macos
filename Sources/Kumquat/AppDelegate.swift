@@ -20,10 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var jobStarts: [Int: (title: String, date: Date)] = [:]
     /// Finished jobs that can be undone, oldest first.
     private var undoHistory: [(job: Int, record: JobRecord)] = []
-    /// Per-file progress of the running batch, keyed by HUD job id.
-    private var batchProgress: [Int: [Double]] = [:]
-    /// Running jobs, so the HUD's cancel button can stop them.
-    private var jobTasks: [Int: Task<Void, Never>] = [:]
+    /// Every conversion and tool job runs through this queue (Queue window: pause, reorder, retry).
+    let queue = ConversionQueue()
     private var cancelledJobs: Set<Int> = []
 
     /// Recent results that still exist, newest first.
@@ -34,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func clearRecents() { settings.recentPaths = [] }
 
-    var hasRunningJobs: Bool { !jobTasks.isEmpty }
+    var hasRunningJobs: Bool { queue.hasUnfinishedWork }
 
     /// Rebuilt per use so changed tool paths in Settings apply immediately.
     var converter: Converter { Converter(tools: settings.toolLocator, recipes: RecipeLibrary.shared.recipes) }
@@ -68,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let crashedLastTime = CrashReporter.noteLaunch()
         statusBar = StatusBarController(app: self)
         hud.onCancel = { [weak self] job in self?.cancel(job: job) }
+        setUpQueue()
         UpdateController.shared.hud = hud
         if crashedLastTime {
             AppLog.error("The previous run ended unexpectedly")
@@ -126,10 +125,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func cancel(job: Int) {
-        guard let task = jobTasks[job] else { return }
         cancelledJobs.insert(job)
-        task.cancel()
+        queue.cancel(job: job)
         AppLog.info("Job \(job) cancelled")
+    }
+
+    /// Connects the queue to the HUD, menu bar, undo and notifications.
+    private func setUpQueue() {
+        queue.makeJob = { [weak self] title in
+            guard let self else { return (0, UndoJournal()) }
+            let job = self.hud.begin(title)
+            return (job, self.beginJob(job, title: title))
+        }
+        queue.onJobProgress = { [weak self] job, fraction in self?.hud.progress(fraction, job: job) }
+        queue.onOverallProgress = { [weak self] fraction in self?.statusBar?.showProgress(fraction) }
+        queue.onJobFinished = { [weak self] job, outputs, failures, message, allCancelled in
+            if allCancelled { self?.cancelledJobs.insert(job) }
+            self?.finish(outputs: outputs, failures: failures, message: message, job: job)
+        }
+    }
+
+    func showQueue() {
+        QueueWindowController.shared.show(queue: queue)
     }
 
     /// "Open With ▸ Kumquat", `open -a Kumquat file`, or files dropped on the app icon.
@@ -310,50 +327,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         extra.apply(to: &prepared, target: target)
         let jobOptions = prepared
         let converter = self.converter
-        let concurrency = settings.parallelJobs
         let label = presetName ?? target.shortName
         let title = urls.count == 1
             ? "\(urls[0].lastPathComponent) → \(label)"
             : "\(urls.count) files → \(label)"
         let job = hud.begin(title)
         let journal = beginJob(job, title: title)
-        batchProgress[job] = Array(repeating: 0, count: urls.count)
-
-        jobTasks[job] = Task {
-            var outputs: [(Int, URL)] = []
-            var failures: [String] = []
-            await withTaskGroup(of: (Int, URL?, String?).self) { group in
-                var next = 0
-                func enqueue() {
-                    guard next < urls.count else { return }
-                    let index = next
-                    next += 1
-                    group.addTask {
-                        do {
-                            let output = try await UndoJournal.$current.withValue(journal) {
-                                try await converter.convert(urls[index], to: target, options: jobOptions) { [weak self] fraction in
-                                    Task { @MainActor in self?.updateBatch(job: job, index: index, fraction: fraction) }
-                                }
-                            }
-                            return (index, output, nil)
-                        } catch {
-                            let name = urls[index].lastPathComponent
-                            return (index, nil, urls.count == 1 ? error.localizedDescription : "\(name): \(error.localizedDescription)")
-                        }
-                    }
-                }
-                for _ in 0..<min(concurrency, urls.count) { enqueue() }
-                while let result = await group.next() {
-                    let (index, output, failure) = result
-                    if let output { outputs.append((index, output)) }
-                    if let failure { failures.append(failure) }
-                    updateBatch(job: job, index: index, fraction: 1)
-                    enqueue()
-                }
-            }
-            batchProgress[job] = nil
-            finish(outputs: outputs.sorted { $0.0 < $1.0 }.map(\.1), failures: failures, message: nil, job: job)
-        }
+        // One queue item per file, so each can be reordered, cancelled or retried in the Queue window.
+        queue.maxRunning = settings.parallelJobs
+        queue.enqueue(job: job, journal: journal, items: urls.map { url in
+            (title: "\(url.lastPathComponent) → \(label)", input: url, work: { progress in
+                QueueOutcome(outputs: [try await converter.convert(url, to: target, options: jobOptions, progress: progress)])
+            })
+        })
     }
 
     /// Files that finished arriving in a watch folder: converted with the folder's preset, no questions asked.
@@ -364,15 +350,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !files.isEmpty else { return }
         AppLog.info("Watch folder \(folder.path): \(files.count) new file(s) → \(preset.name)")
         convert(files, to: format, overrides: preset.overrides, title: "\(preset.name) · \(folder.name)", unattended: true)
-    }
-
-    private func updateBatch(job: Int, index: Int, fraction: Double) {
-        guard var fractions = batchProgress[job], index < fractions.count else { return }
-        fractions[index] = max(fractions[index], min(fraction, 1))
-        batchProgress[job] = fractions
-        let overall = fractions.reduce(0, +) / Double(fractions.count)
-        hud.progress(overall, job: job)
-        statusBar?.showProgress(overall)
     }
 
     private func run(_ tool: ToolID, urls: [URL]) {
@@ -429,27 +406,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let concurrency = settings.parallelJobs
         guard let jobOptions = prepareJobOptions(for: urls, separateResults: !tool.combinesInputs) else { return }
         let job = hud.begin(tool.title, detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) files")
-        let journal = beginJob(job, title: urls.count == 1 ? "\(tool.title) \(urls[0].lastPathComponent)" : "\(tool.title) (\(urls.count) files)")
-        jobTasks[job] = Task {
-            do {
-                let outcome = try await UndoJournal.$current.withValue(journal) {
-                    try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions,
-                                            concurrency: concurrency) { [weak self] fraction in
-                        Task { @MainActor in
-                            self?.hud.progress(fraction, job: job)
-                            self?.statusBar?.showProgress(fraction)
-                        }
-                    }
-                }
-                if let text = outcome.clipboardText {
+        let title = urls.count == 1 ? "\(tool.title) \(urls[0].lastPathComponent)" : "\(tool.title) (\(urls.count) files)"
+        let journal = beginJob(job, title: title)
+        // One queue item for the whole tool run; the tool works through its files `concurrency` at a time.
+        queue.maxRunning = settings.parallelJobs
+        queue.enqueue(job: job, journal: journal, items: [(title: title, input: urls.first, work: { progress in
+            let outcome = try await converter.run(tool, inputs: urls, parameter: toolParameter, options: jobOptions,
+                                                  concurrency: concurrency, progress: progress)
+            if let text = outcome.clipboardText {
+                await MainActor.run {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
                 }
-                finish(outputs: outcome.outputs, failures: outcome.failures, message: outcome.message, job: job)
-            } catch {
-                finish(outputs: [], failures: [error.localizedDescription], message: nil, job: job)
             }
-        }
+            return QueueOutcome(outputs: outcome.outputs, message: outcome.message, failures: outcome.failures)
+        })])
     }
 
     private func beginJob(_ job: Int, title: String) -> UndoJournal {
@@ -494,8 +465,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func finish(outputs: [URL], failures: [String], message: String?, job: Int) {
-        jobTasks[job] = nil
-        if jobTasks.isEmpty { statusBar?.showProgress(nil) }
         recordOutputs(outputs)
         failures.forEach { AppLog.error($0) }
         let start = jobStarts.removeValue(forKey: job)
