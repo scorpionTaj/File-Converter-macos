@@ -113,7 +113,8 @@ final class PDFPowerToolTests: TemporaryDirectoryTestCase {
         try PDFEngine.annotate(pdf, markups: markups, output: output)
 
         let saved = try XCTUnwrap(PDFDocument(url: output)?.page(at: 0))
-        let types = saved.annotations.compactMap(\.type)
+        // Some macOS versions also save a note's pop-up window as its own "Popup" annotation.
+        let types = saved.annotations.compactMap(\.type).filter { $0 != "Popup" }
         XCTAssertEqual(Set(types), ["Highlight", "StrikeOut", "FreeText", "Text", "Square", "Ink"])
         XCTAssertEqual(saved.annotations.first { $0.type == "FreeText" }?.contents, "Approved")
         XCTAssertEqual(saved.annotations.first { $0.type == "Highlight" }?.quadrilateralPoints?.count, 4 * lines.count)
