@@ -142,7 +142,7 @@ public enum PageArrangement {
             var rotation = 0
             if let marker = part.firstIndex(of: "r") {
                 guard let degrees = Int(part[part.index(after: marker)...]), [0, 90, 180, 270, -90].contains(degrees) else {
-                    throw KumquatError.invalidInput(L("“\(rawPart)”: rotation must be r90, r180 or r270."))
+                    throw KumquatError.invalidInput(L("“\(String(rawPart))”: rotation must be r90, r180 or r270."))
                 }
                 rotation = degrees
                 part = String(part[..<marker]).trimmingCharacters(in: .whitespaces)
