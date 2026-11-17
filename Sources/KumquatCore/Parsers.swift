@@ -108,6 +108,11 @@ public struct TimeRange: Equatable, Sendable {
         .invalidInput("“\(text)” isn't a time range. Try 0:05-1:30.")
     }
 
+    /// The text `parse` reads back: "12.400-18.000", or "12.400-" when it runs to the end.
+    public var spec: String {
+        String(format: "%.3f-", start) + (end.map { String(format: "%.3f", $0) } ?? "")
+    }
+
     /// FFmpeg timestamp, e.g. "65.250".
     public static func ffmpegTime(_ seconds: Double) -> String {
         String(format: "%.3f", seconds)

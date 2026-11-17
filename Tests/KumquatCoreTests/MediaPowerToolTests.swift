@@ -55,6 +55,14 @@ final class MediaRecipeTests: XCTestCase {
         XCTAssertFalse(whole.contains("-t"))
     }
 
+    func testTimeRangeSpecRoundTrips() throws {
+        XCTAssertEqual(TimeRange(start: 12.4, end: 18).spec, "12.400-18.000")
+        XCTAssertEqual(TimeRange(start: 0, end: nil).spec, "0.000-")
+        for range in [TimeRange(start: 1.25, end: 3.5), TimeRange(start: 65, end: nil)] {
+            XCTAssertEqual(try TimeRange.parse(range.spec), range)
+        }
+    }
+
     func testBurnArgumentsUseOneFilterGraph() {
         let args = FFmpegRecipes.burnSubtitleArguments(input: "v.mov", overlayList: "subs.ffconcat", output: "o.mp4",
                                                        options: ConversionOptions(), encoders: EncoderSet(["libx264", "aac"]))

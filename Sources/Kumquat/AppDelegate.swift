@@ -391,8 +391,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let input = tool.input {
             switch input {
             case .password(let prompt): parameter = Prompt.ask(title: tool.title, message: prompt, secure: true)
-            case .text(let prompt), .timeRange(let prompt):
+            case .text(let prompt):
                 parameter = Prompt.ask(title: tool.title, message: prompt, secure: false)
+            case .timeRange(let prompt):
+                // One clip: scrub and drag the trim handles. Several, or a format AVFoundation can't play: type it.
+                let ask = { [weak self] in
+                    guard let range = Prompt.ask(title: tool.title, message: prompt, secure: false) else { return }
+                    self?.start(tool, urls: urls, parameter: range)
+                }
+                if urls.count == 1 {
+                    TimeRangeWindowController.present(url: urls[0], title: tool.title, onDone: { [weak self] range in
+                        self?.start(tool, urls: urls, parameter: range)
+                    }, fallback: ask)
+                } else {
+                    ask()
+                }
+                return
             case .pages(let prompt):
                 // One PDF: arrange thumbnails. Several: the same page order applies to each, typed.
                 if urls.count == 1 {
