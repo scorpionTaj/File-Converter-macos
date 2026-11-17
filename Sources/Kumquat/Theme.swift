@@ -239,9 +239,6 @@ struct AppearanceSettings: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Theme").font(.headline)
-                Text("Colours for the wheels, the progress popup and the annotation editor.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Toggle("Use different themes for Light and Dark mode", isOn: $settings.themeFollowsSystem)
                 if settings.themeFollowsSystem {
                     HStack(spacing: 16) {
@@ -274,11 +271,18 @@ struct AppearanceSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Divider()
-                Slider(value: $settings.wheelScale, in: 0.8...1.3, step: 0.05) {
-                    Text("Wheel size")
+                Text("Wheel size").font(.headline)
+                HStack {
+                    Image(systemName: "circle").font(.caption).foregroundStyle(.secondary)
+                    Slider(value: $settings.wheelScale, in: 0.8...1.3, step: 0.05)
+                    Image(systemName: "circle").font(.title3).foregroundStyle(.secondary)
+                    Text("\(Int((settings.wheelScale * 100).rounded()))%")
+                        .monospacedDigit()
+                        .frame(width: 44, alignment: .trailing)
                 }
             }
-            .padding(16)
+            .padding(.horizontal, 22)
+            .padding(.vertical, 16)
         }
         .sheet(item: $editing) { spec in
             ThemeEditor(spec: spec) { saved in

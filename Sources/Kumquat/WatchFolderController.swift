@@ -1,7 +1,7 @@
 import Foundation
 import KumquatCore
 
-/// Watches the folders set up in Settings ▸ Presets and hands each file that finished arriving to `onReady`.
+/// Watches the folders set up in Settings ▸ Watch Folders and hands each file that finished arriving to `onReady`.
 ///
 /// Each folder gets a kqueue source on the directory (fires when entries are added, removed or renamed) plus a
 /// short poll while a file is still growing. Where each folder had got to is saved, so files added while

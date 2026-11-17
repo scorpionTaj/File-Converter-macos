@@ -40,7 +40,7 @@ public struct JobQueue: Equatable, Sendable {
     public private(set) var items: [QueueItem] = []
     /// While paused nothing new starts; running items finish.
     public var isPaused = false
-    /// Items that may run at once (Settings ▸ Jobs).
+    /// Items that may run at once (Settings ▸ Quality ▸ Speed).
     public var maxRunning: Int
 
     public init(maxRunning: Int = 1) {

@@ -5,6 +5,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **Settings redesign**: a sidebar like System Settings replaces the tab bar, whose tabs no longer fit and
+  hid behind a » menu. Each page has a header saying what it's for. General was split into **General**,
+  **Wheels** and **Notifications**; **Watch Folders** and **Recipes** have their own pages; PDF quality has its
+  own section; "files at a time" moved to **Quality ▸ Speed**. The window is larger and resizable.
+- **Recipes** page shows the recipe file format and the safety rules.
+
 ## [0.7.0] - 2026-11-17
 
 ### Added

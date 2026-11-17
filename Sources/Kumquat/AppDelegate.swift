@@ -230,7 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let key = shortcut.carbonKey else { return }
         if !finderHotKey.register(code: key.code, modifiers: key.modifiers) {
             AppLog.error("Couldn't register \(shortcut.title); another app may own it")
-            hud.info("\(shortcut.title) is taken", detail: "Another app uses it. Pick a different shortcut in Settings ▸ General.")
+            hud.info("\(shortcut.title) is taken", detail: "Another app uses it. Pick a different shortcut in Settings ▸ Wheels.")
         }
     }
 
