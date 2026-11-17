@@ -20,7 +20,7 @@ public struct DataEngine: ConversionEngine {
             let json = Self.jsonCompatible(object)
             // JSONSerialization raises an exception (a crash) on NaN/infinite numbers, which a plist can hold.
             guard JSONSerialization.isValidJSONObject(json) else {
-                throw KumquatError.invalidInput("\(input.lastPathComponent) holds values JSON can't represent.")
+                throw KumquatError.invalidInput(L("\(input.lastPathComponent) holds values JSON can't represent."))
             }
             let data = try JSONSerialization.data(withJSONObject: json, options: [.prettyPrinted, .sortedKeys])
             try (data + Data("\n".utf8)).write(to: output)
@@ -80,7 +80,7 @@ public struct SubtitleEngine: ConversionEngine {
 
     public func convert(_ input: URL, from source: Format, to target: Format, output: URL, context: EngineContext) async throws -> URL {
         let cues = Subtitles.parse(try String.readText(from: input))
-        guard !cues.isEmpty else { throw KumquatError.invalidInput("No subtitles found in \(input.lastPathComponent).") }
+        guard !cues.isEmpty else { throw KumquatError.invalidInput(L("No subtitles found in \(input.lastPathComponent).")) }
         let text: String
         switch target {
         case .srt: text = Subtitles.srt(from: cues)
@@ -122,7 +122,7 @@ public struct OfficeEngine: ConversionEngine {
         ], timeout: 300)
         guard let produced = try FileManager.default.contentsOfDirectory(at: outDir, includingPropertiesForKeys: nil)
             .first(where: { $0.pathExtension.lowercased() == target.fileExtension }) else {
-            throw KumquatError.conversionFailed("LibreOffice didn't produce a \(target.name) file.")
+            throw KumquatError.conversionFailed(L("LibreOffice didn't produce a \(target.name) file."))
         }
         try FileManager.default.moveItem(at: produced, to: output)
         return output
@@ -168,7 +168,7 @@ public struct IWorkEngine: ConversionEngine {
         // Pages/Keynote/Numbers can sit behind a permission prompt; don't wait forever.
         try await ProcessRunner.runChecked(SystemTool.osascript, ["-e", script], timeout: 180)
         guard FileManager.default.fileExists(atPath: output.path) else {
-            throw KumquatError.conversionFailed("The iWork app didn't save the file. Check Kumquat's Automation permission in System Settings → Privacy & Security.")
+            throw KumquatError.conversionFailed(L("The iWork app didn't save the file. Check Kumquat's Automation permission in System Settings → Privacy & Security."))
         }
         return output
     }

@@ -158,7 +158,8 @@ extension MediaEngine {
         let ffmpeg = try context.tools.require("ffmpeg", .ffmpeg)
         let chapters = await chapters(of: input, tools: context.tools)
         guard chapters.count > 1 else {
-            throw KumquatError.nothingToDo("\(input.lastPathComponent) has \(chapters.isEmpty ? "no" : "only one") chapter marker.")
+            throw KumquatError.nothingToDo(chapters.isEmpty ? L("\(input.lastPathComponent) has no chapter markers.")
+                                            : L("\(input.lastPathComponent) has only one chapter marker."))
         }
         let base = FormatRegistry.baseName(of: input)
         let folder = context.workDirectory.appendingPathComponent("\(base) (chapters)", isDirectory: true)
@@ -172,7 +173,7 @@ extension MediaEngine {
                 input: input.path, output: output.path, chapter: chapter, audioOnly: source.kind == .audio))
             context.progress?(Double(index + 1) / Double(chapters.count))
         }
-        return ToolArtifact(url: folder, message: "\(chapters.count) chapters", preferredBaseName: folder.lastPathComponent)
+        return ToolArtifact(url: folder, message: L("\(chapters.count) chapters"), preferredBaseName: folder.lastPathComponent)
     }
 
     static func makeGIF(_ input: URL, parameter: String?, context: EngineContext) async throws -> ToolArtifact {
@@ -180,7 +181,8 @@ extension MediaEngine {
         let range = try TimeRange.parse(parameter ?? "")
         let probe = await probe(input, tools: context.tools)
         if let duration = probe?.duration, range.start >= duration {
-            throw KumquatError.invalidInput("The clip is only \(Subtitles.formatTimestamp(duration, millisecondSeparator: ".")) long.")
+            let length = Subtitles.formatTimestamp(duration, millisecondSeparator: ".")
+            throw KumquatError.invalidInput(L("The clip is only \(length) long."))
         }
         let output = context.scratchURL("gif")
         let args = FFmpegRecipes.gifArguments(input: input.path, output: output.path, range: range,
@@ -195,16 +197,16 @@ extension MediaEngine {
     static func burnSubtitles(_ inputs: [URL], context: EngineContext) async throws -> ToolArtifact {
         let ffmpeg = try context.tools.require("ffmpeg", .ffmpeg)
         guard let video = inputs.first(where: { FormatRegistry.kind(for: $0) == .video }) else {
-            throw KumquatError.nothingToDo("Drop a video (and optionally its subtitle file).")
+            throw KumquatError.nothingToDo(L("Drop a video (and optionally its subtitle file)."))
         }
         let probe = await probe(video, tools: context.tools)
         guard let width = probe?.width, let height = probe?.height, width > 0, height > 0 else {
-            throw KumquatError.invalidInput("Couldn't read the size of \(video.lastPathComponent).")
+            throw KumquatError.invalidInput(L("Couldn't read the size of \(video.lastPathComponent)."))
         }
         let cues = try await subtitleCues(for: video, dropped: inputs.first { FormatRegistry.kind(for: $0) == .subtitle },
                                           ffmpeg: ffmpeg, context: context)
         let timeline = SubtitleOverlay.timeline(cues)
-        guard !timeline.isEmpty else { throw KumquatError.nothingToDo("The subtitles have no text.") }
+        guard !timeline.isEmpty else { throw KumquatError.nothingToDo(L("The subtitles have no text.")) }
 
         let folder = context.workDirectory.appendingPathComponent("subtitle-frames", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -225,7 +227,7 @@ extension MediaEngine {
         let args = FFmpegRecipes.burnSubtitleArguments(input: video.path, overlayList: list.path, output: output.path,
                                                        options: context.options, encoders: encoders)
         try await run(ffmpeg, args, duration: probe?.duration, context: context)
-        return ToolArtifact(url: output, message: "\(timeline.count) subtitles burned in",
+        return ToolArtifact(url: output, message: L("\(timeline.count) subtitles burned in"),
                             preferredBaseName: "\(FormatRegistry.baseName(of: video)) (subtitled)", original: video)
     }
 
@@ -246,10 +248,10 @@ extension MediaEngine {
         // The video's own subtitle track.
         let codec = await subtitleCodec(of: video, tools: context.tools)
         guard let codec else {
-            throw KumquatError.nothingToDo("No subtitles: drop a .srt/.vtt/.ass file with the video, or put one next to it with the same name.")
+            throw KumquatError.nothingToDo(L("No subtitles: drop a .srt/.vtt/.ass file with the video, or put one next to it with the same name."))
         }
         guard !FFmpegRecipes.bitmapSubtitleCodecs.contains(codec) else {
-            throw KumquatError.nothingToDo("The video's subtitles are pictures (\(codec)), not text, so they can't be burned in. Drop a .srt file with it instead.")
+            throw KumquatError.nothingToDo(L("The video's subtitles are pictures (\(codec)), not text, so they can't be burned in. Drop a .srt file with it instead."))
         }
         let srt = context.scratchURL("srt")
         try await ProcessRunner.runChecked(ffmpeg, ["-hide_banner", "-nostdin", "-y", "-loglevel", "error",

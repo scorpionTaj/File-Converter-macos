@@ -5,7 +5,7 @@ Resources/Localization/Localizable.xcstrings is a String Catalog (the format Xco
 source of truth. This script keeps it in step with the code and turns it into the .strings files the app
 bundle loads, without needing Xcode:
 
-  scripts/strings.py extract            add new keys from the sources, flag removed ones as stale
+  scripts/strings.py extract            add new keys from the sources, remove ones the code no longer uses
   scripts/strings.py check              every key translated in every language, placeholders intact
   scripts/strings.py compile <dir>      write <dir>/<lang>.lproj/Localizable.strings
   scripts/strings.py missing <lang>     keys still to translate, as JSON
@@ -32,7 +32,10 @@ INTEGER_HINTS = [
     r"\.count\b", r"^Int\(", r"\bInt\(", r"^\$0$", r"\bvideoCRF\b", r"\bpdfDPI\b", r"\bparallelJobs\b", r"^position$",
     r"\bpage \+ 1\b", r"\brotation\b", r"^minimum$", r"^removed$", r"^left$", r"^conversions$", r"^fileCount$",
     r"^value\.wrappedValue$", r"\.pageCount\b", r"^index \+ 1$", r"^count$", r"^total$",
+    r"^width$", r"^height$", r"^percent$", r"^pageCount$", r"maxUpscaledSide",
 ]
+# Int32 interpolations (process exit statuses) → %d.
+INT32_HINTS = [r"^status$"]
 
 
 def interpolations(body):
@@ -58,6 +61,8 @@ def interpolations(body):
 
 
 def specifier(expression):
+    if any(re.search(hint, expression) for hint in INT32_HINTS):
+        return "%d"
     return "%lld" if any(re.search(hint, expression) for hint in INTEGER_HINTS) else "%@"
 
 
@@ -125,14 +130,14 @@ def extract():
     added = [key for key in keys if key not in strings]
     for key in added:
         strings[key] = {}
-    for key, entry in strings.items():
-        if key in keys:
-            entry.pop("extractionState", None)
-        else:
-            entry["extractionState"] = "stale"
+    # The code is the source of truth: strings it no longer uses are removed with their translations.
+    removed = [key for key in strings if key not in keys]
+    for key in removed:
+        del strings[key]
     save(catalog)
-    stale = [key for key, entry in strings.items() if entry.get("extractionState") == "stale"]
-    print(f"{len(keys)} keys in the sources, {len(added)} new, {len(stale)} stale")
+    print(f"{len(keys)} keys in the sources, {len(added)} new, {len(removed)} removed")
+    for key in removed:
+        print(f"  - {key!r}")
     for key in added:
         print(f"  + {keys[key]}: {key!r}")
 

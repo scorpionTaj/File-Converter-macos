@@ -11,7 +11,7 @@ public struct ArchiveEngine: ConversionEngine {
         let extracted = context.workDirectory.appendingPathComponent("extracted", isDirectory: true)
         try await Self.extract(input, format: source, into: extracted)
         let items = try Self.contents(of: extracted)
-        guard !items.isEmpty else { throw KumquatError.nothingToDo("\(input.lastPathComponent) is empty.") }
+        guard !items.isEmpty else { throw KumquatError.nothingToDo(L("\(input.lastPathComponent) is empty.")) }
         try await Self.create(items: items, format: target, output: output)
         return output
     }

@@ -64,7 +64,7 @@ public struct ImageEngine: ConversionEngine {
         var url = url
         if source == .svg { url = try await rasterizeSVG(url, context: context) }
         guard let imageSource = CGImageSourceCreateWithURL(url as CFURL, nil), CGImageSourceGetCount(imageSource) > 0 else {
-            throw KumquatError.invalidInput("\(url.lastPathComponent) isn't a readable image.")
+            throw KumquatError.invalidInput(L("\(url.lastPathComponent) isn't a readable image."))
         }
         return try orientedImage(from: imageSource)
     }
@@ -84,7 +84,7 @@ public struct ImageEngine: ConversionEngine {
             if let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) { return image }
         }
         guard let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
-            throw KumquatError.invalidInput("Couldn't decode the image.")
+            throw KumquatError.invalidInput(L("Couldn't decode the image."))
         }
         return image
     }
@@ -95,7 +95,7 @@ public struct ImageEngine: ConversionEngine {
         try await ProcessRunner.runChecked(SystemTool.qlmanage, ["-t", "-s", "2048", "-o", outDir.path, url.path], timeout: 60)
         guard let png = try FileManager.default.contentsOfDirectory(at: outDir, includingPropertiesForKeys: nil)
             .first(where: { $0.pathExtension.lowercased() == "png" }) else {
-            throw KumquatError.conversionFailed("Quick Look couldn't render \(url.lastPathComponent).")
+            throw KumquatError.conversionFailed(L("Quick Look couldn't render \(url.lastPathComponent)."))
         }
         return png
     }
@@ -134,7 +134,7 @@ public struct ImageEngine: ConversionEngine {
             try encode(image, to: png, format: .png, quality: 1)
             try await MediaEngine.encodeStillImage(png, to: url, format: format, quality: quality, tools: context.tools)
         } else {
-            throw KumquatError.engineUnavailable("\(format.name) encoding")
+            throw KumquatError.engineUnavailable(L("\(format.name) encoding"))
         }
     }
 
@@ -154,7 +154,7 @@ public struct ImageEngine: ConversionEngine {
             representations = [image]
         }
         guard let destination = CGImageDestinationCreateWithURL(url as CFURL, type as CFString, representations.count, nil) else {
-            throw KumquatError.engineUnavailable("\(format.name) encoding")
+            throw KumquatError.engineUnavailable(L("\(format.name) encoding"))
         }
         var properties: [CFString: Any] = [kCGImageDestinationLossyCompressionQuality: quality]
         if let metadata, representations.count == 1 {
@@ -166,7 +166,7 @@ public struct ImageEngine: ConversionEngine {
         guard CGImageDestinationFinalize(destination) else {
             // Unusual metadata can make an encoder refuse the file; the pixels matter more.
             if metadata != nil { return try encode(image, to: url, format: format, quality: quality) }
-            throw KumquatError.conversionFailed("Couldn't write \(format.name).")
+            throw KumquatError.conversionFailed(L("Couldn't write \(format.name)."))
         }
     }
 
@@ -180,11 +180,11 @@ public struct ImageEngine: ConversionEngine {
 
     static func render(width: Int, height: Int, _ draw: (CGContext) -> Void) throws -> CGImage {
         guard let context = makeContext(width: width, height: height) else {
-            throw KumquatError.conversionFailed("Out of memory for a \(width)×\(height) image.")
+            throw KumquatError.conversionFailed(L("Out of memory for a \(width)×\(height) image."))
         }
         context.interpolationQuality = .high
         draw(context)
-        guard let image = context.makeImage() else { throw KumquatError.conversionFailed("Couldn't render the image.") }
+        guard let image = context.makeImage() else { throw KumquatError.conversionFailed(L("Couldn't render the image.")) }
         return image
     }
 
@@ -246,7 +246,7 @@ public struct ImageEngine: ConversionEngine {
         let input = CIImage(cgImage: image)
         let output = input.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0])
         guard let result = CIContext().createCGImage(output, from: input.extent) else {
-            throw KumquatError.conversionFailed("Couldn't apply the filter.")
+            throw KumquatError.conversionFailed(L("Couldn't apply the filter."))
         }
         return result
     }
@@ -299,7 +299,7 @@ public struct ImageEngine: ConversionEngine {
             }
         case .imageFit1920:
             let longest = max(image.width, image.height)
-            guard longest > 1920 else { throw KumquatError.nothingToDo("Already 1920px or smaller.") }
+            guard longest > 1920 else { throw KumquatError.nothingToDo(L("Already 1920px or smaller.")) }
             result = try resized(image, scale: 1920 / CGFloat(longest))
         case .imageRotateLeft:
             result = try rotated(image, clockwise: false)
@@ -314,23 +314,23 @@ public struct ImageEngine: ConversionEngine {
             format = .png
         case .imageExtractText:
             let text = try TextRecognizer.recognize(image)
-            guard !text.isEmpty else { throw KumquatError.nothingToDo("No text found in the image.") }
+            guard !text.isEmpty else { throw KumquatError.nothingToDo(L("No text found in the image.")) }
             let output = context.scratchURL("txt")
             try text.write(to: output, atomically: true, encoding: .utf8)
-            return ToolArtifact(url: output, message: "Text copied", clipboardText: text)
+            return ToolArtifact(url: output, message: L("Text copied"), clipboardText: text)
         case .imageUpscale:
             result = try upscaled(image, factor: 2)
         case .imageEditMetadata:
             let edit = try MetadataEdit.parse(parameter ?? "")
             let output = context.scratchURL(source.fileExtension)
             try edit.apply(input, to: output)
-            return ToolArtifact(url: output, message: "Metadata updated")
+            return ToolArtifact(url: output, message: L("Metadata updated"))
         case .stripMetadata:
             let output = context.scratchURL(format.fileExtension)
             try stripMetadata(input, to: output, format: format, fallbackImage: image, quality: quality)
-            return ToolArtifact(url: output, message: "Metadata removed")
+            return ToolArtifact(url: output, message: L("Metadata removed"))
         default:
-            throw KumquatError.nothingToDo("\(tool.title) doesn't apply to images.")
+            throw KumquatError.nothingToDo(L("\(tool.title) doesn't apply to images."))
         }
 
         let output = context.scratchURL(format.fileExtension)
@@ -346,12 +346,12 @@ public struct ImageEngine: ConversionEngine {
             try Task.checkCancellation()
             frames.append(try await loadImage(url, source: FormatRegistry.format(for: url), context: context))
         }
-        guard let first = frames.first else { throw KumquatError.nothingToDo("No images.") }
+        guard let first = frames.first else { throw KumquatError.nothingToDo(L("No images.")) }
         let maxSide = 1200
         let scale = min(1, CGFloat(maxSide) / CGFloat(max(first.width, first.height)))
         let width = Int(CGFloat(first.width) * scale), height = Int(CGFloat(first.height) * scale)
         guard let destination = CGImageDestinationCreateWithURL(output as CFURL, "com.compuserve.gif" as CFString, frames.count, nil) else {
-            throw KumquatError.engineUnavailable("GIF encoding")
+            throw KumquatError.engineUnavailable(L("GIF encoding"))
         }
         let fileProperties = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary
         CGImageDestinationSetProperties(destination, fileProperties)
@@ -366,7 +366,7 @@ public struct ImageEngine: ConversionEngine {
             }
             CGImageDestinationAddImage(destination, fitted, frameProperties)
         }
-        guard CGImageDestinationFinalize(destination) else { throw KumquatError.conversionFailed("Couldn't write the GIF.") }
+        guard CGImageDestinationFinalize(destination) else { throw KumquatError.conversionFailed(L("Couldn't write the GIF.")) }
     }
 
     // MARK: Public helpers for the annotation editor
@@ -419,17 +419,17 @@ public struct ImageEngine: ConversionEngine {
             let handler = VNImageRequestHandler(cgImage: image, options: [:])
             try handler.perform([request])
             guard let observation = request.results?.first else {
-                throw KumquatError.nothingToDo("Couldn't find a subject to cut out.")
+                throw KumquatError.nothingToDo(L("Couldn't find a subject to cut out."))
             }
             let buffer = try observation.generateMaskedImage(ofInstances: observation.allInstances, from: handler,
                                                              croppedToInstancesExtent: false)
             let masked = CIImage(cvPixelBuffer: buffer)
             guard let result = CIContext().createCGImage(masked, from: masked.extent) else {
-                throw KumquatError.conversionFailed("Couldn't render the cut-out.")
+                throw KumquatError.conversionFailed(L("Couldn't render the cut-out."))
             }
             return result
         }
-        throw KumquatError.engineUnavailable("Background removal (macOS 14 or later)")
+        throw KumquatError.engineUnavailable(L("Background removal (macOS 14 or later)"))
     }
 }
 

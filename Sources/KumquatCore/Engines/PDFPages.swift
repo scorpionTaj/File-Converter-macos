@@ -33,7 +33,7 @@ extension PDFEngine {
             }
             throw KumquatError.nothingToDo(allText ? "This PDF already has a text layer." : "No text recognised.")
         }
-        guard result.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
+        guard result.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
         return recognised
     }
 
@@ -61,7 +61,7 @@ extension PDFEngine {
         var mediaBox = CGRect(origin: .zero, size: upright)
         guard let consumer = CGDataConsumer(data: data as CFMutableData),
               let pdf = CGContext(consumer: consumer, mediaBox: &mediaBox, nil) else {
-            throw KumquatError.conversionFailed("Couldn't create the PDF.")
+            throw KumquatError.conversionFailed(L("Couldn't create the PDF."))
         }
         pdf.beginPDFPage(nil)
         pdf.saveGState()
@@ -104,12 +104,12 @@ extension PDFEngine {
         let result = PDFDocument()
         for entry in entries {
             guard let page = document.page(at: entry.page)?.copy() as? PDFPage else {
-                throw KumquatError.invalidInput("Page \(entry.page + 1) doesn't exist.")
+                throw KumquatError.invalidInput(L("Page \(entry.page + 1) doesn't exist."))
             }
             page.rotation = (page.rotation + entry.rotation) % 360
             result.insert(page, at: result.pageCount)
         }
-        guard result.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
+        guard result.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
     }
 
     // MARK: Markup
@@ -120,11 +120,11 @@ extension PDFEngine {
         let document = try open(input)
         for markup in markups {
             guard let page = document.page(at: markup.page) else {
-                throw KumquatError.invalidInput("Page \(markup.page + 1) doesn't exist.")
+                throw KumquatError.invalidInput(L("Page \(markup.page + 1) doesn't exist."))
             }
             page.addAnnotation(markup.annotation())
         }
-        guard document.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
+        guard document.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
     }
 }
 

@@ -190,7 +190,7 @@ public enum ProcessRunner {
         try Task.checkCancellation()
         if result.timedOut {
             throw KumquatError.processFailed(tool: executable.lastPathComponent, status: result.status,
-                                             message: "didn't finish within \(Int(timeout ?? 0)) seconds and was stopped")
+                                             message: L("didn't finish within \(Int(timeout ?? 0)) seconds and was stopped"))
         }
         guard result.status == 0 else {
             let lastLines = result.stderr.split(separator: "\n").suffix(3).joined(separator: "\n")

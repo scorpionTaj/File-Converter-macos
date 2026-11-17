@@ -81,11 +81,11 @@ public enum Undo {
         for item in record.trashed.reversed() {
             let name = item.original.lastPathComponent
             guard exists(item.inTrash, fileManager) else {
-                report.problems.append("\(name) is no longer in the Trash.")
+                report.problems.append(L("\(name) is no longer in the Trash."))
                 continue
             }
             guard !exists(item.original, fileManager) else {
-                report.problems.append("\(name) wasn't put back: another file now has that name.")
+                report.problems.append(L("\(name) wasn't put back: another file now has that name."))
                 continue
             }
             do {

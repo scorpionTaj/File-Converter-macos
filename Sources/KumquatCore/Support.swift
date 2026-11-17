@@ -58,17 +58,17 @@ public enum KumquatError: LocalizedError, Equatable {
     public var errorDescription: String? {
         switch self {
         case .unsupportedInput(let name):
-            return "Kumquat doesn't know how to open \(name)."
+            return L("Kumquat doesn't know how to open \(name).")
         case .noRoute(let from, let to):
-            return "Can't convert \(from) to \(to)."
+            return L("Can't convert \(from) to \(to).")
         case .missingDependencies(let deps):
             let list = deps.map { "\($0.displayName) (\($0.installHint))" }.joined(separator: ", ")
-            return "This needs \(list)."
+            return L("This needs \(list).")
         case .engineUnavailable(let name):
-            return "\(name) isn't available on this system."
+            return L("\(name) isn't available on this system.")
         case .processFailed(let tool, let status, let message):
             let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? "\(tool) failed (exit \(status))." : "\(tool) failed: \(trimmed)"
+            return trimmed.isEmpty ? L("\(tool) failed (exit \(status)).") : L("\(tool) failed: \(trimmed)")
         case .conversionFailed(let message), .invalidInput(let message), .nothingToDo(let message):
             return message
         }
@@ -393,6 +393,6 @@ extension String {
                 return text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text
             }
         }
-        throw KumquatError.invalidInput("\(url.lastPathComponent) isn't readable text.")
+        throw KumquatError.invalidInput(L("\(url.lastPathComponent) isn't readable text."))
     }
 }

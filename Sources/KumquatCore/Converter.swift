@@ -180,14 +180,14 @@ public final class Converter: @unchecked Sendable {
                 // `fileExists` follows links, so check for a (possibly broken) symlink too.
                 if fm.fileExists(atPath: destination.path) || (try? fm.destinationOfSymbolicLink(atPath: destination.path)) != nil {
                     if conflict == .skip {
-                        throw KumquatError.nothingToDo("\(destination.lastPathComponent) already exists, so it was skipped.")
+                        throw KumquatError.nothingToDo(L("\(destination.lastPathComponent) already exists, so it was skipped."))
                     }
                     try UndoJournal.trash(destination, fileManager: fm)
                 }
                 try fm.moveItem(at: item, to: destination)
                 return destination
             } else if conflict == .skip {
-                throw KumquatError.nothingToDo("\(destination.lastPathComponent) already exists, so it was skipped.")
+                throw KumquatError.nothingToDo(L("\(destination.lastPathComponent) already exists, so it was skipped."))
             }
         }
         var lastError: Error?
@@ -202,7 +202,7 @@ public final class Converter: @unchecked Sendable {
                 guard fm.fileExists(atPath: destination.path) else { throw error }
             }
         }
-        throw lastError ?? KumquatError.conversionFailed("Couldn't save \(baseName).")
+        throw lastError ?? KumquatError.conversionFailed(L("Couldn't save \(baseName)."))
     }
 
     // MARK: Tools
@@ -213,7 +213,7 @@ public final class Converter: @unchecked Sendable {
                     options: ConversionOptions = ConversionOptions(),
                     concurrency: Int = 1,
                     progress: (@Sendable (Double) -> Void)? = nil) async throws -> ToolOutcome {
-        guard !inputs.isEmpty else { throw KumquatError.nothingToDo("Nothing to process.") }
+        guard !inputs.isEmpty else { throw KumquatError.nothingToDo(L("Nothing to process.")) }
         let missing = tool.requirements.subtracting(tools.availableDependencies)
         guard missing.isEmpty else { throw KumquatError.missingDependencies(missing.sorted { $0.rawValue < $1.rawValue }) }
 
@@ -367,7 +367,7 @@ enum ToolRunner {
             return ToolArtifact(url: extracted, preferredBaseName: name)
         case .checksum:
             let digest = try await Checksum.sha256(of: input)
-            return ToolArtifact(message: "SHA-256 copied", clipboardText: "\(digest)  \(input.lastPathComponent)")
+            return ToolArtifact(message: L("SHA-256 copied"), clipboardText: "\(digest)  \(input.lastPathComponent)")
         case .batchRename:
             let name = try RenamePattern.render(parameter ?? "", original: input, index: context.itemIndex,
                                                 count: context.itemCount, date: RenamePattern.date(of: input))
@@ -393,7 +393,7 @@ enum ToolRunner {
         case .pdf:
             return try await PDFEngine.runTool(tool, input: input, parameter: parameter, context: context)
         default:
-            throw KumquatError.nothingToDo("\(tool.title) doesn't apply to \(input.lastPathComponent).")
+            throw KumquatError.nothingToDo(L("\(tool.title) doesn't apply to \(input.lastPathComponent)."))
         }
     }
 
@@ -420,14 +420,14 @@ enum ToolRunner {
             let base = FormatRegistry.baseName(of: inputs[0])
             return ToolArtifact(url: output, preferredBaseName: tool == .pdfMerge ? "\(base) (merged)" : base)
         default:
-            throw KumquatError.nothingToDo("\(tool.title) works on one file at a time.")
+            throw KumquatError.nothingToDo(L("\(tool.title) works on one file at a time."))
         }
     }
 
     /// Interactive tools are handled by the app, never by the background runner.
     static func rejectInteractive(_ tool: ToolID) throws {
         if tool.isInteractive {
-            throw KumquatError.nothingToDo("\(tool.title) opens an editor in the Kumquat app.")
+            throw KumquatError.nothingToDo(L("\(tool.title) opens an editor in the Kumquat app."))
         }
     }
 }
@@ -444,7 +444,7 @@ enum TextExtraction {
             if let format, DocumentEngine.readable.contains(format) {
                 return try await DocumentEngine.read(url, format: format).string
             }
-            throw KumquatError.nothingToDo("Can't count words in \(url.lastPathComponent).")
+            throw KumquatError.nothingToDo(L("Can't count words in \(url.lastPathComponent)."))
         }
     }
 }

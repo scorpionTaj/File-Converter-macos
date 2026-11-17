@@ -121,7 +121,7 @@ enum PDFPrinter {
         operation.showsPrintPanel = false
         operation.showsProgressPanel = false
         guard operation.run(), FileManager.default.fileExists(atPath: url.path) else {
-            throw KumquatError.conversionFailed("Couldn't create the PDF.")
+            throw KumquatError.conversionFailed(L("Couldn't create the PDF."))
         }
     }
 }

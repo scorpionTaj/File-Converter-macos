@@ -19,11 +19,11 @@ public enum UpdateInstaller {
     /// Throws unless `file` hashes to the value `listing` gives for `fileName`.
     public static func verify(_ file: URL, as fileName: String, listing: String) async throws {
         guard let expected = expectedChecksum(for: fileName, in: listing) else {
-            throw KumquatError.invalidInput("The release's checksum list doesn't include \(fileName).")
+            throw KumquatError.invalidInput(L("The release's checksum list doesn't include \(fileName)."))
         }
         let actual = try await Checksum.sha256(of: file)
         guard actual == expected else {
-            throw KumquatError.invalidInput("\(fileName) is damaged or was altered (checksum mismatch), so it wasn't installed.")
+            throw KumquatError.invalidInput(L("\(fileName) is damaged or was altered (checksum mismatch), so it wasn't installed."))
         }
     }
 
@@ -47,7 +47,7 @@ public enum UpdateInstaller {
         }
         guard let source = try fm.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: nil)
             .first(where: { $0.pathExtension == "app" }) else {
-            throw KumquatError.invalidInput("The disk image doesn't contain an app.")
+            throw KumquatError.invalidInput(L("The disk image doesn't contain an app."))
         }
         let staged = directory.appendingPathComponent(source.lastPathComponent)
         if fm.fileExists(atPath: staged.path) { try fm.removeItem(at: staged) }
@@ -57,11 +57,11 @@ public enum UpdateInstaller {
 
         let info = Bundle(url: staged)?.infoDictionary
         guard info?["CFBundleIdentifier"] as? String == bundleIdentifier else {
-            throw KumquatError.invalidInput("The downloaded app isn't Kumquat.")
+            throw KumquatError.invalidInput(L("The downloaded app isn't Kumquat."))
         }
         guard let stagedVersion = info?["CFBundleShortVersionString"] as? String,
               SemanticVersion(stagedVersion) == SemanticVersion(version) else {
-            throw KumquatError.invalidInput("The downloaded app isn't version \(version).")
+            throw KumquatError.invalidInput(L("The downloaded app isn't version \(version)."))
         }
         // Not --strict: macOS adds attributes (com.apple.provenance) to files apps write, which --strict
         // reports as "detritus" even on a genuine app. A changed binary or resource still fails.
