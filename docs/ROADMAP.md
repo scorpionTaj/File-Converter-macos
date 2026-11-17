@@ -57,15 +57,15 @@ Ground rules:
 | Drop zone on the Dock icon and a floating shelf window | ✅ Floating drop shelf (Settings ▸ General). The Dock icon already took drops (`CFBundleDocumentTypes`); Kumquat stays out of the Dock unless you keep it there |
 | Launch at login (SMAppService) toggle in Settings | ✅ Was already there; now shows when macOS needs approval (with a button to Login Items) and why it failed |
 
-## 0.7 — More power
+## 0.7 — More power (built, unreleased)
 
-| Item | Why |
+| Item | Status |
 |---|---|
-| PDF: annotate, reorder/rotate pages with thumbnails, compress with quality levels, OCR to searchable PDF (Vision) | Most requested PDF features |
-| Images: batch rename, strip/edit EXIF, background removal (Vision), upscale | Common "tools" category asks |
-| Media: extract audio, make GIF from a time range with a preview scrubber, burn subtitles, split by chapters | Builds on existing FFmpeg recipes |
-| User recipes: shell-command edges in `~/Library/Application Support/Kumquat/recipes` added to the graph | Extensibility without code changes |
-| Conversion queue window: pause/resume, reorder, retry failed, per-file progress | Large batches need visibility |
+| PDF: annotate, reorder/rotate pages with thumbnails, compress with quality levels, OCR to searchable PDF (Vision) | ✅ **Annotate…** (highlight, underline, strike-out, text, notes, boxes, ink), **Arrange Pages…** (thumbnail grid: drag, turn, remove), **Make Searchable** (invisible OCR text layer). Compress with Light/Balanced/Strong was already there |
+| Images: batch rename, strip/edit EXIF, background removal (Vision), upscale | ✅ **Rename…** (`{name}`, `{n}`, `{date}`), **Edit Metadata…** (date, title, artist, copyright, GPS; lossless), **Upscale 2×**. Strip metadata and background removal were already there. Upscaling is Lanczos + sharpening: macOS has no public on-device super-resolution model, and bundling one would break "a few MB" |
+| Media: extract audio, make GIF from a time range with a preview scrubber, burn subtitles, split by chapters | ✅ **GIF from Clip…** and **Trim…** use AVKit's trimming scrubber (typed range for MKV/WebM, which AVFoundation can't play), **Burn Subtitles** (rendered with CoreText and overlaid, because Homebrew's FFmpeg has no libass), **Split Chapters** (stream copy; video cuts land on keyframes). Extract audio was already there |
+| User recipes: shell-command edges in `~/Library/Application Support/Kumquat/recipes` added to the graph | ✅ JSON per recipe: formats, an argument list (no shell), `{input}`/`{output}`, timeout ≤ 1 h. Only your own, not-group/world-writable regular files load; problems show in Settings ▸ Engines and `kumquat-cli recipes`. Formats must be ones Kumquat knows (new extensions ⏳) |
+| Conversion queue window: pause/resume, reorder, retry failed, per-file progress | ✅ Menu bar ▸ Queue… (⌘J). Pause lets running files finish; tools are one queue item per drop |
 
 ## 0.9 — Packaging
 

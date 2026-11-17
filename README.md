@@ -7,7 +7,7 @@ Start dragging any file, then tap a key. A wheel opens around the cursor; drop t
 | Tap while dragging   | Wheel             | Examples                                                                                                                                     |
 | -------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | **⇧ Shift**   | **Convert** | HEIC → JPG, MOV → MP4, DOCX → PDF, XLSX → CSV, SRT → VTT, ZIP → TAR.GZ                                                                 |
-| **⌘ Command** | **Tools**   | Annotate, compress, resize, rotate, remove background, OCR, make GIFs, merge/split/trim/lock/redact PDFs, trim & mute video, normalize audio |
+| **⌘ Command** | **Tools**   | Annotate images & PDFs, compress, resize, upscale, rename, edit metadata, remove background, OCR, searchable PDFs, arrange/merge/split/lock/redact PDFs, trim, GIFs from clips, burn subtitles, split chapters, normalize audio |
 | **⌃ Control** | **Actions** | AirDrop, Float on top, Copy, Move to…, Copy to…, Copy Path, open in Terminal                                                               |
 
 The result is saved **next to the original**, which is never modified. Nothing is uploaded: Kumquat uses
@@ -22,9 +22,19 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 
 - **600+ conversions** across images, audio, video, PDF, documents, slides, spreadsheets, subtitles, archives and data.
   Run `kumquat-cli count` to see the exact number for your setup.
-- **42 tools** and **7 actions**, filtered to what makes sense for the dragged files.
+- **51 tools** and **7 actions**, filtered to what makes sense for the dragged files.
 - **Annotate images**: pen, arrow, rectangle, ellipse, highlighter, text, pixelate (true redaction) and crop, with undo/redo.
   The edited copy is saved as `photo (annotated).jpg`.
+- **PDF power tools**: **Make Searchable** adds a hidden OCR text layer to scans (Vision, on device);
+  **Arrange Pages…** shows thumbnails to drag into order, turn or remove; **Annotate…** adds highlights,
+  underlines, strike-outs, text, notes, boxes and freehand ink as standard PDF annotations.
+- **Image tools**: **Rename…** (`Trip {date} {n}` — numbered copies, or a real rename with "Originals: move
+  to Trash"), **Edit Metadata…** (date taken, title, artist, copyright, location; lossless), **Upscale 2×**.
+- **Media tools**: **GIF from Clip…** and **Trim…** with QuickTime's trim handles, **Burn Subtitles** (drop a
+  video with its .srt/.vtt/.ass, or use a same-named file or the video's own subtitle track), **Split Chapters**.
+- **Queue window** (menu bar ▸ Queue…, ⌘J): every file's progress; pause and resume, drag waiting files into
+  a new order, cancel, and retry what failed.
+- **User recipes**: add your own conversions with a small JSON file (see [User recipes](#user-recipes)).
 - **Works with Photos, Mail and Safari**: file-promise drags are received on drop. Results go to Downloads.
 - **Themes**: Catppuccin (Latte, Frappé, Macchiato, Mocha), Dracula, Monokai, Nord, Gruvbox, Tokyo Night,
   One Dark, Rosé Pine, Solarized and the adaptive Kumquat default.
@@ -43,7 +53,8 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 - **Watch folders**: pick a folder and a preset in Settings ▸ Presets, and every new file dropped into the
   folder is converted with that preset, no wheel needed.
 - **Launch at login** from Settings ▸ General.
-- **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`).
+- **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`),
+  Arrange Pages… (`3, 1-2, 4r90`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.
 - **Smart routing**: multi-step conversions (e.g. XLSX → CSV → JSON) are found automatically, and stream copy
   (instant, lossless) is used when a video only needs a new container.
@@ -144,6 +155,13 @@ kumquat-cli tool pdfRedactPersonalInfo contract.pdf
 kumquat-cli targets song.flac      # what can this become?
 kumquat-cli tools photo.jpg        # which tools apply?
 kumquat-cli doctor                 # which helpers are installed?
+kumquat-cli tool pdfSearchable scan.pdf
+kumquat-cli tool pdfArrange report.pdf --param "3, 1-2, 4r90"
+kumquat-cli tool batchRename *.jpg --param "Trip {date} {n}"
+kumquat-cli tool imageEditMetadata photo.jpg --param "date=2024-05-01 14:30; title=Beach; location="
+kumquat-cli tool videoToGIF talk.mov --param "0:12-0:16"
+kumquat-cli tool videoBurnSubtitles movie.mp4 movie.srt
+kumquat-cli recipes                # your recipes, and why any were skipped
 ```
 
 The CLI comes with the app: when Kumquat runs from Applications, it links
@@ -169,6 +187,36 @@ Automator's **Run Shell Script**:
 ```
 
 To get the wheel instead, use Shortcuts' **Open File** action with **Kumquat** as the app.
+
+### User recipes
+
+Add a conversion Kumquat doesn't have, or replace one with your own tool, by putting a JSON file in
+`~/Library/Application Support/Kumquat/recipes` (**Settings ▸ Engines ▸ Recipes ▸ Open Folder** creates it
+with a disabled example):
+
+```json
+{
+  "name": "Markdown to PDF with my stylesheet",
+  "from": ["md"],
+  "to": "pdf",
+  "command": ["/opt/homebrew/bin/pandoc", "{input}", "-o", "{output}", "--css", "/Users/me/style.css"],
+  "timeout": 120
+}
+```
+
+- `from` (one format or a list) and `to` are format names from `kumquat-cli formats`. The recipe shows on the
+  Convert wheel, wins over a built-in conversion for the same formats, and chains with built-in ones
+  (e.g. TSV → CSV → your recipe).
+- `command` is the program (a full path, or a name found where Kumquat looks for helpers) and its arguments.
+  `{input}` and `{output}` are replaced with file paths. It runs directly, **not through a shell**, so file
+  names can never become commands. The command must write `{output}`; Kumquat then saves it next to the
+  original like any result.
+- `timeout` (seconds, default 300, at most 3600): the command is stopped after this.
+- Only regular files directly in the folder, owned by you and not writable by other users, are loaded (links
+  are refused). Skipped files and failed runs (with the command's error output) are shown in Settings ▸
+  Engines and by `kumquat-cli recipes`. Edits are picked up the next time the wheel opens.
+
+Recipes run with your permissions: only add commands you trust.
 
 ## How it works
 

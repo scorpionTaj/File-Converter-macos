@@ -5,6 +5,37 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Make Searchable** (PDF): adds an invisible, positioned text layer to scanned pages with on-device OCR, so
+  the PDF can be searched, selected and copied. Pages that already have text are kept as they are; sideways
+  scans with a rotation come out upright.
+- **Arrange Pages…** (PDF): drag page thumbnails into a new order, turn them, remove them, and save a copy.
+  The CLI takes the same as text: `--param "3, 1-2, 4r90"`.
+- **Annotate…** for PDFs: highlight, underline, strike out, text, notes, boxes and freehand drawing, saved as
+  standard annotations (editable in Preview and Acrobat) on a copy.
+- **Rename…**: renamed copies from a pattern with `{name}`, `{n}` (drop order) and `{date}` (date taken, or the
+  file's date). With "Originals: move to Trash" it renames in place; Undo puts things back.
+- **Edit Metadata…** (JPEG, PNG, TIFF, HEIC): set or clear date taken, title, artist, copyright and GPS
+  location without re-encoding the image.
+- **Upscale 2×**: Lanczos enlargement with light sharpening. It's high-quality resampling, not AI
+  super-resolution, which macOS doesn't offer to apps without bundling a model.
+- **GIF from Clip…**: an animated GIF of a chosen part of a video.
+- **Burn Subtitles**: draws a dropped .srt/.vtt/.ass file, one next to the video with the same name, or the
+  video's own text subtitle track into the picture. Works with FFmpeg builds without libass, such as
+  Homebrew's.
+- **Split Chapters**: one file per chapter marker of a video or audiobook, copied without re-encoding.
+- **Queue window** (menu bar ▸ Queue…, ⌘J): each file's progress, pause/resume, drag to reorder waiting
+  files, cancel, and retry failed ones.
+- **User recipes**: your own conversions as JSON files in `~/Library/Application Support/Kumquat/recipes`,
+  run as an argument list (never through a shell) with a timeout. Problems are listed in Settings ▸ Engines
+  and by `kumquat-cli recipes`.
+
+### Changed
+- **Trim…** on a single clip opens a player with QuickTime's trim handles instead of asking for times
+  (several files, or formats AVFoundation can't play, still take a typed range).
+- PDF → image conversions now include annotations (highlights, notes, filled-in forms).
+- The "files at a time" setting now applies across all running jobs, not per drop.
+
 ## [0.6.0] - 2026-11-16
 
 ### Added
