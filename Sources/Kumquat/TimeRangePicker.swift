@@ -49,7 +49,7 @@ final class TimeRangeWindowController: NSWindowController, NSWindowDelegate {
         playerView.player = player
         playerView.controlsStyle = .inline
         playerView.showsFrameSteppingButtons = true
-        playerView.setAccessibilityLabel("Drag the yellow handles to choose the part to keep")
+        playerView.setAccessibilityLabel(L("Drag the yellow handles to choose the part to keep"))
         window.contentView = playerView
         window.center()
 

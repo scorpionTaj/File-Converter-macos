@@ -81,18 +81,18 @@ enum OptionsSheet {
         form.frame = NSRect(origin: .zero, size: form.fittingSize)
 
         let alert = NSAlert()
-        alert.messageText = "Convert \(fileCount == 1 ? "1 file" : "\(fileCount) files") to \(target.shortName)"
-        alert.informativeText = "These settings apply to this conversion."
+        alert.messageText = fileCount == 1 ? L("Convert 1 file to \(target.shortName)") : L("Convert \(fileCount) files to \(target.shortName)")
+        alert.informativeText = L("These settings apply to this conversion.")
         alert.accessoryView = form
-        alert.addButton(withTitle: "Convert")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L("Convert"))
+        alert.addButton(withTitle: L("Cancel"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         if fields.contains(.pdfPages), !model.pdfPages.trimmingCharacters(in: .whitespaces).isEmpty,
            (try? PageRanges.parse(model.pdfPages, pageCount: 9_999)) == nil {
             let invalid = NSAlert()
-            invalid.messageText = "“\(model.pdfPages)” isn't a page list"
-            invalid.informativeText = "Use pages like 1, 3-5 or 2-."
+            invalid.messageText = L("“\(model.pdfPages)” isn't a page list")
+            invalid.informativeText = L("Use pages like 1, 3-5 or 2-.")
             invalid.runModal()
             return nil
         }

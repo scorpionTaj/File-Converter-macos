@@ -287,7 +287,7 @@ public enum FFmpegRecipes {
     }
 
     static func missingEncoder(for target: Format) -> KumquatError {
-        .engineUnavailable("A \(target.name) encoder in your FFmpeg build (install the full build: brew reinstall ffmpeg)")
+        .engineUnavailable(L("A \(target.name) encoder in your FFmpeg build (install the full build: brew reinstall ffmpeg)"))
     }
 
     /// Still-image encode used when ImageIO can't write WebP/AVIF. Nil when this FFmpeg has no suitable encoder.

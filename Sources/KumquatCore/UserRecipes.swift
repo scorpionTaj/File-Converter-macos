@@ -90,7 +90,8 @@ public enum UserRecipes {
                 let recipe = try parse(try Data(contentsOf: file), file: file)
                 let duplicates = recipe.from.filter { pairs.contains("\($0.id)>\(recipe.to.id)") }
                 guard duplicates.isEmpty else {
-                    throw KumquatError.invalidInput("another recipe already converts \(duplicates.map(\.shortName).joined(separator: ", ")) to \(recipe.to.shortName)")
+                    let names = duplicates.map(\.shortName).joined(separator: ", ")
+                    throw KumquatError.invalidInput(L("another recipe already converts \(names) to \(recipe.to.shortName)"))
                 }
                 recipe.from.forEach { pairs.insert("\($0.id)>\(recipe.to.id)") }
                 result.recipes.append(recipe)
@@ -149,35 +150,36 @@ public enum UserRecipes {
 
     public static func parse(_ data: Data, file: URL) throws -> UserRecipe {
         guard let json = try? JSONSerialization.jsonObject(with: data), let object = json as? [String: Any] else {
-            throw KumquatError.invalidInput("isn't a JSON object")
+            throw KumquatError.invalidInput(L("isn't a JSON object"))
         }
         func format(_ value: Any?, _ key: String) throws -> Format {
             guard let text = value as? String,
                   let format = FormatRegistry.format(id: text.lowercased()) ?? FormatRegistry.format(forExtension: text) else {
-                throw KumquatError.invalidInput("“\(key)”: \(value.map { "\($0)" } ?? "missing") isn't a format Kumquat knows (see kumquat-cli formats)")
+                let given = value.map { "\($0)" } ?? "—"
+                throw KumquatError.invalidInput(L("“\(key)”: \(given) isn't a format Kumquat knows (see kumquat-cli formats)"))
             }
             return format
         }
         let fromValues: [Any] = (object["from"] as? [Any]) ?? (object["from"].map { [$0] } ?? [])
-        guard !fromValues.isEmpty else { throw KumquatError.invalidInput("“from” is missing") }
+        guard !fromValues.isEmpty else { throw KumquatError.invalidInput(L("“from” is missing")) }
         let from = try fromValues.map { try format($0, "from") }
         let to = try format(object["to"], "to")
-        guard !from.contains(to) else { throw KumquatError.invalidInput("“from” and “to” are the same format") }
+        guard !from.contains(to) else { throw KumquatError.invalidInput(L("“from” and “to” are the same format")) }
 
         guard let command = object["command"] as? [String], let program = command.first, !program.isEmpty else {
-            throw KumquatError.invalidInput("“command” must be a list of strings, program first, e.g. [\"/usr/local/bin/tool\", \"{input}\", \"{output}\"]")
+            throw KumquatError.invalidInput(L("“command” must be a list of strings, program first, e.g. [\"/usr/local/bin/tool\", \"{input}\", \"{output}\"]"))
         }
-        guard !program.contains("{") else { throw KumquatError.invalidInput("the program can't be a placeholder") }
+        guard !program.contains("{") else { throw KumquatError.invalidInput(L("the program can't be a placeholder")) }
         guard command.dropFirst().contains(where: { $0.contains("{input}") }) else {
-            throw KumquatError.invalidInput("“command” never uses {input}")
+            throw KumquatError.invalidInput(L("“command” never uses {input}"))
         }
         guard command.dropFirst().contains(where: { $0.contains("{output}") }) else {
-            throw KumquatError.invalidInput("“command” never uses {output}, so the result can't be found")
+            throw KumquatError.invalidInput(L("“command” never uses {output}, so the result can't be found"))
         }
         var timeout = UserRecipe.defaultTimeout
         if let value = object["timeout"] {
             guard let seconds = value as? Double, seconds > 0 else {
-                throw KumquatError.invalidInput("“timeout” must be a number of seconds")
+                throw KumquatError.invalidInput(L("“timeout” must be a number of seconds"))
             }
             timeout = min(seconds, UserRecipe.maximumTimeout)
         }
@@ -218,16 +220,16 @@ struct RecipeEngine: ConversionEngine {
         } else if let found = context.tools.path(for: program) {
             executable = found
         } else {
-            throw KumquatError.conversionFailed("Recipe “\(recipe.name)”: \(program) wasn't found. Use its full path in \(recipe.file.lastPathComponent).")
+            throw KumquatError.conversionFailed(L("Recipe “\(recipe.name)”: \(program) wasn't found. Use its full path in \(recipe.file.lastPathComponent)."))
         }
         guard FileManager.default.isExecutableFile(atPath: executable.path) else {
-            throw KumquatError.conversionFailed("Recipe “\(recipe.name)”: \(executable.path) isn't an executable program.")
+            throw KumquatError.conversionFailed(L("Recipe “\(recipe.name)”: \(executable.path) isn't an executable program."))
         }
         let result = try await ProcessRunner.run(executable, recipe.arguments(input: input, output: output),
                                                  currentDirectory: context.workDirectory, timeout: recipe.timeout)
         try Task.checkCancellation()
         if result.timedOut {
-            throw KumquatError.conversionFailed("Recipe “\(recipe.name)” didn't finish within \(Int(recipe.timeout)) seconds and was stopped.")
+            throw KumquatError.conversionFailed(L("Recipe “\(recipe.name)” didn't finish within \(Int(recipe.timeout)) seconds and was stopped."))
         }
         guard result.status == 0 else {
             let detail = (result.stderr.isEmpty ? result.stdout : result.stderr)
@@ -235,7 +237,7 @@ struct RecipeEngine: ConversionEngine {
             throw KumquatError.conversionFailed("Recipe “\(recipe.name)” failed (exit \(result.status))" + (detail.isEmpty ? "." : ": \(detail)"))
         }
         guard FileManager.default.fileExists(atPath: output.path), SizeReport.size(of: output) > 0 || FileManager.default.isDirectory(output) else {
-            throw KumquatError.conversionFailed("Recipe “\(recipe.name)” finished but didn't write {output}.")
+            throw KumquatError.conversionFailed(L("Recipe “\(recipe.name)” finished but didn't write {output}."))
         }
         return output
     }

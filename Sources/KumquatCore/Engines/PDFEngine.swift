@@ -30,10 +30,10 @@ public struct PDFEngine: ConversionEngine {
 
     static func open(_ url: URL) throws -> PDFDocument {
         guard let document = PDFDocument(url: url) else {
-            throw KumquatError.invalidInput("\(url.lastPathComponent) isn't a readable PDF.")
+            throw KumquatError.invalidInput(L("\(url.lastPathComponent) isn't a readable PDF."))
         }
         if document.isLocked {
-            throw KumquatError.invalidInput("\(url.lastPathComponent) is password-protected. Use Tools → Unlock first.")
+            throw KumquatError.invalidInput(L("\(url.lastPathComponent) is password-protected. Use Tools → Unlock first."))
         }
         return document
     }
@@ -56,7 +56,7 @@ public struct PDFEngine: ConversionEngine {
 
     /// Renders a page in its unrotated user space, then applies the page rotation.
     static func render(_ page: PDFPage, dpi: Double, overlay: [CGRect] = []) throws -> CGImage {
-        guard let cgPage = page.pageRef else { throw KumquatError.conversionFailed("Unreadable PDF page.") }
+        guard let cgPage = page.pageRef else { throw KumquatError.conversionFailed(L("Unreadable PDF page.")) }
         let box = page.bounds(for: .cropBox)
         let scale = dpi / 72
         let width = Int((box.width * scale).rounded()), height = Int((box.height * scale).rounded())
@@ -85,7 +85,7 @@ public struct PDFEngine: ConversionEngine {
     static func renderPages(_ document: PDFDocument, to output: URL, format: Format, context: EngineContext) async throws -> URL {
         let dpi = context.options.pdfRenderDPI
         let quality = context.options.quality(for: format)
-        guard document.pageCount > 0 else { throw KumquatError.nothingToDo("The PDF has no pages.") }
+        guard document.pageCount > 0 else { throw KumquatError.nothingToDo(L("The PDF has no pages.")) }
         let pages = try context.options.pdfPageRange.map { try PageRanges.parse($0, pageCount: document.pageCount) }
             ?? Array(0..<document.pageCount)
         if pages.count == 1, let page = document.page(at: pages[0]) {
@@ -114,7 +114,7 @@ public struct PDFEngine: ConversionEngine {
     /// so the PDF is about the size of the photos instead of roughly double.
     static func makePDF(fromImages urls: [URL], output: URL, context: EngineContext) async throws {
         guard let pdf = CGContext(output as CFURL, mediaBox: nil, nil) else {
-            throw KumquatError.conversionFailed("Couldn't create the PDF.")
+            throw KumquatError.conversionFailed(L("Couldn't create the PDF."))
         }
         var closed = false
         defer { if !closed { pdf.closePDF() } }
@@ -137,7 +137,7 @@ public struct PDFEngine: ConversionEngine {
         pdf.closePDF()
         closed = true
         guard PDFDocument(url: output)?.pageCount == urls.count else {
-            throw KumquatError.conversionFailed("Couldn't save the PDF.")
+            throw KumquatError.conversionFailed(L("Couldn't save the PDF."))
         }
     }
 
@@ -169,7 +169,7 @@ public struct PDFEngine: ConversionEngine {
                 merged.insert(page, at: merged.pageCount)
             }
         }
-        guard merged.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the merged PDF.") }
+        guard merged.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the merged PDF.")) }
     }
 
     // MARK: Tools
@@ -187,7 +187,7 @@ public struct PDFEngine: ConversionEngine {
             return ToolArtifact(url: smallest, message: SizeReport.savings(original: input, result: smallest))
 
         case .pdfSplit:
-            guard document.pageCount > 1 else { throw KumquatError.nothingToDo("The PDF has only one page.") }
+            guard document.pageCount > 1 else { throw KumquatError.nothingToDo(L("The PDF has only one page.")) }
             let base = FormatRegistry.baseName(of: input)
             let folder = context.workDirectory.appendingPathComponent("\(base) (pages)", isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -196,33 +196,33 @@ public struct PDFEngine: ConversionEngine {
                 let single = PDFDocument()
                 single.insert(page, at: 0)
                 guard single.write(to: folder.appendingPathComponent("\(base) – page \(index + 1).pdf")) else {
-                    throw KumquatError.conversionFailed("Couldn't save page \(index + 1).")
+                    throw KumquatError.conversionFailed(L("Couldn't save page \(index + 1)."))
                 }
             }
-            return ToolArtifact(url: folder, message: "\(document.pageCount) pages", preferredBaseName: folder.lastPathComponent)
+            return ToolArtifact(url: folder, message: L("\(document.pageCount) pages"), preferredBaseName: folder.lastPathComponent)
 
         case .pdfRemovePages, .pdfExtractPages:
             let selected = Set(try PageRanges.parse(parameter ?? "", pageCount: document.pageCount))
             let keep = (0..<document.pageCount).filter { tool == .pdfExtractPages ? selected.contains($0) : !selected.contains($0) }
-            guard !keep.isEmpty else { throw KumquatError.nothingToDo("That would remove every page.") }
+            guard !keep.isEmpty else { throw KumquatError.nothingToDo(L("That would remove every page.")) }
             let result = PDFDocument()
             for index in keep {
                 if let page = document.page(at: index)?.copy() as? PDFPage { result.insert(page, at: result.pageCount) }
             }
-            guard result.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
-            return ToolArtifact(url: output, message: "\(keep.count) of \(document.pageCount) pages kept")
+            guard result.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
+            return ToolArtifact(url: output, message: L("\(keep.count) of \(document.pageCount) pages kept"))
 
         case .pdfRotate:
             for index in 0..<document.pageCount {
                 if let page = document.page(at: index) { page.rotation = (page.rotation + 90) % 360 }
             }
-            guard document.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
+            guard document.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
             return ToolArtifact(url: output)
 
         case .pdfExtractText:
             let text = document.string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !text.isEmpty else {
-                throw KumquatError.nothingToDo("No text layer found — try OCR Text for scanned PDFs.")
+                throw KumquatError.nothingToDo(L("No text layer found — try OCR Text for scanned PDFs."))
             }
             let textURL = context.scratchURL("txt")
             try text.write(to: textURL, atomically: true, encoding: .utf8)
@@ -238,37 +238,37 @@ public struct PDFEngine: ConversionEngine {
             }
             let text = pages.joined(separator: "\n\n\u{0C}\n\n")
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                throw KumquatError.nothingToDo("No text recognised.")
+                throw KumquatError.nothingToDo(L("No text recognised."))
             }
             let textURL = context.scratchURL("txt")
             try text.write(to: textURL, atomically: true, encoding: .utf8)
-            return ToolArtifact(url: textURL, message: "Recognised \(document.pageCount) page(s)")
+            return ToolArtifact(url: textURL, message: L("Recognised \(document.pageCount) page(s)"))
 
         case .pdfSearchable:
             let count = try makeSearchable(document, output: output, context: context)
-            return ToolArtifact(url: output, message: "Recognised \(count) of \(document.pageCount) page(s)")
+            return ToolArtifact(url: output, message: L("Recognised \(count) of \(document.pageCount) page(s)"))
 
         case .pdfArrange:
             let entries = try PageArrangement.parse(parameter ?? "", pageCount: document.pageCount)
             try arrange(document, entries: entries, output: output)
-            return ToolArtifact(url: output, message: "\(entries.count) page(s)")
+            return ToolArtifact(url: output, message: L("\(entries.count) page(s)"))
 
         case .pdfEncrypt:
-            guard let password = parameter, !password.isEmpty else { throw KumquatError.nothingToDo("No password entered.") }
+            guard let password = parameter, !password.isEmpty else { throw KumquatError.nothingToDo(L("No password entered.")) }
             let options: [PDFDocumentWriteOption: Any] = [.userPasswordOption: password, .ownerPasswordOption: password]
-            guard document.write(to: output, withOptions: options) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
-            return ToolArtifact(url: output, message: "Password added")
+            guard document.write(to: output, withOptions: options) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
+            return ToolArtifact(url: output, message: L("Password added"))
 
         case .stripMetadata:
             document.documentAttributes = [:]
-            guard document.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
-            return ToolArtifact(url: output, message: "Metadata removed")
+            guard document.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
+            return ToolArtifact(url: output, message: L("Metadata removed"))
 
         case .pdfRedactPersonalInfo, .pdfRedactText:
             let patterns: [NSRegularExpression]
             if tool == .pdfRedactText {
                 guard let phrase = parameter?.trimmingCharacters(in: .whitespacesAndNewlines), !phrase.isEmpty else {
-                    throw KumquatError.nothingToDo("No text entered.")
+                    throw KumquatError.nothingToDo(L("No text entered."))
                 }
                 patterns = [try NSRegularExpression(pattern: NSRegularExpression.escapedPattern(for: phrase), options: [.caseInsensitive])]
             } else {
@@ -276,12 +276,12 @@ public struct PDFEngine: ConversionEngine {
             }
             let (redacted, count) = try Redaction.redact(document, patterns: patterns,
                                                          accept: tool == .pdfRedactText ? { _ in true } : Redaction.isPersonalInfo)
-            guard count > 0 else { throw KumquatError.nothingToDo("Nothing matched — no changes made.") }
-            guard redacted.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
-            return ToolArtifact(url: output, message: "Redacted \(count) match\(count == 1 ? "" : "es")")
+            guard count > 0 else { throw KumquatError.nothingToDo(L("Nothing matched — no changes made.")) }
+            guard redacted.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
+            return ToolArtifact(url: output, message: count == 1 ? L("Redacted 1 match") : L("Redacted \(count) matches"))
 
         default:
-            throw KumquatError.nothingToDo("\(tool.title) doesn't apply to PDFs.")
+            throw KumquatError.nothingToDo(L("\(tool.title) doesn't apply to PDFs."))
         }
     }
 
@@ -341,7 +341,7 @@ public struct PDFEngine: ConversionEngine {
             if let best, best.size * 5 <= originalSize * 4 { break }
         }
         guard let best else {
-            throw KumquatError.nothingToDo("This PDF is already as small as Kumquat can make it.")
+            throw KumquatError.nothingToDo(L("This PDF is already as small as Kumquat can make it."))
         }
         return best.url
     }
@@ -365,17 +365,17 @@ public struct PDFEngine: ConversionEngine {
     }
 
     static func decrypt(_ input: URL, password: String, context: EngineContext) throws -> ToolArtifact {
-        guard let document = PDFDocument(url: input) else { throw KumquatError.invalidInput("Unreadable PDF.") }
-        guard document.isEncrypted else { throw KumquatError.nothingToDo("This PDF isn't password-protected.") }
-        guard document.unlock(withPassword: password) else { throw KumquatError.invalidInput("Wrong password.") }
+        guard let document = PDFDocument(url: input) else { throw KumquatError.invalidInput(L("Unreadable PDF.")) }
+        guard document.isEncrypted else { throw KumquatError.nothingToDo(L("This PDF isn't password-protected.")) }
+        guard document.unlock(withPassword: password) else { throw KumquatError.invalidInput(L("Wrong password.")) }
         // Copying pages into a fresh document guarantees the result is written without encryption.
         let unlocked = PDFDocument()
         for index in 0..<document.pageCount {
             if let page = document.page(at: index)?.copy() as? PDFPage { unlocked.insert(page, at: unlocked.pageCount) }
         }
         let output = context.scratchURL("pdf")
-        guard unlocked.write(to: output) else { throw KumquatError.conversionFailed("Couldn't save the PDF.") }
-        return ToolArtifact(url: output, message: "Password removed")
+        guard unlocked.write(to: output) else { throw KumquatError.conversionFailed(L("Couldn't save the PDF.")) }
+        return ToolArtifact(url: output, message: L("Password removed"))
     }
 }
 
@@ -432,7 +432,7 @@ enum Redaction {
                     .map { $0.bounds(for: page) }
                     .filter { !$0.isEmpty }
                 guard !lines.isEmpty else {
-                    throw KumquatError.conversionFailed("Couldn't find “\(nsText.substring(with: range))” on page \(index + 1), so nothing was saved.")
+                    throw KumquatError.conversionFailed(L("Couldn't find “\(nsText.substring(with: range))” on page \(index + 1), so nothing was saved."))
                 }
                 rects += lines.map { $0.insetBy(dx: -1.5, dy: -1.5) }
             }
@@ -446,7 +446,7 @@ enum Redaction {
             let flat = try PDFEngine.render(copy, dpi: dpi, overlay: rects)
             let box = page.bounds(for: .cropBox)
             guard let flattened = PDFPage(image: NSImage(cgImage: flat, size: box.size)) else {
-                throw KumquatError.conversionFailed("Couldn't redact page \(index + 1).")
+                throw KumquatError.conversionFailed(L("Couldn't redact page \(index + 1)."))
             }
             flattened.rotation = rotation
             result.insert(flattened, at: result.pageCount)

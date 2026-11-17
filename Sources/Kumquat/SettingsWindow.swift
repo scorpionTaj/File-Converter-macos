@@ -14,35 +14,35 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .general: return "General"
-        case .wheels: return "Wheels"
-        case .notifications: return "Notifications"
-        case .output: return "Output"
-        case .quality: return "Quality"
-        case .presets: return "Presets"
-        case .watchFolders: return "Watch Folders"
-        case .appearance: return "Appearance"
-        case .engines: return "Engines"
-        case .recipes: return "Recipes"
-        case .advanced: return "Advanced"
-        case .about: return "About"
+        case .general: return L("General")
+        case .wheels: return L("Wheels")
+        case .notifications: return L("Notifications")
+        case .output: return L("Output")
+        case .quality: return L("Quality")
+        case .presets: return L("Presets")
+        case .watchFolders: return L("Watch Folders")
+        case .appearance: return L("Appearance")
+        case .engines: return L("Engines")
+        case .recipes: return L("Recipes")
+        case .advanced: return L("Advanced")
+        case .about: return L("About")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .general: return "Turn Kumquat on or off, start at login, and the drop shelf."
-        case .wheels: return "Which key opens which wheel, and what comes first on it."
-        case .notifications: return "Progress popups, finished-job notifications, sounds and the menu bar."
-        case .output: return "Where results are saved, how they're named, and what happens to originals."
-        case .quality: return "Image, PDF, video and audio quality, and how many files run at once."
-        case .presets: return "Saved conversions that appear as one-tap slices on the Convert wheel."
-        case .watchFolders: return "Folders whose new files are converted automatically with a preset."
-        case .appearance: return "Colours for the wheels, the progress popup and the editors."
-        case .engines: return "Optional helpers such as FFmpeg, LibreOffice and Pandoc."
-        case .recipes: return "Your own conversions, run from JSON files in the recipes folder."
-        case .advanced: return "Command line tool, updates, troubleshooting and reset."
-        case .about: return "Version and project information."
+        case .general: return L("Turn Kumquat on or off, its language, start at login, and the drop shelf.")
+        case .wheels: return L("Which key opens which wheel, and what comes first on it.")
+        case .notifications: return L("Progress popups, finished-job notifications, sounds and the menu bar.")
+        case .output: return L("Where results are saved, how they're named, and what happens to originals.")
+        case .quality: return L("Image, PDF, video and audio quality, and how many files run at once.")
+        case .presets: return L("Saved conversions that appear as one-tap slices on the Convert wheel.")
+        case .watchFolders: return L("Folders whose new files are converted automatically with a preset.")
+        case .appearance: return L("Colours for the wheels, the progress popup and the editors.")
+        case .engines: return L("Optional helpers such as FFmpeg, LibreOffice and Pandoc.")
+        case .recipes: return L("Your own conversions, run from JSON files in the recipes folder.")
+        case .advanced: return L("Command line tool, updates, troubleshooting and reset.")
+        case .about: return L("Version and project information.")
         }
     }
 
@@ -82,10 +82,10 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
 
     /// Sidebar groups.
     static let groups: [(title: String, pages: [SettingsPage])] = [
-        ("Kumquat", [.general, .wheels, .notifications]),
-        ("Files", [.output, .quality, .presets, .watchFolders]),
-        ("Look", [.appearance]),
-        ("Extend", [.engines, .recipes]),
+        (L("Kumquat"), [.general, .wheels, .notifications]),
+        (L("Files"), [.output, .quality, .presets, .watchFolders]),
+        (L("Look"), [.appearance]),
+        (L("Extend"), [.engines, .recipes]),
         ("", [.advanced, .about]),
     ]
 }
@@ -131,7 +131,7 @@ struct SettingsView: View {
 
     @ViewBuilder private func content(for page: SettingsPage) -> some View {
         switch page {
-        case .general: GeneralSettings(settings: settings)
+        case .general: GeneralSettings(settings: settings, isBusy: isBusy)
         case .wheels: WheelSettings(settings: settings)
         case .notifications: NotificationSettings(settings: settings)
         case .output: OutputSettings(settings: settings)

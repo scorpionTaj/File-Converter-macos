@@ -1,4 +1,5 @@
 import AppKit
+import KumquatCore
 
 /// A small floating window that takes file drops and opens the click-driven wheel, for people who find
 /// "drag, then tap a key" awkward on a trackpad. Drag its background to move it; right-click to hide it.
@@ -47,7 +48,7 @@ final class DropShelf: NSObject {
             ?? NSImage())
         icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 28, weight: .regular)
         icon.contentTintColor = .labelColor
-        let label = NSTextField(labelWithString: "Drop files")
+        let label = NSTextField(labelWithString: L("Drop files"))
         label.font = .systemFont(ofSize: 11, weight: .medium)
         label.textColor = .secondaryLabelColor
         let stack = NSStackView(views: [icon, label])
@@ -63,15 +64,15 @@ final class DropShelf: NSObject {
         let drop = FileDropView(frame: frame)
         drop.autoresizingMask = [.width, .height]
         drop.highlightRadius = 18
-        drop.toolTip = "Drop files here to open Kumquat's wheel. Drag to move; right-click to hide."
+        drop.toolTip = L("Drop files here to open Kumquat's wheel. Drag to move; right-click to hide.")
         drop.setAccessibilityElement(true)
         drop.setAccessibilityRole(.group)
-        drop.setAccessibilityLabel("Kumquat drop shelf")
+        drop.setAccessibilityLabel(L("Kumquat drop shelf"))
         drop.onMouseDown = { [weak panel] event in panel?.performDrag(with: event) }
         drop.onRightMouseDown = { [weak self, weak drop] event in
             guard let self, let drop else { return }
             let menu = NSMenu()
-            let hide = NSMenuItem(title: "Hide Shelf", action: #selector(self.hideFromMenu), keyEquivalent: "")
+            let hide = NSMenuItem(title: L("Hide Shelf"), action: #selector(self.hideFromMenu), keyEquivalent: "")
             hide.target = self
             menu.addItem(hide)
             NSMenu.popUpContextMenu(menu, with: event, for: drop)

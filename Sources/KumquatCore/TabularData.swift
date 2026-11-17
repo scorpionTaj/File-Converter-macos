@@ -115,7 +115,7 @@ public enum Table {
         } else if let dictionary = object as? [String: Any] {
             items = [dictionary]
         } else {
-            throw KumquatError.invalidInput("JSON must be an array of objects to become a table.")
+            throw KumquatError.invalidInput(L("JSON must be an array of objects to become a table."))
         }
         if items.allSatisfy({ $0 is [Any] }) {
             return items.map { ($0 as! [Any]).map(cellText) }
@@ -125,7 +125,7 @@ public enum Table {
         for case let record as [String: Any] in items {
             for key in record.keys.sorted() where seen.insert(key).inserted { keys.append(key) }
         }
-        guard !keys.isEmpty else { throw KumquatError.invalidInput("JSON contains no objects to tabulate.") }
+        guard !keys.isEmpty else { throw KumquatError.invalidInput(L("JSON contains no objects to tabulate.")) }
         let body = items.map { item -> [String] in
             let record = item as? [String: Any] ?? [:]
             return keys.map { record[$0].map(cellText) ?? "" }

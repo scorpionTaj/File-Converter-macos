@@ -5,6 +5,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Kumquat speaks French, Spanish, German and Arabic.** Menus, settings, the wheels (tool and action names
+  and descriptions), prompts, progress notices, notifications and the editors are translated, and Arabic
+  lays out right to left. Kumquat follows your Mac's language, or pick one for Kumquat alone in
+  **Settings ▸ General ▸ Language** (applies after Relaunch Now). Error and result messages from the
+  conversions are translated too; `kumquat-cli` and result file names stay in English.
+- Wheel labels wrap onto two lines when they don't fit their segment, instead of running into the
+  neighbouring slices (long translations, and a few English titles such as “Strip Metadata”).
+- Translations live in a String Catalog; `scripts/strings.py` keeps it in step with the code, and CI checks
+  that every language is complete.
 ### Fixed
 - **Pages, Numbers and Keynote showed as not installed** on Macs where they're called "Pages Creator Studio"
   (and so on), or live outside Applications. Kumquat now finds them by bundle identifier through Launch

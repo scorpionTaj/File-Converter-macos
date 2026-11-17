@@ -15,7 +15,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         iconObserver = app.settings.$menuBarIcon.sink { [weak self] style in
             self?.statusItem.button?.image = StatusIcon.make(style)
         }
-        statusItem.button?.toolTip = "Kumquat — drop files here, or drag a file and tap a key"
+        statusItem.button?.toolTip = L("Kumquat — drop files here, or drag a file and tap a key")
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -26,7 +26,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
             dropView.autoresizingMask = [.width, .height]
             dropView.onMouseDown = { [weak self] _ in self?.statusItem.button?.performClick(nil) }
             dropView.onDrop = { [weak self] urls in self?.showWheelBelowIcon(for: urls) }
-            dropView.onDropFailed = { [weak app] message in app?.hud.failure("Couldn't receive the file", detail: message) }
+            dropView.onDropFailed = { [weak app] message in app?.hud.failure(L("Couldn't receive the file"), detail: message) }
             button.addSubview(dropView)
         }
     }
@@ -60,40 +60,41 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         guard let app else { return }
         let settings = app.settings
 
-        let header = NSMenuItem(title: "Drag a file, then tap \(settings.convertKey.symbol) \(settings.toolsKey.symbol) \(settings.actionsKey.symbol)", action: nil, keyEquivalent: "")
+        let header = NSMenuItem(title: L("Drag a file, then tap \(settings.convertKey.symbol) \(settings.toolsKey.symbol) \(settings.actionsKey.symbol)"), action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)
 
-        let toggle = NSMenuItem(title: "Enabled", action: #selector(toggleEnabled), keyEquivalent: "")
+        let toggle = NSMenuItem(title: L("Enabled"), action: #selector(toggleEnabled), keyEquivalent: "")
         toggle.state = settings.isEnabled ? .on : .off
         toggle.target = self
         menu.addItem(toggle)
         menu.addItem(.separator())
 
-        let open = NSMenuItem(title: "Convert Files…", action: #selector(openFiles), keyEquivalent: "o")
+        let open = NSMenuItem(title: L("Convert Files…"), action: #selector(openFiles), keyEquivalent: "o")
         open.target = self
         menu.addItem(open)
 
-        let queueItem = NSMenuItem(title: app.hasRunningJobs ? "Queue (\(app.queue.state.running.count + app.queue.state.waiting.count) left)…" : "Queue…",
+        let left = app.queue.state.running.count + app.queue.state.waiting.count
+        let queueItem = NSMenuItem(title: app.hasRunningJobs ? L("Queue (\(left) left)…") : L("Queue…"),
                                    action: #selector(showQueue), keyEquivalent: "j")
         queueItem.target = self
         menu.addItem(queueItem)
 
-        let shelf = NSMenuItem(title: "Drop Shelf", action: #selector(toggleShelf), keyEquivalent: "")
+        let shelf = NSMenuItem(title: L("Drop Shelf"), action: #selector(toggleShelf), keyEquivalent: "")
         shelf.state = settings.showShelf ? .on : .off
         shelf.target = self
         menu.addItem(shelf)
 
         // Without an action, menu validation greys the item out.
-        let undo = NSMenuItem(title: app.undoTitle ?? "Undo", action: app.undoTitle == nil ? nil : #selector(undoLast),
+        let undo = NSMenuItem(title: app.undoTitle ?? L("Undo"), action: app.undoTitle == nil ? nil : #selector(undoLast),
                               keyEquivalent: "z")
         undo.target = self
         menu.addItem(undo)
 
-        let recent = NSMenuItem(title: "Recent", action: nil, keyEquivalent: "")
+        let recent = NSMenuItem(title: L("Recent"), action: nil, keyEquivalent: "")
         let recentMenu = NSMenu()
         if app.recentOutputs.isEmpty {
-            let empty = NSMenuItem(title: "Nothing yet", action: nil, keyEquivalent: "")
+            let empty = NSMenuItem(title: L("Nothing yet"), action: nil, keyEquivalent: "")
             empty.isEnabled = false
             recentMenu.addItem(empty)
         }
@@ -107,7 +108,7 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         }
         if !app.recentOutputs.isEmpty {
             recentMenu.addItem(.separator())
-            let clear = NSMenuItem(title: "Clear Recent", action: #selector(clearRecents), keyEquivalent: "")
+            let clear = NSMenuItem(title: L("Clear Recent"), action: #selector(clearRecents), keyEquivalent: "")
             clear.target = self
             recentMenu.addItem(clear)
         }
@@ -115,24 +116,24 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         menu.addItem(recent)
         menu.addItem(.separator())
 
-        let help = NSMenuItem(title: "How to Use Kumquat", action: #selector(showWelcome), keyEquivalent: "")
+        let help = NSMenuItem(title: L("How to Use Kumquat"), action: #selector(showWelcome), keyEquivalent: "")
         help.target = self
         menu.addItem(help)
-        let preferences = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        let preferences = NSMenuItem(title: L("Settings…"), action: #selector(showSettings), keyEquivalent: ",")
         preferences.target = self
         menu.addItem(preferences)
-        let updates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        let updates = NSMenuItem(title: L("Check for Updates…"), action: #selector(checkForUpdates), keyEquivalent: "")
         updates.target = self
         updates.isEnabled = !UpdateController.shared.isChecking
         menu.addItem(updates)
-        let log = NSMenuItem(title: "Show Log", action: #selector(showLog), keyEquivalent: "")
+        let log = NSMenuItem(title: L("Show Log"), action: #selector(showLog), keyEquivalent: "")
         log.target = self
         menu.addItem(log)
-        let report = NSMenuItem(title: "Report a Problem…", action: #selector(reportProblem), keyEquivalent: "")
+        let report = NSMenuItem(title: L("Report a Problem…"), action: #selector(reportProblem), keyEquivalent: "")
         report.target = self
         menu.addItem(report)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Kumquat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: L("Quit Kumquat"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     }
 
     @objc private func toggleEnabled() {
@@ -239,7 +240,7 @@ final class FileDropView: NSView {
         guard PromiseInbox.hasPromises(pasteboard) else { return false }
         PromiseInbox.receive(from: pasteboard) { [weak self] received, message in
             if received.isEmpty {
-                self?.onDropFailed?(message ?? "The file couldn't be received.")
+                self?.onDropFailed?(message ?? L("The file couldn't be received."))
             } else {
                 self?.onDrop?(received)
             }
@@ -252,7 +253,7 @@ final class FileDropView: NSView {
 enum StatusIcon {
     static func make(_ style: MenuBarIconStyle) -> NSImage {
         if let name = style.symbolName,
-           let symbol = NSImage(systemSymbolName: name, accessibilityDescription: "Kumquat")?
+           let symbol = NSImage(systemSymbolName: name, accessibilityDescription: L("Kumquat"))?
                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)) {
             symbol.isTemplate = true
             return symbol

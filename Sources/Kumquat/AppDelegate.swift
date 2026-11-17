@@ -87,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         wheel.onSelect = { [weak self] item, urls in self?.perform(item, urls: urls) }
         wheel.onDropFailed = { [weak self] message in
             AppLog.error("Drop failed: \(message)")
-            self?.hud.failure("Couldn't receive the file", detail: message)
+            self?.hud.failure(L("Couldn't receive the file"), detail: message)
         }
         wheel.itemsProvider = { [weak self] mode, urls in self?.items(for: mode, urls: urls) ?? [] }
         wheel.onTogglePin = { [weak self] item, mode, urls in self?.togglePin(item, mode: mode, urls: urls) ?? [] }
@@ -104,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         finderShortcutObserver = settings.$finderShortcut.sink { [weak self] in self?.registerFinderShortcut($0) }
 
         shelf.onDrop = { [weak self] urls, point in self?.showWheel(for: urls, at: point) }
-        shelf.onDropFailed = { [weak self] message in self?.hud.failure("Couldn't receive the file", detail: message) }
+        shelf.onDropFailed = { [weak self] message in self?.hud.failure(L("Couldn't receive the file"), detail: message) }
         shelf.onHide = { [weak self] in self?.settings.showShelf = false }
         integrationObservers.append(settings.$showShelf.sink { [weak self] in self?.shelf.setVisible($0) })
         watchFolders.onReady = { [weak self] folder, urls in self?.convertArrivals(urls, in: folder) }
@@ -162,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func openFiles(_ pasteboard: NSPasteboard, userData: String?, error: AutoreleasingUnsafeMutablePointer<NSString?>) {
         let urls = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         guard !urls.isEmpty else {
-            error.pointee = "Select one or more files first." as NSString
+            error.pointee = L("Select one or more files first.") as NSString
             return
         }
         showWheel(for: urls, at: NSEvent.mouseLocation)
@@ -200,7 +200,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let wheelItems = items(for: mode, urls: urls)
         guard !wheelItems.isEmpty else {
-            hud.info("Nothing to \(mode.title.lowercased())", detail: "Kumquat has no \(mode.title.lowercased()) for this file type.")
+            switch mode {
+            case .convert: hud.info(L("Nothing to convert"), detail: L("Kumquat can't convert this file type."))
+            case .tools: hud.info(L("No tools"), detail: L("Kumquat has no tools for this file type."))
+            case .actions: hud.info(L("No actions"), detail: L("Kumquat has no actions for this file type."))
+            }
             return
         }
         wheel.show(mode: mode, items: wheelItems, urls: urls, at: wheelPoint(), interaction: .drag,
@@ -230,7 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let key = shortcut.carbonKey else { return }
         if !finderHotKey.register(code: key.code, modifiers: key.modifiers) {
             AppLog.error("Couldn't register \(shortcut.title); another app may own it")
-            hud.info("\(shortcut.title) is taken", detail: "Another app uses it. Pick a different shortcut in Settings ▸ Wheels.")
+            hud.info(L("\(shortcut.title) is taken"), detail: L("Another app uses it. Pick a different shortcut in Settings ▸ Wheels."))
         }
     }
 
@@ -241,10 +245,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .success(let urls) where !urls.isEmpty:
             showWheel(for: urls, at: wheelPoint())
         case .success:
-            hud.info("Nothing selected in Finder", detail: "Select files in Finder, then press \(settings.finderShortcut.title).")
+            hud.info(L("Nothing selected in Finder"), detail: L("Select files in Finder, then press \(settings.finderShortcut.title)."))
         case .failure(let error):
             AppLog.error("Finder selection: \(error.localizedDescription)")
-            hud.failure("Couldn't read the Finder selection", detail: error.localizedDescription)
+            hud.failure(L("Couldn't read the Finder selection"), detail: error.localizedDescription)
         }
     }
 
@@ -280,7 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func prepareJobOptions(for urls: [URL], separateResults: Bool, unattended: Bool = false) -> ConversionOptions? {
         var options = options(for: urls)
         if settings.outputMode == .ask, !unattended {
-            guard let folder = Prompt.chooseFolder(title: "Save results to") else { return nil }
+            guard let folder = Prompt.chooseFolder(title: L("Save results to")) else { return nil }
             options.outputLocation = .folder(folder.path)
             // A folder chosen for this job wins over the per-kind folders.
             options.kindFolders = [:]
@@ -306,7 +310,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                          askForOptions: Bool = false, title presetName: String? = nil, unattended: Bool = false) {
         let urls = dropped.filter { FormatRegistry.format(for: $0) != target }
         guard !urls.isEmpty else {
-            hud.info("Already \(target.shortName)", detail: "Nothing to convert.")
+            hud.info(L("Already \(target.shortName)"), detail: L("Nothing to convert."))
             return
         }
         var extra = settings.formatDefaults[target.id] ?? OptionOverrides()
@@ -431,14 +435,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// "Undo <last job>" for the menu bar; nil when there's nothing to undo.
-    var undoTitle: String? { undoHistory.last.map { "Undo \($0.record.title)" } }
+    var undoTitle: String? { undoHistory.last.map { L("Undo \($0.record.title)") } }
 
     /// Moves a finished job's results to the Trash and puts back the files it replaced or trashed.
     /// `job` nil undoes the most recent job.
     func undo(job: Int? = nil) {
         let index = job.map { job in undoHistory.lastIndex { $0.job == job } } ?? undoHistory.indices.last
         guard let index else {
-            hud.info("Nothing to undo", detail: "That job was already undone, or it's older than the last 10 jobs.")
+            hud.info(L("Nothing to undo"), detail: L("That job was already undone, or it's older than the last 10 jobs."))
             return
         }
         let record = undoHistory.remove(at: index).record
@@ -451,9 +455,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AppLog.info("Undid \(record.title): \(summary.joined(separator: ", ")); problems: \(report.problems.count)")
         report.problems.forEach { AppLog.error("Undo: \($0)") }
         if report.problems.isEmpty {
-            hud.success("Undone", detail: summary.isEmpty ? record.title : summary.joined(separator: ", "))
+            hud.success(L("Undone"), detail: summary.isEmpty ? record.title : summary.joined(separator: ", "))
         } else {
-            hud.failure("Partly undone", detail: (summary + report.problems).joined(separator: "\n"))
+            hud.failure(L("Partly undone"), detail: (summary + report.problems).joined(separator: "\n"))
         }
     }
 
@@ -468,7 +472,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recordOutputs(outputs)
         failures.forEach { AppLog.error($0) }
         let start = jobStarts.removeValue(forKey: job)
-        let record = JobRecord(title: start?.title ?? "Last job", outputs: outputs,
+        let record = JobRecord(title: start?.title ?? L("Last job"), outputs: outputs,
                                trashed: jobJournals.removeValue(forKey: job)?.trashed ?? [])
         if !record.isEmpty {
             undoHistory.append((job, record))
@@ -476,30 +480,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if cancelledJobs.remove(job) != nil {
             if hud.isCurrent(job) {
-                hud.info("Cancelled", detail: outputs.isEmpty ? "Nothing was saved." : "\(outputs.count) file(s) finished before cancelling.")
+                hud.info(L("Cancelled"), detail: outputs.isEmpty ? L("Nothing was saved.") : L("\(outputs.count) file(s) finished before cancelling."))
             }
             return
         }
         if let start, settings.notifyWhenDone.shouldNotify(after: Date().timeIntervalSince(start.date)),
            !(outputs.isEmpty && failures.isEmpty && message == nil) {
-            let headline = failures.isEmpty ? "Done: \(start.title)"
-                : outputs.isEmpty ? "Couldn't finish: \(start.title)" : "Partly done: \(start.title)"
+            let headline = failures.isEmpty ? L("Done: \(start.title)")
+                : outputs.isEmpty ? L("Couldn't finish: \(start.title)") : L("Partly done: \(start.title)")
             let body = failures.isEmpty
-                ? message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : "\(outputs.count) files saved")
+                ? message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : L("\(outputs.count) files saved"))
                 : failures.joined(separator: "\n")
             JobNotifier.shared.notify(title: headline, body: body, outputs: outputs, job: job, undoable: !record.isEmpty)
         }
         // A newer job owns the HUD; don't replace its progress with this result.
         guard hud.isCurrent(job) else { return }
         if failures.isEmpty {
-            let detail = message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : "\(outputs.count) files saved")
+            let detail = message ?? (outputs.count == 1 ? outputs[0].lastPathComponent : L("\(outputs.count) files saved"))
             hud.success(outputs.isEmpty ? "Done" : "Saved", detail: detail, reveal: outputs)
             settings.play(settings.successSound)
         } else if outputs.isEmpty {
-            hud.failure("Couldn't finish", detail: failures.joined(separator: "\n"))
+            hud.failure(L("Couldn't finish"), detail: failures.joined(separator: "\n"))
             settings.play(settings.failureSound)
         } else {
-            hud.failure("\(outputs.count) saved, \(failures.count) failed", detail: failures.joined(separator: "\n"), reveal: outputs)
+            hud.failure(L("\(outputs.count) saved, \(failures.count) failed"), detail: failures.joined(separator: "\n"), reveal: outputs)
         }
     }
 }

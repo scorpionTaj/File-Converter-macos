@@ -20,16 +20,16 @@ public enum PageRanges {
                 upper = lower
             }
             guard lower >= 1, upper <= pageCount, lower <= upper else {
-                throw KumquatError.invalidInput("“\(part)” is outside pages 1–\(pageCount).")
+                throw KumquatError.invalidInput(L("“\(part)” is outside pages 1–\(pageCount)."))
             }
             for page in lower...upper { pages.insert(page - 1) }
         }
-        guard !pages.isEmpty else { throw KumquatError.invalidInput("No pages given.") }
+        guard !pages.isEmpty else { throw KumquatError.invalidInput(L("No pages given.")) }
         return pages.sorted()
     }
 
     private static func number(_ text: String, in input: String) throws -> Int {
-        guard let value = Int(text) else { throw KumquatError.invalidInput("“\(input)” isn't a page list like 1, 3-5.") }
+        guard let value = Int(text) else { throw KumquatError.invalidInput(L("“\(input)” isn't a page list like 1, 3-5.")) }
         return value
     }
 }
@@ -61,7 +61,7 @@ public enum ResizeSpec: Equatable, Sendable {
         } else if let width = Int(cleaned), width > 0 {
             return .width(width)
         }
-        throw KumquatError.invalidInput("“\(text)” isn't a size. Try 50%, 1280 or 1280x720.")
+        throw KumquatError.invalidInput(L("“\(text)” isn't a size. Try 50%, 1280 or 1280x720."))
     }
 
     /// Target pixel size for an image, keeping the aspect ratio.
@@ -94,7 +94,7 @@ public struct TimeRange: Equatable, Sendable {
         guard parts.count == 2 else { throw invalid(text) }
         let start = parts[0].isEmpty ? 0 : try seconds(parts[0], text)
         let end = parts[1].isEmpty ? nil : try seconds(parts[1], text)
-        if let end, end <= start { throw KumquatError.invalidInput("The end must be after the start.") }
+        if let end, end <= start { throw KumquatError.invalidInput(L("The end must be after the start.")) }
         return TimeRange(start: start, end: end)
     }
 
@@ -105,7 +105,7 @@ public struct TimeRange: Equatable, Sendable {
     }
 
     static func invalid(_ text: String) -> KumquatError {
-        .invalidInput("“\(text)” isn't a time range. Try 0:05-1:30.")
+        .invalidInput(L("“\(text)” isn't a time range. Try 0:05-1:30."))
     }
 
     /// The text `parse` reads back: "12.400-18.000", or "12.400-" when it runs to the end.
@@ -142,7 +142,7 @@ public enum PageArrangement {
             var rotation = 0
             if let marker = part.firstIndex(of: "r") {
                 guard let degrees = Int(part[part.index(after: marker)...]), [0, 90, 180, 270, -90].contains(degrees) else {
-                    throw KumquatError.invalidInput("“\(rawPart)”: rotation must be r90, r180 or r270.")
+                    throw KumquatError.invalidInput(L("“\(String(rawPart))”: rotation must be r90, r180 or r270."))
                 }
                 rotation = degrees
                 part = String(part[..<marker]).trimmingCharacters(in: .whitespaces)
@@ -150,16 +150,16 @@ public enum PageArrangement {
             let bounds = part.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
                 .map { $0.trimmingCharacters(in: .whitespaces) }
             guard let first = Int(bounds[0]), bounds.count == 1 || Int(bounds[1]) != nil else {
-                throw KumquatError.invalidInput("“\(text)” isn't a page order like 3, 1-2, 4r90.")
+                throw KumquatError.invalidInput(L("“\(text)” isn't a page order like 3, 1-2, 4r90."))
             }
             let last = bounds.count == 2 ? Int(bounds[1])! : first
             guard (1...pageCount).contains(first), (1...pageCount).contains(last) else {
-                throw KumquatError.invalidInput("“\(rawPart.trimmingCharacters(in: .whitespaces))” is outside pages 1–\(pageCount).")
+                throw KumquatError.invalidInput(L("“\(rawPart.trimmingCharacters(in: .whitespaces))” is outside pages 1–\(pageCount)."))
             }
             let pages = first <= last ? Array(first...last) : Array((last...first).reversed())
             entries += pages.map { Entry(page: $0 - 1, rotation: rotation) }
         }
-        guard !entries.isEmpty else { throw KumquatError.invalidInput("No pages given.") }
+        guard !entries.isEmpty else { throw KumquatError.invalidInput(L("No pages given.")) }
         return entries
     }
 

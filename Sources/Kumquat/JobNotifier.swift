@@ -1,4 +1,5 @@
 import AppKit
+import KumquatCore
 @preconcurrency import UserNotifications
 
 /// When finished jobs post a macOS notification.
@@ -9,9 +10,9 @@ enum NotificationPolicy: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .never: return "Never"
-        case .longJobs: return "For jobs over 10 seconds"
-        case .always: return "Always"
+        case .never: return L("Never")
+        case .longJobs: return L("For jobs over 10 seconds")
+        case .always: return L("Always")
         }
     }
 
@@ -47,9 +48,9 @@ final class JobNotifier: NSObject {
     func configure() {
         guard let center else { return }
         center.delegate = self
-        let reveal = UNNotificationAction(identifier: Action.reveal, title: "Show in Finder")
-        let open = UNNotificationAction(identifier: Action.open, title: "Open")
-        let undo = UNNotificationAction(identifier: Action.undo, title: "Undo", options: [.destructive])
+        let reveal = UNNotificationAction(identifier: Action.reveal, title: L("Show in Finder"))
+        let open = UNNotificationAction(identifier: Action.open, title: L("Open"))
+        let undo = UNNotificationAction(identifier: Action.undo, title: L("Undo"), options: [.destructive])
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Category.plain, actions: [reveal, open], intentIdentifiers: []),
             UNNotificationCategory(identifier: Category.undoable, actions: [reveal, open, undo], intentIdentifiers: []),

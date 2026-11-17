@@ -145,7 +145,12 @@ final class RadialMenuView: NSView {
                 let labelCenter = CGPoint(x: hub.x + CGFloat(cos(radians)) * radius, y: hub.y + CGFloat(sin(radians)) * radius)
                 var color = isHovered && item.isAvailable ? theme.accentText : textColor
                 if !item.isAvailable { color = color.withAlphaComponent(0.35) }
-                drawLabel(for: item, at: labelCenter, color: color, compact: ring.outer - ring.inner < 90)
+                // Long titles (often translations) wrap onto a second line within the segment's width at
+                // the label, instead of spilling into the neighbours.
+                let room = horizontalRoom(at: CGPoint(x: labelCenter.x, y: labelCenter.y - 6 * scale), ring: ring,
+                                          centerAngle: center, halfSpan: step / 2 - gap)
+                let maxWidth = min(max(room * 0.9, 44 * scale), 120 * scale)
+                drawLabel(for: item, at: labelCenter, color: color, compact: ring.outer - ring.inner < 90, maxWidth: maxWidth)
                 if item.isPinned {
                     let pinRadius = (ring.outer - 9) * scale
                     let pinCenter = CGPoint(x: hub.x + CGFloat(cos(radians)) * pinRadius, y: hub.y + CGFloat(sin(radians)) * pinRadius)
@@ -156,14 +161,45 @@ final class RadialMenuView: NSView {
         drawHub(base: theme.hub, stroke: stroke, textColor: textColor, accent: accent, shadow: shadow)
     }
 
-    private func drawLabel(for item: WheelItem, at point: CGPoint, color: NSColor, compact: Bool) {
+    /// Width of the segment along a horizontal line through `point`: how far one can go left and right
+    /// before leaving the ring or crossing the segment's edges, doubled from the nearer side so centred
+    /// text fits.
+    private func horizontalRoom(at point: CGPoint, ring: Ring, centerAngle: Double, halfSpan: Double) -> CGFloat {
+        func inside(_ p: CGPoint) -> Bool {
+            let dx = Double(p.x - hub.x), dy = Double(p.y - hub.y)
+            let r = CGFloat((dx * dx + dy * dy).squareRoot())
+            guard r >= ring.inner * scale, r <= ring.outer * scale else { return false }
+            var delta = atan2(dy, dx) * 180 / .pi - centerAngle
+            delta = (delta + 540).truncatingRemainder(dividingBy: 360) - 180
+            return abs(delta) <= halfSpan
+        }
+        func reach(_ direction: CGFloat) -> CGFloat {
+            var distance: CGFloat = 0
+            while distance < 160 * scale, inside(CGPoint(x: point.x + direction * (distance + 1), y: point.y)) { distance += 1 }
+            return distance
+        }
+        return 2 * min(reach(-1), reach(1))
+    }
+
+    private func drawLabel(for item: WheelItem, at point: CGPoint, color: NSColor, compact: Bool, maxWidth: CGFloat) {
         let fontSize: CGFloat = (compact ? 10 : 11) * scale
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        paragraph.lineBreakMode = .byWordWrapping
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: fontSize, weight: .semibold),
             .foregroundColor: color,
+            .paragraphStyle: paragraph,
         ]
         let title = NSAttributedString(string: item.title, attributes: attributes)
-        let titleSize = title.size()
+        // At most two lines; a single short line keeps its natural width.
+        let lineHeight = ceil(NSFont.systemFont(ofSize: fontSize, weight: .semibold).boundingRectForFont.height)
+        let bounds = title.boundingRect(with: NSSize(width: maxWidth, height: lineHeight * 2),
+                                        options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
+        let titleSize = NSSize(width: maxWidth, height: min(ceil(bounds.height), lineHeight * 2))
+        func drawTitle(at origin: NSPoint) {
+            title.draw(with: NSRect(origin: origin, size: titleSize), options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
+        }
         let symbolSize: CGFloat = (compact ? 14 : 17) * scale
         let configuration = NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .medium)
         if let symbol = NSImage(systemSymbolName: item.symbol, accessibilityDescription: item.title)?
@@ -171,15 +207,15 @@ final class RadialMenuView: NSView {
             let tinted = symbol.tinted(color)
             let size = tinted.size
             tinted.draw(in: NSRect(x: point.x - size.width / 2, y: point.y + 1, width: size.width, height: size.height))
-            title.draw(at: NSPoint(x: point.x - titleSize.width / 2, y: point.y - titleSize.height - 1))
+            drawTitle(at: NSPoint(x: point.x - titleSize.width / 2, y: point.y - titleSize.height - 1))
         } else {
-            title.draw(at: NSPoint(x: point.x - titleSize.width / 2, y: point.y - titleSize.height / 2))
+            drawTitle(at: NSPoint(x: point.x - titleSize.width / 2, y: point.y - titleSize.height / 2))
         }
     }
 
     private func drawPin(at point: CGPoint, color: NSColor) {
         let configuration = NSImage.SymbolConfiguration(pointSize: 8 * scale, weight: .bold)
-        guard let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")?
+        guard let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: L("Pinned"))?
             .withSymbolConfiguration(configuration)?.tinted(color.withAlphaComponent(0.8)) else { return }
         pin.draw(in: NSRect(x: point.x - pin.size.width / 2, y: point.y - pin.size.height / 2,
                             width: pin.size.width, height: pin.size.height))
@@ -205,7 +241,7 @@ final class RadialMenuView: NSView {
             detail = item.unavailableReason ?? item.detail
         } else {
             headline = mode.title
-            detail = urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) items"
+            detail = urls.count == 1 ? urls[0].lastPathComponent : L("\(urls.count) items")
         }
         let width = radius * 1.7
         let paragraph = NSMutableParagraphStyle()
@@ -228,7 +264,7 @@ final class RadialMenuView: NSView {
         detailText.draw(with: NSRect(x: hub.x - width / 2, y: hub.y - 34 * scale, width: width, height: 34 * scale),
                         options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine])
         if interaction == .click {
-            let hint = NSAttributedString(string: "click to switch · right-click pins", attributes: [
+            let hint = NSAttributedString(string: L("click to switch · right-click pins"), attributes: [
                 .font: NSFont.systemFont(ofSize: 8 * scale),
                 .foregroundColor: textColor.withAlphaComponent(0.45),
                 .paragraphStyle: paragraph,
@@ -283,7 +319,7 @@ final class RadialMenuView: NSView {
             PromiseInbox.receive(from: pasteboard) { [weak self] received, message in
                 self?.isPerformingDrop = false
                 if received.isEmpty {
-                    self?.onDropFailed?(message ?? "The file couldn't be received.")
+                    self?.onDropFailed?(message ?? L("The file couldn't be received."))
                 } else {
                     self?.onSelect?(item, received)
                 }

@@ -54,18 +54,18 @@ public enum AnnotationRenderer {
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
                                       bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            throw KumquatError.conversionFailed("Image is too large to annotate.")
+            throw KumquatError.conversionFailed(L("Image is too large to annotate."))
         }
         context.draw(base, in: CGRect(x: 0, y: 0, width: width, height: height))
         draw(annotations, base: base, in: context)
-        guard var result = context.makeImage() else { throw KumquatError.conversionFailed("Couldn't render the image.") }
+        guard var result = context.makeImage() else { throw KumquatError.conversionFailed(L("Couldn't render the image.")) }
         if let crop {
             let bounds = CGRect(x: 0, y: 0, width: width, height: height)
             let clipped = crop.standardized.intersection(bounds).integral
-            guard clipped.width >= 1, clipped.height >= 1 else { throw KumquatError.invalidInput("The crop area is empty.") }
+            guard clipped.width >= 1, clipped.height >= 1 else { throw KumquatError.invalidInput(L("The crop area is empty.")) }
             // CGImage cropping uses a top-left origin.
             let flipped = CGRect(x: clipped.minX, y: CGFloat(height) - clipped.maxY, width: clipped.width, height: clipped.height)
-            guard let cropped = result.cropping(to: flipped) else { throw KumquatError.conversionFailed("Couldn't crop.") }
+            guard let cropped = result.cropping(to: flipped) else { throw KumquatError.conversionFailed(L("Couldn't crop.")) }
             result = cropped
         }
         return result

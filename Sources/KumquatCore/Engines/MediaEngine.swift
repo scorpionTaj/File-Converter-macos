@@ -75,7 +75,7 @@ public struct MediaEngine: ConversionEngine {
         }
         if tools.ffmpeg == nil { throw KumquatError.missingDependencies([.ffmpeg]) }
         let hint = format == .webp ? "brew install webp" : "brew install libavif"
-        throw KumquatError.engineUnavailable("A \(format.name) encoder (your FFmpeg lacks one; \(hint) adds it)")
+        throw KumquatError.engineUnavailable(L("A \(format.name) encoder (your FFmpeg lacks one; \(hint) adds it)"))
     }
 
     static func runTool(_ tool: ToolID, input: URL, source: Format, parameter: String? = nil,
@@ -86,7 +86,8 @@ public struct MediaEngine: ConversionEngine {
         if tool == .mediaTrim {
             let range = try TimeRange.parse(parameter ?? "")
             if let duration = probe?.duration, range.start >= duration {
-                throw KumquatError.invalidInput("The clip is only \(Subtitles.formatTimestamp(duration, millisecondSeparator: ".")) long.")
+                let length = Subtitles.formatTimestamp(duration, millisecondSeparator: ".")
+            throw KumquatError.invalidInput(L("The clip is only \(length) long."))
             }
             let output = context.scratchURL(FFmpegRecipes.toolOutputFormat(tool, source: source).fileExtension)
             let args = FFmpegRecipes.trimArguments(input: input.path, output: output.path, source: source, range: range,
@@ -98,13 +99,13 @@ public struct MediaEngine: ConversionEngine {
         if tool == .mediaSplitChapters { return try await splitChapters(input, source: source, context: context) }
         if tool == .videoToGIF { return try await makeGIF(input, parameter: parameter, context: context) }
         if tool == .videoExtractAudio, probe?.hasAudio == false {
-            throw KumquatError.nothingToDo("\(input.lastPathComponent) has no audio track.")
+            throw KumquatError.nothingToDo(L("\(input.lastPathComponent) has no audio track."))
         }
         let outputFormat = FFmpegRecipes.toolOutputFormat(tool, source: source)
         let output = context.scratchURL(outputFormat.fileExtension)
         guard let args = FFmpegRecipes.toolArguments(tool, input: input.path, output: output.path, source: source,
                                                      probe: probe, options: context.options, encoders: encoders) else {
-            throw KumquatError.nothingToDo("\(tool.title) doesn't apply to \(input.lastPathComponent).")
+            throw KumquatError.nothingToDo(L("\(tool.title) doesn't apply to \(input.lastPathComponent)."))
         }
         try await run(ffmpeg, args, duration: probe?.duration, context: context)
 
@@ -125,7 +126,7 @@ enum SizeReport {
     static func requireSavings(original: URL, result: URL) throws -> String {
         let after = size(of: result)
         guard after > 0, after < size(of: original) else {
-            throw KumquatError.nothingToDo("\(original.lastPathComponent) is already as small as Kumquat can make it.")
+            throw KumquatError.nothingToDo(L("\(original.lastPathComponent) is already as small as Kumquat can make it."))
         }
         return savings(original: original, result: result)
     }
@@ -133,9 +134,9 @@ enum SizeReport {
     /// "Saved 42%" / "Already compact".
     static func savings(original: URL, result: URL) -> String {
         let before = size(of: original), after = size(of: result)
-        guard before > 0, after > 0 else { return "Done" }
+        guard before > 0, after > 0 else { return L("Done") }
         let percent = Int((Double(before - after) / Double(before) * 100).rounded())
-        return percent > 0 ? "Saved \(percent)%" : "Already compact (\(percent)%)"
+        return percent > 0 ? L("Saved \(percent)%") : L("Already compact (\(percent)%)")
     }
 }
 

@@ -1,5 +1,6 @@
 import AppKit
 import Carbon.HIToolbox
+import KumquatCore
 
 /// System-wide shortcut that opens the wheel for the files selected in Finder.
 enum FinderShortcut: String, CaseIterable, Identifiable {
@@ -9,7 +10,7 @@ enum FinderShortcut: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .off: return "Off"
+        case .off: return L("Off")
         case .controlOptionK: return "⌃⌥K"
         case .optionCommandK: return "⌥⌘K"
         case .controlShiftK: return "⌃⇧K"
@@ -76,7 +77,7 @@ enum FinderSelection {
         var errorDescription: String? {
             switch self {
             case .notAllowed:
-                return "Allow Kumquat to control Finder in System Settings ▸ Privacy & Security ▸ Automation."
+                return L("Allow Kumquat to control Finder in System Settings ▸ Privacy & Security ▸ Automation.")
             case .failed(let message):
                 return message
             }
@@ -100,7 +101,7 @@ enum FinderSelection {
             let code = error?[NSAppleScript.errorNumber] as? Int
             // -1743: the user hasn't allowed (or denied) Automation for Finder.
             if code == -1743 { return .failure(.notAllowed) }
-            return .failure(.failed(error?[NSAppleScript.errorMessage] as? String ?? "Finder didn't answer."))
+            return .failure(.failed(error?[NSAppleScript.errorMessage] as? String ?? L("Finder didn't answer.")))
         }
         let urls = (output.stringValue ?? "")
             .split(separator: "\n")

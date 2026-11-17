@@ -1,4 +1,5 @@
 import AppKit
+import KumquatCore
 
 /// Offers to move Kumquat into Applications when it's launched from the disk image, Downloads or elsewhere,
 /// then relaunches the installed copy (and ejects the disk image).
@@ -12,14 +13,14 @@ enum ApplicationsMover {
 
         let fromDiskImage = bundle.path.hasPrefix("/Volumes/")
         let alert = NSAlert()
-        alert.messageText = "Move Kumquat to your Applications folder?"
+        alert.messageText = L("Move Kumquat to your Applications folder?")
         alert.informativeText = fromDiskImage
-            ? "Kumquat is running from the disk image. Moving it to Applications keeps it available after you eject the image and lets it open at login."
-            : "Kumquat is running from \(bundle.deletingLastPathComponent().lastPathComponent). Applications is the right home for it, and Launch at Login works best from there."
-        alert.addButton(withTitle: "Move to Applications")
-        alert.addButton(withTitle: "Not Now")
+            ? L("Kumquat is running from the disk image. Moving it to Applications keeps it available after you eject the image and lets it open at login.")
+            : L("Kumquat is running from \(bundle.deletingLastPathComponent().lastPathComponent). Applications is the right home for it, and Launch at Login works best from there.")
+        alert.addButton(withTitle: L("Move to Applications"))
+        alert.addButton(withTitle: L("Not Now"))
         alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "Don't ask again"
+        alert.suppressionButton?.title = L("Don't ask again")
         NSApp.activate(ignoringOtherApps: true)
         let response = alert.runModal()
         if alert.suppressionButton?.state == .on { settings.offerMoveToApplications = false }
@@ -30,7 +31,7 @@ enum ApplicationsMover {
         } catch {
             AppLog.error("Move to Applications failed: \(error.localizedDescription)")
             let failure = NSAlert(error: error)
-            failure.messageText = "Kumquat couldn't be moved"
+            failure.messageText = L("Kumquat couldn't be moved")
             failure.runModal()
         }
     }

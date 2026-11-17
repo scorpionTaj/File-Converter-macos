@@ -1,5 +1,6 @@
 import AppKit
 import UniformTypeIdentifiers
+import KumquatCore
 
 /// Handles file-promise drags (Photos, Mail attachments, Safari images, …): items that only become real
 /// files once the drop happens.
@@ -63,7 +64,7 @@ enum PromiseInbox {
     static func receive(from pasteboard: NSPasteboard, completion: @escaping @MainActor ([URL], String?) -> Void) {
         let promised = receivers(on: pasteboard)
         guard !promised.isEmpty else {
-            Task { @MainActor in completion([], "Nothing was dropped.") }
+            Task { @MainActor in completion([], L("Nothing was dropped.")) }
             return
         }
         let destination = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -126,7 +127,7 @@ private final class PromiseCollector: @unchecked Sendable {
         guard !finished else { lock.unlock(); return }
         finished = true
         let result = urls.sorted { $0.lastPathComponent < $1.lastPathComponent }
-        let message = result.isEmpty ? (errors.first ?? "The app didn't deliver the file.") : nil
+        let message = result.isEmpty ? (errors.first ?? L("The app didn't deliver the file.")) : nil
         lock.unlock()
         let completion = self.completion
         Task { @MainActor in completion(result, message) }

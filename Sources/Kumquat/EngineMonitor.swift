@@ -61,10 +61,10 @@ enum HelperInstaller {
         guard let package = dependency.brewPackage else { return }
         guard let brew = homebrew else {
             let alert = NSAlert()
-            alert.messageText = "Homebrew isn't installed"
-            alert.informativeText = "Kumquat installs helpers with Homebrew, the free macOS package manager. Install it from brew.sh, then try again."
-            alert.addButton(withTitle: "Open brew.sh")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = L("Homebrew isn't installed")
+            alert.informativeText = L("Kumquat installs helpers with Homebrew, the free macOS package manager. Install it from brew.sh, then try again.")
+            alert.addButton(withTitle: L("Open brew.sh"))
+            alert.addButton(withTitle: L("Cancel"))
             NSApp.activate(ignoringOtherApps: true)
             if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: "https://brew.sh") {
                 NSWorkspace.shared.open(url)

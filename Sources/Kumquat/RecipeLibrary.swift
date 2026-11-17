@@ -57,7 +57,8 @@ struct RecipesSection: View {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(recipe.name).fontWeight(.medium)
-                        Text("\(recipe.from.map(\.shortName).joined(separator: ", ")) → \(recipe.to.shortName) · \(recipe.file.lastPathComponent) · stops after \(Int(recipe.timeout)) s")
+                        let formats = recipe.from.map(\.shortName).joined(separator: ", ")
+                        Text(L("\(formats) → \(recipe.to.shortName) · \(recipe.file.lastPathComponent) · stops after \(Int(recipe.timeout)) s"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

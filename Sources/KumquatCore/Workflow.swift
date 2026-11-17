@@ -119,9 +119,9 @@ public struct OptionOverrides: Codable, Hashable, Sendable {
         if let maxImageDimension, maxImageDimension > 0 { parts.append("\(maxImageDimension) px") }
         if let videoCRF { parts.append("CRF \(videoCRF)") }
         if let maxVideoHeight, maxVideoHeight > 0 { parts.append("\(maxVideoHeight)p") }
-        if removeAudio == true { parts.append("no audio") }
+        if removeAudio == true { parts.append(L("no audio")) }
         if let audioBitrateKbps { parts.append("\(audioBitrateKbps) kbps") }
-        if let pdfPages, !pdfPages.isEmpty { parts.append("pages \(pdfPages)") }
+        if let pdfPages, !pdfPages.isEmpty { parts.append(L("pages \(pdfPages)")) }
         return parts.joined(separator: " · ")
     }
 }
@@ -148,6 +148,6 @@ public struct OutputPreset: Codable, Hashable, Identifiable, Sendable {
     public var detail: String {
         let format = targetFormat?.name ?? target.uppercased()
         let summary = overrides.summary
-        return summary.isEmpty ? "Convert to \(format)" : "\(format) · \(summary)"
+        return summary.isEmpty ? L("Convert to \(format)") : "\(format) · \(summary)"
     }
 }

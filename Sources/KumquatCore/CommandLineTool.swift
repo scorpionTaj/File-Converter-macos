@@ -45,7 +45,7 @@ public enum CommandLineTool {
                                fileManager: FileManager = .default) throws -> URL? {
         let target = executable(inApp: app)
         guard fileManager.isExecutableFile(atPath: target.path) else {
-            throw KumquatError.conversionFailed("\(app.lastPathComponent) doesn't contain \(name).")
+            throw KumquatError.conversionFailed(L("\(app.lastPathComponent) doesn't contain \(name)."))
         }
         if case .linked(let link) = status(app: app, directories: directories, fileManager: fileManager) { return link }
         for directory in directories {
@@ -72,7 +72,7 @@ public enum CommandLineTool {
         let existing = (try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) != nil
             || FileManager.default.fileExists(atPath: link.path)
         if existing, !isOurs(link) {
-            throw KumquatError.conversionFailed("\(link.path) already exists and isn't Kumquat's, so it was left alone.")
+            throw KumquatError.conversionFailed(L("\(link.path) already exists and isn't Kumquat's, so it was left alone."))
         }
         let command = "mkdir -p /usr/local/bin && ln -sf \(shellQuoted(target.path)) \(shellQuoted(link.path))"
         let script = "do shell script \(IWorkScripts.quoted(command)) with administrator privileges"

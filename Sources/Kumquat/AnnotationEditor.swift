@@ -19,14 +19,14 @@ enum AnnotationTool: Int, CaseIterable {
 
     var title: String {
         switch self {
-        case .pen: return "Pen"
-        case .arrow: return "Arrow"
-        case .rectangle: return "Rectangle"
-        case .ellipse: return "Ellipse"
-        case .highlight: return "Highlight"
-        case .text: return "Text"
-        case .pixelate: return "Pixelate (hides content permanently)"
-        case .crop: return "Crop"
+        case .pen: return L("Pen")
+        case .arrow: return L("Arrow")
+        case .rectangle: return L("Rectangle")
+        case .ellipse: return L("Ellipse")
+        case .highlight: return L("Highlight")
+        case .text: return L("Text")
+        case .pixelate: return L("Pixelate (hides content permanently)")
+        case .crop: return L("Crop")
         }
     }
 }
@@ -60,7 +60,7 @@ final class AnnotationWindowController: NSWindowController, NSWindowDelegate {
                 editor.window?.makeKeyAndOrderFront(nil)
                 editor.window?.makeFirstResponder(editor.canvas)
             } catch {
-                hud.failure("Couldn't open the image", detail: error.localizedDescription)
+                hud.failure(L("Couldn't open the image"), detail: error.localizedDescription)
             }
         }
     }
@@ -81,7 +81,7 @@ final class AnnotationWindowController: NSWindowController, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
-        window.title = "Annotate — \(url.lastPathComponent)"
+        window.title = L("Annotate — \(url.lastPathComponent)")
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 400)
         super.init(window: window)
@@ -110,18 +110,18 @@ final class AnnotationWindowController: NSWindowController, NSWindowDelegate {
         colorWell.color = NSColor(red: 0.96, green: 0.22, blue: 0.20, alpha: 1)
         colorWell.target = self
         colorWell.action = #selector(colorChanged)
-        colorWell.toolTip = "Colour"
+        colorWell.toolTip = L("Colour")
 
         widthSlider.target = self
         widthSlider.action = #selector(widthChanged)
-        widthSlider.toolTip = "Line width / text size"
+        widthSlider.toolTip = L("Line width / text size")
 
-        configure(undoButton, symbol: "arrow.uturn.backward", tip: "Undo (⌘Z)", action: #selector(undo))
-        configure(redoButton, symbol: "arrow.uturn.forward", tip: "Redo (⇧⌘Z)", action: #selector(redo))
+        configure(undoButton, symbol: "arrow.uturn.backward", tip: L("Undo (⌘Z)"), action: #selector(undo))
+        configure(redoButton, symbol: "arrow.uturn.forward", tip: L("Redo (⇧⌘Z)"), action: #selector(redo))
 
-        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        let cancel = NSButton(title: L("Cancel"), target: self, action: #selector(cancel))
         cancel.keyEquivalent = "\u{1b}"
-        let save = NSButton(title: "Save Copy", target: self, action: #selector(save))
+        let save = NSButton(title: L("Save Copy"), target: self, action: #selector(save))
         save.keyEquivalent = "\r"
         save.bezelColor = .systemOrange
 
@@ -191,9 +191,9 @@ final class AnnotationWindowController: NSWindowController, NSWindowDelegate {
     @objc private func cancel() {
         if canvas.hasChanges {
             let alert = NSAlert()
-            alert.messageText = "Discard your annotations?"
-            alert.addButton(withTitle: "Discard")
-            alert.addButton(withTitle: "Keep Editing")
+            alert.messageText = L("Discard your annotations?")
+            alert.addButton(withTitle: L("Discard"))
+            alert.addButton(withTitle: L("Keep Editing"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
         window?.close()
@@ -216,11 +216,11 @@ final class AnnotationWindowController: NSWindowController, NSWindowDelegate {
             do {
                 let rendered = try AnnotationRenderer.render(image, annotations: annotations, crop: crop)
                 try await ImageEngine.save(rendered, to: destination, format: format)
-                hud.success("Saved", detail: destination.lastPathComponent, reveal: [destination])
+                hud.success(L("Saved"), detail: destination.lastPathComponent, reveal: [destination])
                 onSaved(destination)
                 window?.close()
             } catch {
-                hud.failure("Couldn't save", detail: error.localizedDescription)
+                hud.failure(L("Couldn't save"), detail: error.localizedDescription)
             }
         }
     }
@@ -403,7 +403,7 @@ final class AnnotationCanvas: NSView, NSTextFieldDelegate {
         field.backgroundColor = NSColor(white: 1, alpha: 0.85)
         field.isBordered = true
         field.focusRingType = .none
-        field.placeholderString = "Type, then press Return"
+        field.placeholderString = L("Type, then press Return")
         field.delegate = self
         field.target = self
         field.action = #selector(textFieldDone)

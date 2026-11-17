@@ -33,6 +33,11 @@ cp "$BIN_DIR/kumquat-cli" "$APP/Contents/Resources/bin/kumquat-cli"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD_NUMBER/" Resources/Info.plist > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
+echo "▸ Translations"
+# Untranslated strings show in English; CI fails on them (scripts/strings.py check), local builds just warn.
+python3 scripts/strings.py check >/dev/null || echo "  ⚠︎ Some strings aren't translated yet: run scripts/strings.py check"
+python3 scripts/strings.py compile "$APP/Contents/Resources"
+
 # Finder Quick Action and Share extension: one binary, two bundles, each with its own Info.plist.
 EXTENSIONS=(QuickAction Share)
 for EXT in "${EXTENSIONS[@]}"; do

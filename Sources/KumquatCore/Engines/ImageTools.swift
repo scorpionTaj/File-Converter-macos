@@ -11,7 +11,7 @@ extension ImageEngine {
     /// it adds no detail that wasn't there, but keeps edges much cleaner than a plain resize.
     static func upscaled(_ image: CGImage, factor: CGFloat) throws -> CGImage {
         guard CGFloat(max(image.width, image.height)) * factor <= CGFloat(maxUpscaledSide) else {
-            throw KumquatError.nothingToDo("Already too large to upscale (the result would be over \(maxUpscaledSide)px).")
+            throw KumquatError.nothingToDo(L("Already too large to upscale (the result would be over \(maxUpscaledSide)px)."))
         }
         let input = CIImage(cgImage: image)
         let scaled = input
@@ -22,7 +22,7 @@ extension ImageEngine {
         guard let result = CIContext().createCGImage(scaled, from: extent,
                                                      format: .RGBA8,
                                                      colorSpace: image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)) else {
-            throw KumquatError.conversionFailed("Couldn't upscale the image.")
+            throw KumquatError.conversionFailed(L("Couldn't upscale the image."))
         }
         return result
     }
@@ -69,7 +69,7 @@ public struct MetadataEdit: Equatable, Sendable {
             let part = rawPart.trimmingCharacters(in: .whitespaces)
             guard !part.isEmpty else { continue }
             guard let equals = part.firstIndex(of: "=") else {
-                throw KumquatError.invalidInput("“\(part)” should look like field=value, e.g. title=Beach.")
+                throw KumquatError.invalidInput(L("“\(part)” should look like field=value, e.g. title=Beach."))
             }
             let key = part[..<equals].trimmingCharacters(in: .whitespaces).lowercased()
             let value = part[part.index(after: equals)...].trimmingCharacters(in: .whitespaces)
@@ -78,7 +78,7 @@ public struct MetadataEdit: Equatable, Sendable {
             case "date", "taken", "datetaken":
                 if case .set(let raw) = change {
                     guard let date = parseDate(raw) else {
-                        throw KumquatError.invalidInput("“\(raw)” isn't a date. Use 2024-05-01 or 2024-05-01 14:30.")
+                        throw KumquatError.invalidInput(L("“\(raw)” isn't a date. Use 2024-05-01 or 2024-05-01 14:30."))
                     }
                     edit.date = .set(exifDate(date))
                 } else {
@@ -94,15 +94,15 @@ public struct MetadataEdit: Equatable, Sendable {
                     let numbers = value.split(separator: ",").map { Double($0.trimmingCharacters(in: .whitespaces)) }
                     guard numbers.count == 2, let lat = numbers[0], let lon = numbers[1],
                           (-90...90).contains(lat), (-180...180).contains(lon) else {
-                        throw KumquatError.invalidInput("“\(value)” isn't a location. Use latitude,longitude, e.g. 31.63,-8.01.")
+                        throw KumquatError.invalidInput(L("“\(value)” isn't a location. Use latitude,longitude, e.g. 31.63,-8.01."))
                     }
                     edit.location = .set(latitude: lat, longitude: lon)
                 }
             default:
-                throw KumquatError.invalidInput("Unknown field “\(key)”. Use date, title, artist, copyright or location.")
+                throw KumquatError.invalidInput(L("Unknown field “\(key)”. Use date, title, artist, copyright or location."))
             }
         }
-        guard !edit.isEmpty else { throw KumquatError.nothingToDo("No changes entered.") }
+        guard !edit.isEmpty else { throw KumquatError.nothingToDo(L("No changes entered.")) }
         return edit
     }
 
@@ -153,7 +153,7 @@ public struct MetadataEdit: Equatable, Sendable {
     func apply(_ input: URL, to output: URL) throws {
         guard let source = CGImageSourceCreateWithURL(input as CFURL, nil), let type = CGImageSourceGetType(source),
               let destination = CGImageDestinationCreateWithURL(output as CFURL, type, 1, nil) else {
-            throw KumquatError.invalidInput("\(input.lastPathComponent) isn't a readable image.")
+            throw KumquatError.invalidInput(L("\(input.lastPathComponent) isn't a readable image."))
         }
         let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil).flatMap { CGImageMetadataCreateMutableCopy($0) }
             ?? CGImageMetadataCreateMutable()
@@ -166,7 +166,7 @@ public struct MetadataEdit: Equatable, Sendable {
             for (dictionary, key, list) in Self.properties[field] ?? [] {
                 let typed: CFTypeRef = list ? [value] as CFArray : value as CFString
                 guard CGImageMetadataSetValueMatchingImageProperty(metadata, dictionary, key, typed) else {
-                    throw KumquatError.conversionFailed("Couldn't set \(key) on \(input.lastPathComponent).")
+                    throw KumquatError.conversionFailed(L("Couldn't set \(key) on \(input.lastPathComponent)."))
                 }
             }
         }
@@ -179,7 +179,7 @@ public struct MetadataEdit: Equatable, Sendable {
             ]
             for (key, value) in gps {
                 guard CGImageMetadataSetValueMatchingImageProperty(metadata, kCGImagePropertyGPSDictionary, key, value) else {
-                    throw KumquatError.conversionFailed("Couldn't set the location on \(input.lastPathComponent).")
+                    throw KumquatError.conversionFailed(L("Couldn't set the location on \(input.lastPathComponent)."))
                 }
             }
         }
@@ -188,7 +188,7 @@ public struct MetadataEdit: Equatable, Sendable {
         var error: Unmanaged<CFError>?
         guard CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, &error) else {
             let reason = error?.takeRetainedValue().localizedDescription ?? "unsupported format"
-            throw KumquatError.conversionFailed("Couldn't rewrite the metadata of \(input.lastPathComponent) (\(reason)).")
+            throw KumquatError.conversionFailed(L("Couldn't rewrite the metadata of \(input.lastPathComponent) (\(reason))."))
         }
     }
 }
@@ -199,7 +199,7 @@ public enum RenamePattern {
         var name = pattern.trimmingCharacters(in: .whitespacesAndNewlines)
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
-        guard !name.isEmpty else { throw KumquatError.nothingToDo("No name entered.") }
+        guard !name.isEmpty else { throw KumquatError.nothingToDo(L("No name entered.")) }
         // Without {n}, several files would all get the same name; number them anyway.
         if count > 1, !name.contains("{n}") { name += " {n}" }
         let digits = max(2, String(count).count)
