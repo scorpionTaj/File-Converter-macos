@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 public struct ProcessResult: Sendable {
@@ -245,10 +246,28 @@ public struct ToolLocator: Sendable {
     public var pngquant: URL? { path(for: "pngquant") }
     public var ghostscript: URL? { path(for: "gs") }
 
-    public func applicationInstalled(_ name: String) -> Bool {
-        let fm = FileManager.default
-        let home = fm.homeDirectoryForCurrentUser.path
-        return ["/Applications/\(name).app", "\(home)/Applications/\(name).app"].contains(where: fm.fileExists(atPath:))
+    /// Where an Apple app helper (Pages, Keynote, Numbers) is installed. Found by bundle identifier, so a
+    /// renamed bundle ("Pages Creator Studio.app" on newer macOS) or one outside /Applications still counts.
+    public func applicationURL(for dependency: Dependency) -> URL? {
+        guard let identifier = dependency.bundleIdentifier else { return nil }
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        return Self.findApplication(bundleIdentifier: identifier, names: dependency.applicationNames,
+                                    in: [URL(fileURLWithPath: "/Applications"), home.appendingPathComponent("Applications")],
+                                    launchServices: { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) })
+    }
+
+    /// LaunchServices first; then the usual bundle names in `folders`, checked by identifier so an
+    /// unrelated app with the same name isn't mistaken for the helper.
+    static func findApplication(bundleIdentifier: String, names: [String], in folders: [URL],
+                                launchServices: (String) -> URL?) -> URL? {
+        if let url = launchServices(bundleIdentifier), FileManager.default.fileExists(atPath: url.path) { return url }
+        for folder in folders {
+            for name in names {
+                let url = folder.appendingPathComponent("\(name).app")
+                if Bundle(url: url)?.bundleIdentifier == bundleIdentifier { return url }
+            }
+        }
+        return nil
     }
 
     public func isAvailable(_ dependency: Dependency) -> Bool {
@@ -258,9 +277,7 @@ public struct ToolLocator: Sendable {
         case .pandoc: return pandoc != nil
         case .pngquant: return pngquant != nil
         case .ghostscript: return ghostscript != nil
-        case .pages: return applicationInstalled("Pages")
-        case .keynote: return applicationInstalled("Keynote")
-        case .numbers: return applicationInstalled("Numbers")
+        case .pages, .keynote, .numbers: return applicationURL(for: dependency) != nil
         }
     }
 
@@ -324,6 +341,21 @@ extension Dependency {
         }
     }
 
+    /// Bundle identifier of Apple's apps; the same for "Pages.app" and "Pages Creator Studio.app".
+    public var bundleIdentifier: String? {
+        switch self {
+        case .pages: return "com.apple.Pages"
+        case .keynote: return "com.apple.Keynote"
+        case .numbers: return "com.apple.Numbers"
+        default: return nil
+        }
+    }
+
+    /// File names Apple's apps have shipped under.
+    var applicationNames: [String] {
+        ["\(displayName)", "\(displayName) Creator Studio"]
+    }
+
     /// Mac App Store page for Apple's apps.
     public var appStoreURL: URL? {
         switch self {
@@ -349,14 +381,11 @@ extension ToolLocator {
             return DependencyStatus(dependency: dependency, path: url.path,
                                     version: firstLine.map(Self.shortVersion), invalidOverride: invalid)
         }
-        let name = dependency.displayName
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        guard let path = ["/Applications/\(name).app", "\(home)/Applications/\(name).app"]
-            .first(where: FileManager.default.fileExists(atPath:)) else {
+        guard let app = applicationURL(for: dependency) else {
             return DependencyStatus(dependency: dependency, path: nil, version: nil, invalidOverride: false)
         }
-        let version = Bundle(path: path)?.infoDictionary?["CFBundleShortVersionString"] as? String
-        return DependencyStatus(dependency: dependency, path: path, version: version, invalidOverride: false)
+        let version = Bundle(url: app)?.infoDictionary?["CFBundleShortVersionString"] as? String
+        return DependencyStatus(dependency: dependency, path: app.path, version: version, invalidOverride: false)
     }
 
     public func statuses() async -> [DependencyStatus] {
