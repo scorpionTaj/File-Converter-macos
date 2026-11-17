@@ -233,8 +233,8 @@ architecture, the conversion graph, engines, permissions, and testing, and [docs
 ## Languages
 
 Kumquat speaks **English, French, Spanish, German and Arabic** (right-to-left). It follows your Mac's
-language; to use another one for Kumquat only, choose it in System Settings ▸ General ▸ Language & Region ▸
-Applications. `kumquat-cli` stays in English so scripts see the same output everywhere.
+language; to use another one for Kumquat only, choose it in **Settings ▸ General ▸ Language** (then
+**Relaunch Now**), or in System Settings ▸ General ▸ Language & Region ▸ Applications. `kumquat-cli` stays in English so scripts see the same output everywhere.
 
 Translations live in one String Catalog, `Resources/Localization/Localizable.xcstrings`:
 

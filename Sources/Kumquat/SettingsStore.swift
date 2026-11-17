@@ -394,3 +394,44 @@ final class SettingsStore: ObservableObject {
     /// macOS turned launch at login off until the user allows it.
     var launchAtLoginNeedsApproval: Bool { SMAppService.mainApp.status == .requiresApproval }
 }
+
+/// Kumquat's own language, overriding the Mac's. It's the same per-app preference System Settings ▸ General ▸
+/// Language & Region ▸ Applications changes, and like every app, Kumquat picks it up when it launches.
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case system = "", en, fr, es, de, ar
+
+    var id: String { rawValue }
+
+    /// Each language in its own words, so people can find theirs whatever Kumquat is showing.
+    var title: String {
+        switch self {
+        case .system: return L("Same as the Mac")
+        case .en: return "English"
+        case .fr: return "Français"
+        case .es: return "Español"
+        case .de: return "Deutsch"
+        case .ar: return "العربية"
+        }
+    }
+
+    private static let key = "AppleLanguages"
+
+    /// The language chosen for Kumquat (not the Mac's list, which `UserDefaults` would also return).
+    static var chosen: AppLanguage {
+        guard let domain = Bundle.main.bundleIdentifier,
+              let list = UserDefaults.standard.persistentDomain(forName: domain)?[key] as? [String],
+              let first = list.first else { return .system }
+        return AppLanguage(rawValue: String(first.prefix(2))) ?? .system
+    }
+
+    /// What was chosen when Kumquat launched, i.e. what it's showing now.
+    static let atLaunch = chosen
+
+    static func choose(_ language: AppLanguage) {
+        if language == .system {
+            UserDefaults.standard.removeObject(forKey: key)
+        } else {
+            UserDefaults.standard.set([language.rawValue], forKey: key)
+        }
+    }
+}

@@ -71,7 +71,7 @@ Ground rules:
 
 | Item | Status |
 |---|---|
-| English, French, Spanish, German, Arabic | ✅ All menus, settings, wheels (tool and action names and descriptions), prompts, notices, notifications and editors: 570 strings in each language |
+| English, French, Spanish, German, Arabic | ✅ Follows the Mac's language or Settings ▸ General ▸ Language (with Relaunch Now). All menus, settings, wheels (tool and action names and descriptions), prompts, notices, notifications and editors: 570 strings in each language |
 | String Catalog | ✅ `Resources/Localization/Localizable.xcstrings` (editable in Xcode) is the source; `scripts/strings.py` keeps it in step with the code and compiles it into `.lproj` tables when building, so no Xcode is needed. CI fails if a string is missing in any language or a placeholder differs |
 | Arabic right-to-left | ✅ SwiftUI windows (Settings, queue, page arranger) mirror automatically; checked by rendering Settings in Arabic. The radial wheel and HUD are drawn by hand and weren't checked by eye ⏳ |
 | Error messages from the engines (e.g. "isn't a readable PDF") | ⏳ Still English: they're built deep in KumquatCore and shared with the CLI; next after 1.0's polish |

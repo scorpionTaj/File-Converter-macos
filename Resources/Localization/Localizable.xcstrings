@@ -7225,6 +7225,34 @@
         }
       }
     },
+    "Kumquat switches language when it opens again." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kumquat change de langue à sa prochaine ouverture."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kumquat cambiará de idioma la próxima vez que se abra."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kumquat wechselt die Sprache beim nächsten Öffnen."
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يغيّر Kumquat لغته عند فتحه من جديد."
+          }
+        }
+      }
+    },
     "Kumquat will quit, replace itself with the new version and open again. Running conversions are stopped." : {
       "localizations" : {
         "fr" : {
@@ -7305,6 +7333,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "kumquat-cli جاهز: %@"
+          }
+        }
+      }
+    },
+    "Language" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langue"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprache"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اللغة"
           }
         }
       }
@@ -11201,6 +11257,34 @@
         }
       }
     },
+    "Quit and reopen Kumquat" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitter et rouvrir Kumquat"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Salir y volver a abrir Kumquat"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kumquat beenden und wieder öffnen"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إنهاء Kumquat وإعادة فتحه"
+          }
+        }
+      }
+    },
     "Quit Kumquat" : {
       "localizations" : {
         "fr" : {
@@ -11589,6 +11673,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "إعادة التثبيت"
+          }
+        }
+      }
+    },
+    "Relaunch Now" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relancer maintenant"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reiniciar ahora"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jetzt neu starten"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة التشغيل الآن"
           }
         }
       }
@@ -12765,6 +12877,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "كما في الأعلى"
+          }
+        }
+      }
+    },
+    "Same as the Mac" : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comme le Mac"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Igual que el Mac"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie der Mac"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مثل لغة Mac"
           }
         }
       }
@@ -14645,30 +14785,30 @@
         }
       }
     },
-    "Turn Kumquat on or off, start at login, and the drop shelf." : {
+    "Turn Kumquat on or off, its language, start at login, and the drop shelf." : {
       "localizations" : {
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activer ou désactiver Kumquat, l’ouverture à la connexion et l’étagère de dépôt."
+            "value" : "Activer ou désactiver Kumquat, sa langue, l’ouverture à la connexion et l’étagère de dépôt."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Activa o desactiva Kumquat, el inicio de sesión y la bandeja de archivos."
+            "value" : "Activa o desactiva Kumquat, su idioma, el inicio de sesión y la bandeja de archivos."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kumquat ein- oder ausschalten, beim Anmelden starten und die Ablage."
+            "value" : "Kumquat ein- oder ausschalten, seine Sprache, beim Anmelden starten und die Ablage."
           }
         },
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تشغيل Kumquat أو إيقافه، والتشغيل عند تسجيل الدخول، ورف الإفلات."
+            "value" : "تشغيل Kumquat أو إيقافه، ولغته، والتشغيل عند تسجيل الدخول، ورف الإفلات."
           }
         }
       }
@@ -15957,6 +16097,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "«%@» ليست قائمة صفحات"
+          }
+        }
+      }
+    },
+    "“Same as the Mac” follows System Settings ▸ General ▸ Language & Region. kumquat-cli always uses English." : {
+      "localizations" : {
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« Comme le Mac » suit Réglages Système ▸ Général ▸ Langue et région. kumquat-cli utilise toujours l’anglais."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«Igual que el Mac» sigue Ajustes del Sistema ▸ General ▸ Idioma y región. kumquat-cli siempre usa inglés."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "„Wie der Mac“ folgt Systemeinstellungen ▸ Allgemein ▸ Sprache & Region. kumquat-cli verwendet immer Englisch."
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«مثل لغة Mac» تتبع إعدادات النظام ▸ عام ▸ اللغة والمنطقة. يستخدم kumquat-cli الإنجليزية دائماً."
           }
         }
       }

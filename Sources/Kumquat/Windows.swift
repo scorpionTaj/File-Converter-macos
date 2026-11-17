@@ -58,6 +58,8 @@ final class WindowManager {
 
 struct GeneralSettings: View {
     @ObservedObject var settings: SettingsStore
+    let isBusy: () -> Bool
+    @State private var language = AppLanguage.chosen
 
     var body: some View {
         Form {
@@ -65,6 +67,27 @@ struct GeneralSettings: View {
                 Toggle("Kumquat is enabled", isOn: $settings.isEnabled)
             } footer: {
                 Text("When off, dragging files and the Finder shortcut don't open a wheel. Also in the menu bar.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
+                Picker("Language", selection: Binding(get: { language }, set: { choice in
+                    language = choice
+                    AppLanguage.choose(choice)
+                })) {
+                    ForEach(AppLanguage.allCases) { Text(verbatim: $0.title).tag($0) }
+                }
+                if language != AppLanguage.atLaunch {
+                    HStack {
+                        Text("Kumquat switches language when it opens again.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Relaunch Now") { ApplicationsMover.relaunch(Bundle.main.bundleURL, eject: nil) }
+                            .disabled(isBusy())
+                            .help(isBusy() ? L("Wait for running conversions to finish first.") : L("Quit and reopen Kumquat"))
+                    }
+                }
+            } footer: {
+                Text("“Same as the Mac” follows System Settings ▸ General ▸ Language & Region. kumquat-cli always uses English.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Startup") {

@@ -31,7 +31,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable {
 
     var subtitle: String {
         switch self {
-        case .general: return L("Turn Kumquat on or off, start at login, and the drop shelf.")
+        case .general: return L("Turn Kumquat on or off, its language, start at login, and the drop shelf.")
         case .wheels: return L("Which key opens which wheel, and what comes first on it.")
         case .notifications: return L("Progress popups, finished-job notifications, sounds and the menu bar.")
         case .output: return L("Where results are saved, how they're named, and what happens to originals.")
@@ -131,7 +131,7 @@ struct SettingsView: View {
 
     @ViewBuilder private func content(for page: SettingsPage) -> some View {
         switch page {
-        case .general: GeneralSettings(settings: settings)
+        case .general: GeneralSettings(settings: settings, isBusy: isBusy)
         case .wheels: WheelSettings(settings: settings)
         case .notifications: NotificationSettings(settings: settings)
         case .output: OutputSettings(settings: settings)
