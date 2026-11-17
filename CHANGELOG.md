@@ -5,6 +5,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-17
+
 ### Changed
 - **Settings redesign**: a sidebar like System Settings replaces the tab bar, whose tabs no longer fit and
   hid behind a » menu. Each page has a header saying what it's for. General was split into **General**,
@@ -261,7 +263,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
   normalize…) and 7 actions (AirDrop, Float, Copy, Move to…, Copy to…, Copy Path, Terminal).
 - `kumquat-cli`, settings, welcome window, CI on Linux and macOS, `.app`/`.dmg` packaging.
 
-[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/scorpionTaj/Kumquat/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/scorpionTaj/Kumquat/compare/v0.4.2...v0.5.0
