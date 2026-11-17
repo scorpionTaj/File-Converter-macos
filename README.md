@@ -41,7 +41,7 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 - **Helper management**: Settings ▸ Engines shows versions and paths and installs missing helpers in one click.
 - **Cancel** any running job from the progress popup, and **Undo** finished ones from the menu bar or the
   "job finished" notification (results go to the Trash, replaced files come back).
-- **No drag needed**: select files in Finder and press **⌃⌥K** to open the wheel (Settings ▸ General).
+- **No drag needed**: select files in Finder and press **⌃⌥K** to open the wheel (Settings ▸ Wheels).
 - **Your wheel, your order**: recently used formats come first, right-click pins a slice, and **presets**
   (e.g. “WebP 80%, 2048 px”) become one-tap slices. Hold **⌥** when choosing a format to adjust quality,
   size, bitrate or PDF pages first.
@@ -50,9 +50,11 @@ macOS frameworks (ImageIO, PDFKit, Vision, the Cocoa text system) and optional l
 - **More ways in**: drop files on the menu-bar icon, the floating **drop shelf** or Kumquat's Dock icon (if you
   keep it in the Dock); right-click files in Finder ▸ Quick Actions ▸ **Open in Kumquat**; **Share ▸ Kumquat**;
   Finder ▸ Services ▸ **Open in Kumquat**; or **Open With ▸ Kumquat**. Each opens the wheel for those files.
-- **Watch folders**: pick a folder and a preset in Settings ▸ Presets, and every new file dropped into the
+- **Watch folders**: pick a folder and a preset in Settings ▸ Watch Folders, and every new file dropped into the
   folder is converted with that preset, no wheel needed.
 - **Launch at login** from Settings ▸ General.
+- **Settings** in a sidebar like System Settings: General, Wheels, Notifications, Output, Quality, Presets,
+  Watch Folders, Appearance, Engines, Recipes and Advanced, each with a short description.
 - **Precise edits**: Trim… audio/video (`0:05-1:30`), Resize… (`50%`, `1280`, `1280x720`), Remove/Keep Pages… (`1, 3-5`),
   Arrange Pages… (`3, 1-2, 4r90`).
 - **Multi-file drops**: convert a batch (three files at a time), merge PDFs, combine images into a PDF or an animated GIF, zip a selection, even from different folders.
@@ -191,7 +193,7 @@ To get the wheel instead, use Shortcuts' **Open File** action with **Kumquat** a
 ### User recipes
 
 Add a conversion Kumquat doesn't have, or replace one with your own tool, by putting a JSON file in
-`~/Library/Application Support/Kumquat/recipes` (**Settings ▸ Engines ▸ Recipes ▸ Open Folder** creates it
+`~/Library/Application Support/Kumquat/recipes` (**Settings ▸ Recipes ▸ Open Folder** creates it
 with a disabled example):
 
 ```json
@@ -214,7 +216,7 @@ with a disabled example):
 - `timeout` (seconds, default 300, at most 3600): the command is stopped after this.
 - Only regular files directly in the folder, owned by you and not writable by other users, are loaded (links
   are refused). Skipped files and failed runs (with the command's error output) are shown in Settings ▸
-  Engines and by `kumquat-cli recipes`. Edits are picked up the next time the wheel opens.
+  Recipes and by `kumquat-cli recipes`. Edits are picked up the next time the wheel opens.
 
 Recipes run with your permissions: only add commands you trust.
 

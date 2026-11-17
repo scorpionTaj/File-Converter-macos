@@ -12,9 +12,10 @@ final class WindowManager {
 
     func showSettings(app: AppDelegate) {
         if settingsWindow == nil {
-            settingsWindow = makeWindow(title: "Kumquat Settings", size: NSSize(width: 620, height: 600),
+            settingsWindow = makeWindow(title: "Kumquat Settings", size: NSSize(width: 860, height: 640),
                                         view: SettingsView(settings: app.settings,
-                                                           isBusy: { [weak app] in app?.hasRunningJobs ?? false }))
+                                                           isBusy: { [weak app] in app?.hasRunningJobs ?? false }),
+                                        resizable: true)
         }
         present(settingsWindow)
     }
@@ -33,9 +34,12 @@ final class WindowManager {
         present(welcomeWindow)
     }
 
-    private func makeWindow<Content: View>(title: String, size: NSSize, view: Content) -> NSWindow {
+    private func makeWindow<Content: View>(title: String, size: NSSize, view: Content, resizable: Bool = false) -> NSWindow {
+        var style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable]
+        if resizable { style.insert(.resizable) }
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
-                              styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
+                              styleMask: style, backing: .buffered, defer: false)
+        if resizable { window.minSize = NSSize(width: 780, height: 560) }
         window.title = title
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: view)
@@ -52,105 +56,18 @@ final class WindowManager {
 
 // MARK: - Settings
 
-struct SettingsView: View {
-    @ObservedObject var settings: SettingsStore
-    let isBusy: () -> Bool
-
-    var body: some View {
-        TabView {
-            GeneralSettings(settings: settings)
-                .tabItem { Label("General", systemImage: "gearshape") }
-            OutputSettings(settings: settings)
-                .tabItem { Label("Output", systemImage: "folder") }
-            ConversionSettings(settings: settings)
-                .tabItem { Label("Quality", systemImage: "slider.horizontal.3") }
-            PresetsSettings(settings: settings)
-                .tabItem { Label("Presets", systemImage: "star") }
-            AppearanceSettings(settings: settings)
-                .tabItem { Label("Appearance", systemImage: "paintpalette") }
-            EngineSettings(settings: settings)
-                .tabItem { Label("Engines", systemImage: "shippingbox") }
-            AdvancedSettings(settings: settings, isBusy: isBusy)
-                .tabItem { Label("Advanced", systemImage: "wrench.and.screwdriver") }
-            AboutView()
-                .tabItem { Label("About", systemImage: "info.circle") }
-        }
-        .padding(12)
-        .frame(width: 620, height: 600)
-    }
-}
-
 struct GeneralSettings: View {
     @ObservedObject var settings: SettingsStore
 
     var body: some View {
         Form {
-            Section("Wheels") {
+            Section {
                 Toggle("Kumquat is enabled", isOn: $settings.isEnabled)
-                keyPicker("Convert wheel", selection: $settings.convertKey)
-                keyPicker("Tools wheel", selection: $settings.toolsKey)
-                keyPicker("Actions wheel", selection: $settings.actionsKey)
-                Picker("Open the wheel", selection: $settings.wheelPosition) {
-                    ForEach(WheelPosition.allCases) { Text($0.title).tag($0) }
-                }
-                Text("Start dragging a file, then tap the key. Drop the file on a segment.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("Wheel for Finder selection", selection: $settings.finderShortcut) {
-                    ForEach(FinderShortcut.allCases) { Text($0.title).tag($0) }
-                }
-                Text("Select files in Finder and press the shortcut to open the wheel without dragging.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Toggle("Recently used first", isOn: $settings.wheelPreferences.recentFirst)
-                HStack {
-                    Text("Right-click a slice on a clicked-open wheel to pin it to the front for that file type.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Clear Pins") { settings.wheelPreferences.pinned = [:] }
-                        .disabled(settings.wheelPreferences.pinned.isEmpty)
-                }
+            } footer: {
+                Text("When off, dragging files and the Finder shortcut don't open a wheel. Also in the menu bar.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Notices") {
-                Picker("Position", selection: $settings.hudPosition) {
-                    ForEach(HUDPosition.allCases) { Text($0.title).tag($0) }
-                }
-                Picker("Keep results on screen", selection: $settings.hudDuration) {
-                    Text("2 seconds").tag(2.0)
-                    Text("3 seconds").tag(3.0)
-                    Text("5 seconds").tag(5.0)
-                    Text("10 seconds").tag(10.0)
-                    Text("Until clicked").tag(0.0)
-                }
-                Toggle("Show a notice when a job succeeds", isOn: $settings.hudShowsSuccess)
-                Toggle("Reveal results in Finder", isOn: $settings.revealInFinder)
-                Picker("Notify when a job finishes", selection: $settings.notifyWhenDone) {
-                    ForEach(NotificationPolicy.allCases) { Text($0.title).tag($0) }
-                }
-            }
-            Section("Sounds") {
-                Toggle("Play sounds", isOn: $settings.playSound)
-                soundPicker("Success", selection: $settings.successSound)
-                soundPicker("Failure", selection: $settings.failureSound)
-            }
-            Section("Menu bar") {
-                Picker("Icon", selection: $settings.menuBarIcon) {
-                    ForEach(MenuBarIconStyle.allCases) { style in
-                        Label {
-                            Text(style.title)
-                        } icon: {
-                            Image(nsImage: StatusIcon.make(style))
-                        }
-                        .tag(style)
-                    }
-                }
-                Toggle("Show progress next to the icon", isOn: $settings.menuBarProgress)
-                Picker("Recent results", selection: $settings.recentLimit) {
-                    ForEach([5, 10, 15, 25, 50], id: \.self) { Text("\($0)").tag($0) }
-                }
-            }
-            Section("System") {
+            Section("Startup") {
                 Toggle("Offer to move Kumquat to Applications", isOn: $settings.offerMoveToApplications)
                 Toggle("Launch at login", isOn: Binding(get: { settings.launchAtLogin },
                                                         set: { settings.launchAtLogin = $0 }))
@@ -164,35 +81,27 @@ struct GeneralSettings: View {
                         Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
                     }
                 }
+            }
+            Section("Other ways in") {
                 Toggle("Show the drop shelf", isOn: $settings.showShelf)
                 Text("A small floating window: drop files on it to open the wheel without holding a key. Handy on a trackpad.")
                     .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("Terminal app", selection: $settings.terminalBundleID) {
                     Text("Terminal").tag("com.apple.Terminal")
                     Text("iTerm2").tag("com.googlecode.iterm2")
                     Text("Warp").tag("dev.warp.Warp-Stable")
                     Text("Ghostty").tag("com.mitchellh.ghostty")
                 }
+            } header: {
+                Text("Actions wheel")
+            } footer: {
+                Text("Opened by the Terminal action.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func soundPicker(_ title: String, selection: Binding<String>) -> some View {
-        Picker(title, selection: selection) {
-            Text("None").tag("")
-            ForEach(SettingsStore.systemSounds, id: \.self) { Text($0).tag($0) }
-        }
-        .disabled(!settings.playSound)
-        .onChange(of: selection.wrappedValue) { name in
-            if !name.isEmpty { NSSound(named: NSSound.Name(name))?.play() }
-        }
-    }
-
-    private func keyPicker(_ title: String, selection: Binding<ModifierKey>) -> some View {
-        Picker(title, selection: selection) {
-            ForEach(ModifierKey.allCases) { Text($0.title).tag($0) }
-        }
     }
 }
 
@@ -350,6 +259,8 @@ struct ConversionSettings: View {
                 Picker("Maximum size", selection: $settings.maxImageDimension) {
                     ForEach(Self.imageSizes, id: \.self) { Text($0 == 0 ? "Original" : "\($0) px longest side").tag($0) }
                 }
+            }
+            Section("PDF") {
                 Stepper("PDF page render: \(settings.pdfDPI) dpi", value: $settings.pdfDPI, in: 72...600, step: 24)
                 Picker("PDF compression", selection: $settings.pdfCompression) {
                     ForEach(PDFCompression.allCases, id: \.self) { Text($0.title).tag($0) }
@@ -394,6 +305,15 @@ struct ConversionSettings: View {
                     Text("Stereo").tag(2)
                 }
                 Toggle("Normalise loudness (−16 LUFS)", isOn: $settings.normalizeAudio)
+            }
+            Section {
+                Stepper("Convert \(settings.parallelJobs) file\(settings.parallelJobs == 1 ? "" : "s") at a time",
+                        value: $settings.parallelJobs, in: 1...8)
+            } header: {
+                Text("Speed")
+            } footer: {
+                Text("More is faster on Apple silicon but uses more memory. Video conversions already use every core.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -446,15 +366,6 @@ struct AdvancedSettings: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section {
-                Stepper("Convert \(settings.parallelJobs) file\(settings.parallelJobs == 1 ? "" : "s") at a time",
-                        value: $settings.parallelJobs, in: 1...8)
-            } header: {
-                Text("Batches")
-            } footer: {
-                Text("More is faster on Apple silicon but uses more memory. Video conversions already use every core.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Section {
                 Toggle("Check for updates automatically", isOn: $settings.checkForUpdates)
                 Toggle("Include pre-releases", isOn: $settings.includePrereleases)
                 HStack {
@@ -467,7 +378,7 @@ struct AdvancedSettings: View {
             } header: {
                 Text("Updates")
             } footer: {
-                Text("Kumquat asks GitHub for new releases once a day. Nothing else is sent. Updates download as a disk image; drag Kumquat to Applications to install.")
+                Text("Kumquat asks GitHub for new releases once a day. Nothing else is sent. Install and Relaunch replaces the app in place.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Troubleshooting") {
@@ -624,7 +535,6 @@ struct EngineSettings: View {
                           prompt: "/Applications/LibreOffice.app/Contents/MacOS/soffice")
                 pathField("pandoc", text: $settings.pandocPath, tool: "pandoc", prompt: "/opt/homebrew/bin/pandoc")
             }
-            RecipesSection()
         }
         .formStyle(.grouped)
         .onAppear { monitor.refresh() }

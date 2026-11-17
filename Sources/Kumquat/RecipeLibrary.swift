@@ -3,7 +3,7 @@ import SwiftUI
 import KumquatCore
 
 /// The user's recipes, reloaded whenever the recipes folder changes. Problems are logged once per change
-/// and listed in Settings ▸ Engines, so a broken recipe is never silently ignored.
+/// and listed in Settings ▸ Recipes, so a broken recipe is never silently ignored.
 @MainActor
 final class RecipeLibrary: ObservableObject {
     static let shared = RecipeLibrary()
@@ -42,15 +42,14 @@ final class RecipeLibrary: ObservableObject {
     }
 }
 
-/// Settings ▸ Engines ▸ Recipes.
+/// Settings ▸ Recipes.
 struct RecipesSection: View {
     @ObservedObject var library = RecipeLibrary.shared
 
     var body: some View {
         Section {
             if library.loaded.recipes.isEmpty && library.loaded.problems.isEmpty {
-                Text("Add your own conversions: a JSON file per recipe naming the formats and the command to run. They show up on the Convert wheel. See README ▸ User recipes.")
-                    .font(.caption)
+                Text("No recipes yet. Open Folder creates the folder with a disabled example.")
                     .foregroundStyle(.secondary)
             }
             ForEach(library.loaded.recipes, id: \.file) { recipe in
@@ -79,5 +78,31 @@ struct RecipesSection: View {
             }
         }
         .onAppear { library.reloadIfChanged() }
+
+        Section {
+            Text(Self.example)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } header: {
+            Text("Recipe file")
+        } footer: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("One JSON file per recipe. {input} and {output} are replaced with file paths; the command runs directly, never through a shell, and is stopped after the timeout (seconds, at most 3600).")
+                Text("Only files you own that other users can't change are loaded. Recipes run with your permissions: add only commands you trust.")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
     }
+
+    private static let example = """
+    {
+      "name": "Markdown to PDF with my stylesheet",
+      "from": ["md"],
+      "to": "pdf",
+      "command": ["/opt/homebrew/bin/pandoc", "{input}", "-o", "{output}"],
+      "timeout": 120
+    }
+    """
 }

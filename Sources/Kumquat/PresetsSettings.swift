@@ -1,7 +1,7 @@
 import SwiftUI
 import KumquatCore
 
-/// Settings ▸ Presets: saved conversions shown as slices on the Convert wheel.
+/// Settings ▸ Presets: saved conversions shown as slices on the Convert wheel. Watch folders have their own page.
 struct PresetsSettings: View {
     @ObservedObject var settings: SettingsStore
     @State private var editing: OutputPreset?
@@ -36,7 +36,6 @@ struct PresetsSettings: View {
                 Text("A preset is a format plus the settings to use, like “WebP 80%, 2048 px”. Presets appear first on the Convert wheel for files that can become their format.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            WatchFoldersSection(settings: settings)
         }
         .formStyle(.grouped)
         .sheet(item: $editing) { preset in
@@ -55,7 +54,7 @@ struct PresetsSettings: View {
 }
 
 /// Folders whose new files are converted with a preset.
-private struct WatchFoldersSection: View {
+struct WatchFoldersSection: View {
     @ObservedObject var settings: SettingsStore
 
     var body: some View {
