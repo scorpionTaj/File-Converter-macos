@@ -175,12 +175,14 @@ public struct IWorkEngine: ConversionEngine {
 }
 
 public enum IWorkScripts {
+    /// Bundle identifier of the iWork app for a conversion. Scripts address the app by id, not by name,
+    /// because newer macOS ships them as "Pages Creator Studio" and so on.
     public static func application(source: Format, target: Format) -> String? {
         for format in [source, target] {
             switch format {
-            case .pages: return "Pages"
-            case .key: return "Keynote"
-            case .numbers: return "Numbers"
+            case .pages: return Dependency.pages.bundleIdentifier
+            case .key: return Dependency.keynote.bundleIdentifier
+            case .numbers: return Dependency.numbers.bundleIdentifier
             default: continue
             }
         }
@@ -219,7 +221,7 @@ public enum IWorkScripts {
         return """
         set inFile to POSIX file \(quoted(input))
         set outFile to POSIX file \(quoted(output))
-        tell application "\(app)"
+        tell application id "\(app)"
             set theDoc to open inFile
             \(action)
             close theDoc saving no
