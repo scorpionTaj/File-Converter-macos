@@ -230,6 +230,23 @@ architecture, the conversion graph, engines, permissions, and testing, and [docs
 - The wheel is a non-activating panel that registers as a drop target, so the system drag lands on it directly.
 - `KumquatCore` models formats as a graph of engine edges and finds the cheapest route for each conversion.
 
+## Languages
+
+Kumquat speaks **English, French, Spanish, German and Arabic** (right-to-left). It follows your Mac's
+language; to use another one for Kumquat only, choose it in System Settings ▸ General ▸ Language & Region ▸
+Applications. `kumquat-cli` stays in English so scripts see the same output everywhere.
+
+Translations live in one String Catalog, `Resources/Localization/Localizable.xcstrings`:
+
+```bash
+python3 scripts/strings.py extract        # add new strings from the code
+python3 scripts/strings.py missing fr     # what's left to translate in French
+python3 scripts/strings.py check          # all languages complete, placeholders intact (CI runs this)
+```
+
+Edit the catalog in Xcode or as JSON. In code, text people see is either a SwiftUI literal
+(`Text("Saved")`) or wrapped in `L("…")`, including text with values: `L("\(count) files saved")`.
+
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Adding a format is usually one

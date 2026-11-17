@@ -6,9 +6,9 @@ public enum WheelMode: String, CaseIterable, Codable, Sendable {
 
     public var title: String {
         switch self {
-        case .convert: return "Convert"
-        case .tools: return "Tools"
-        case .actions: return "Actions"
+        case .convert: return L("Convert")
+        case .tools: return L("Tools")
+        case .actions: return L("Actions")
         }
     }
 }
@@ -49,110 +49,110 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
 
     public var title: String {
         switch self {
-        case .imageCompress, .pdfCompress, .videoCompress, .audioCompress: return "Compress"
-        case .imageResizeHalf: return "Resize 50%"
-        case .imageFit1920: return "Fit 1920px"
-        case .imageRotateLeft: return "Rotate Left"
-        case .imageRotateRight: return "Rotate Right"
-        case .imageFlip: return "Flip"
-        case .imageGrayscale: return "Grayscale"
-        case .imageRemoveBackground: return "Remove BG"
-        case .imageExtractText: return "Copy Text"
-        case .imagesToPDF: return "Make PDF"
-        case .imageAnnotate: return "Annotate…"
-        case .imageResizeCustom: return "Resize…"
-        case .imagesToGIF: return "Make GIF"
-        case .imageUpscale: return "Upscale 2×"
-        case .imageEditMetadata: return "Edit Metadata…"
-        case .batchRename: return "Rename…"
-        case .pdfRemovePages: return "Remove Pages…"
-        case .pdfExtractPages: return "Keep Pages…"
-        case .mediaTrim: return "Trim…"
-        case .pdfMerge: return "Merge"
-        case .pdfSplit: return "Split Pages"
-        case .pdfRotate, .videoRotate: return "Rotate"
-        case .pdfExtractText: return "Extract Text"
-        case .pdfOCR: return "OCR Text"
-        case .pdfSearchable: return "Make Searchable"
-        case .pdfArrange: return "Arrange Pages…"
-        case .pdfAnnotate: return "Annotate…"
-        case .pdfEncrypt: return "Add Password"
-        case .pdfDecrypt: return "Unlock"
-        case .pdfRedactPersonalInfo: return "Redact PII"
-        case .pdfRedactText: return "Redact…"
-        case .video720p: return "720p"
-        case .videoMute: return "Mute"
-        case .videoExtractAudio: return "Get Audio"
-        case .videoSpeedUp: return "Speed 2×"
-        case .videoFirstFrame: return "Poster Frame"
-        case .videoToGIF: return "GIF from Clip…"
-        case .videoBurnSubtitles: return "Burn Subtitles"
-        case .mediaSplitChapters: return "Split Chapters"
-        case .audioNormalize: return "Normalize"
-        case .audioMono: return "Mono"
-        case .audioTrimSilence: return "Trim Silence"
-        case .stripMetadata: return "Strip Metadata"
-        case .extractArchive: return "Extract"
-        case .compressZip: return "Zip"
-        case .checksum: return "SHA-256"
-        case .wordCount: return "Word Count"
+        case .imageCompress, .pdfCompress, .videoCompress, .audioCompress: return L("Compress")
+        case .imageResizeHalf: return L("Resize 50%")
+        case .imageFit1920: return L("Fit 1920px")
+        case .imageRotateLeft: return L("Rotate Left")
+        case .imageRotateRight: return L("Rotate Right")
+        case .imageFlip: return L("Flip")
+        case .imageGrayscale: return L("Grayscale")
+        case .imageRemoveBackground: return L("Remove BG")
+        case .imageExtractText: return L("Copy Text")
+        case .imagesToPDF: return L("Make PDF")
+        case .imageAnnotate: return L("Annotate…")
+        case .imageResizeCustom: return L("Resize…")
+        case .imagesToGIF: return L("Make GIF")
+        case .imageUpscale: return L("Upscale 2×")
+        case .imageEditMetadata: return L("Edit Metadata…")
+        case .batchRename: return L("Rename…")
+        case .pdfRemovePages: return L("Remove Pages…")
+        case .pdfExtractPages: return L("Keep Pages…")
+        case .mediaTrim: return L("Trim…")
+        case .pdfMerge: return L("Merge")
+        case .pdfSplit: return L("Split Pages")
+        case .pdfRotate, .videoRotate: return L("Rotate")
+        case .pdfExtractText: return L("Extract Text")
+        case .pdfOCR: return L("OCR Text")
+        case .pdfSearchable: return L("Make Searchable")
+        case .pdfArrange: return L("Arrange Pages…")
+        case .pdfAnnotate: return L("Annotate…")
+        case .pdfEncrypt: return L("Add Password")
+        case .pdfDecrypt: return L("Unlock")
+        case .pdfRedactPersonalInfo: return L("Redact PII")
+        case .pdfRedactText: return L("Redact…")
+        case .video720p: return L("720p")
+        case .videoMute: return L("Mute")
+        case .videoExtractAudio: return L("Get Audio")
+        case .videoSpeedUp: return L("Speed 2×")
+        case .videoFirstFrame: return L("Poster Frame")
+        case .videoToGIF: return L("GIF from Clip…")
+        case .videoBurnSubtitles: return L("Burn Subtitles")
+        case .mediaSplitChapters: return L("Split Chapters")
+        case .audioNormalize: return L("Normalize")
+        case .audioMono: return L("Mono")
+        case .audioTrimSilence: return L("Trim Silence")
+        case .stripMetadata: return L("Strip Metadata")
+        case .extractArchive: return L("Extract")
+        case .compressZip: return L("Zip")
+        case .checksum: return L("SHA-256")
+        case .wordCount: return L("Word Count")
         }
     }
 
     /// Longer description for the wheel's centre label.
     public var detail: String {
         switch self {
-        case .imageCompress: return "Smaller file, same format"
-        case .imageResizeHalf: return "Half the width and height"
-        case .imageFit1920: return "Longest side at most 1920px"
-        case .imageRotateLeft: return "Rotate 90° counter-clockwise"
-        case .imageRotateRight: return "Rotate 90° clockwise"
-        case .imageFlip: return "Mirror horizontally"
-        case .imageGrayscale: return "Black & white copy"
-        case .imageRemoveBackground: return "Cut out the subject (PNG)"
-        case .imageExtractText: return "Recognise text and copy it"
-        case .imagesToPDF: return "Combine images into one PDF"
-        case .imageAnnotate: return "Draw, add text, highlight, pixelate, crop"
-        case .imageResizeCustom: return "Choose a size or percentage"
-        case .imagesToGIF: return "Animate the images as a GIF"
-        case .imageUpscale: return "Double the size, sharpened"
-        case .imageEditMetadata: return "Change date taken, title, author, location"
-        case .batchRename: return "Renamed copies: {name}, {n}, {date}"
-        case .pdfRemovePages: return "Delete a range of pages"
-        case .pdfExtractPages: return "New PDF with only some pages"
-        case .mediaTrim: return "Keep only part of the clip"
-        case .pdfCompress: return "Downsample images inside the PDF"
-        case .pdfMerge: return "Join PDFs in the order dropped"
-        case .pdfSplit: return "One PDF per page"
-        case .pdfRotate: return "Rotate every page 90°"
-        case .pdfExtractText: return "Save the text layer as TXT"
-        case .pdfOCR: return "Recognise text in scanned pages"
-        case .pdfSearchable: return "Add a hidden text layer to scans (OCR)"
-        case .pdfArrange: return "Reorder, rotate or drop pages"
-        case .pdfAnnotate: return "Highlight, add notes, text and drawings"
-        case .pdfEncrypt: return "Protect with a password"
-        case .pdfDecrypt: return "Remove the password"
-        case .pdfRedactPersonalInfo: return "Black out emails, phones, cards"
-        case .pdfRedactText: return "Black out a word or phrase"
-        case .videoCompress: return "H.264 at a smaller size"
-        case .video720p: return "Scale down to 720p"
-        case .videoMute: return "Remove the audio track"
-        case .videoExtractAudio: return "Save the soundtrack as M4A"
-        case .videoRotate: return "Rotate 90° clockwise"
-        case .videoSpeedUp: return "Play twice as fast"
-        case .videoFirstFrame: return "Save the first frame as PNG"
-        case .videoToGIF: return "Animated GIF of a chosen part"
-        case .videoBurnSubtitles: return "Draw subtitles into the picture"
-        case .mediaSplitChapters: return "One file per chapter, no re-encoding"
-        case .audioNormalize: return "Even out loudness (−16 LUFS)"
-        case .audioCompress: return "Lower bitrate copy"
-        case .audioMono: return "Mix down to one channel"
-        case .audioTrimSilence: return "Cut silence at both ends"
-        case .stripMetadata: return "Remove location, camera & tags"
-        case .extractArchive: return "Unpack next to the archive"
-        case .compressZip: return "Compress into a ZIP"
-        case .checksum: return "Copy the SHA-256 hash"
-        case .wordCount: return "Count words & characters"
+        case .imageCompress: return L("Smaller file, same format")
+        case .imageResizeHalf: return L("Half the width and height")
+        case .imageFit1920: return L("Longest side at most 1920px")
+        case .imageRotateLeft: return L("Rotate 90° counter-clockwise")
+        case .imageRotateRight: return L("Rotate 90° clockwise")
+        case .imageFlip: return L("Mirror horizontally")
+        case .imageGrayscale: return L("Black & white copy")
+        case .imageRemoveBackground: return L("Cut out the subject (PNG)")
+        case .imageExtractText: return L("Recognise text and copy it")
+        case .imagesToPDF: return L("Combine images into one PDF")
+        case .imageAnnotate: return L("Draw, add text, highlight, pixelate, crop")
+        case .imageResizeCustom: return L("Choose a size or percentage")
+        case .imagesToGIF: return L("Animate the images as a GIF")
+        case .imageUpscale: return L("Double the size, sharpened")
+        case .imageEditMetadata: return L("Change date taken, title, author, location")
+        case .batchRename: return L("Renamed copies: {name}, {n}, {date}")
+        case .pdfRemovePages: return L("Delete a range of pages")
+        case .pdfExtractPages: return L("New PDF with only some pages")
+        case .mediaTrim: return L("Keep only part of the clip")
+        case .pdfCompress: return L("Downsample images inside the PDF")
+        case .pdfMerge: return L("Join PDFs in the order dropped")
+        case .pdfSplit: return L("One PDF per page")
+        case .pdfRotate: return L("Rotate every page 90°")
+        case .pdfExtractText: return L("Save the text layer as TXT")
+        case .pdfOCR: return L("Recognise text in scanned pages")
+        case .pdfSearchable: return L("Add a hidden text layer to scans (OCR)")
+        case .pdfArrange: return L("Reorder, rotate or drop pages")
+        case .pdfAnnotate: return L("Highlight, add notes, text and drawings")
+        case .pdfEncrypt: return L("Protect with a password")
+        case .pdfDecrypt: return L("Remove the password")
+        case .pdfRedactPersonalInfo: return L("Black out emails, phones, cards")
+        case .pdfRedactText: return L("Black out a word or phrase")
+        case .videoCompress: return L("H.264 at a smaller size")
+        case .video720p: return L("Scale down to 720p")
+        case .videoMute: return L("Remove the audio track")
+        case .videoExtractAudio: return L("Save the soundtrack as M4A")
+        case .videoRotate: return L("Rotate 90° clockwise")
+        case .videoSpeedUp: return L("Play twice as fast")
+        case .videoFirstFrame: return L("Save the first frame as PNG")
+        case .videoToGIF: return L("Animated GIF of a chosen part")
+        case .videoBurnSubtitles: return L("Draw subtitles into the picture")
+        case .mediaSplitChapters: return L("One file per chapter, no re-encoding")
+        case .audioNormalize: return L("Even out loudness (−16 LUFS)")
+        case .audioCompress: return L("Lower bitrate copy")
+        case .audioMono: return L("Mix down to one channel")
+        case .audioTrimSilence: return L("Cut silence at both ends")
+        case .stripMetadata: return L("Remove location, camera & tags")
+        case .extractArchive: return L("Unpack next to the archive")
+        case .compressZip: return L("Compress into a ZIP")
+        case .checksum: return L("Copy the SHA-256 hash")
+        case .wordCount: return L("Count words & characters")
         }
     }
 
@@ -256,17 +256,17 @@ public enum ToolID: String, CaseIterable, Codable, Sendable {
 
     public var input: ToolInput? {
         switch self {
-        case .pdfEncrypt: return .password(prompt: "Choose a password for the PDF")
-        case .pdfDecrypt: return .password(prompt: "Enter the PDF's current password")
-        case .pdfRedactText: return .text(prompt: "Text to black out (case-insensitive)")
-        case .imageResizeCustom: return .text(prompt: "New size: a percentage (50%), a width (1280) or width×height (1280x720)")
-        case .batchRename: return .text(prompt: "New name. {name} = current name, {n} = number in drop order, {date} = date taken (or file date). E.g. Holiday {date} {n}")
-        case .imageEditMetadata: return .text(prompt: "Changes separated by ;  e.g. date=2024-05-01 14:30; title=Beach; artist=Sam; copyright=© Sam; location=31.63,-8.01. Leave a value empty to remove it (location= removes GPS).")
-        case .pdfRemovePages: return .text(prompt: "Pages to remove, e.g. 1, 3-5")
-        case .pdfExtractPages: return .text(prompt: "Pages to keep, e.g. 2-4, 7")
-        case .pdfArrange: return .pages(prompt: "New page order; pages left out are dropped. Add r90, r180 or r270 to turn a page, e.g. 3, 1-2, 4r90")
-        case .mediaTrim: return .timeRange(prompt: "Part to keep, e.g. 0:05-1:30 (leave the end empty to keep the rest)")
-        case .videoToGIF: return .timeRange(prompt: "Part to turn into a GIF, e.g. 0:05-0:09")
+        case .pdfEncrypt: return .password(prompt: L("Choose a password for the PDF"))
+        case .pdfDecrypt: return .password(prompt: L("Enter the PDF's current password"))
+        case .pdfRedactText: return .text(prompt: L("Text to black out (case-insensitive)"))
+        case .imageResizeCustom: return .text(prompt: L("New size: a percentage (50%), a width (1280) or width×height (1280x720)"))
+        case .batchRename: return .text(prompt: L("New name. {name} = current name, {n} = number in drop order, {date} = date taken (or file date). E.g. Holiday {date} {n}"))
+        case .imageEditMetadata: return .text(prompt: L("Changes separated by ;  e.g. date=2024-05-01 14:30; title=Beach; artist=Sam; copyright=© Sam; location=31.63,-8.01. Leave a value empty to remove it (location= removes GPS)."))
+        case .pdfRemovePages: return .text(prompt: L("Pages to remove, e.g. 1, 3-5"))
+        case .pdfExtractPages: return .text(prompt: L("Pages to keep, e.g. 2-4, 7"))
+        case .pdfArrange: return .pages(prompt: L("New page order; pages left out are dropped. Add r90, r180 or r270 to turn a page, e.g. 3, 1-2, 4r90"))
+        case .mediaTrim: return .timeRange(prompt: L("Part to keep, e.g. 0:05-1:30 (leave the end empty to keep the rest)"))
+        case .videoToGIF: return .timeRange(prompt: L("Part to turn into a GIF, e.g. 0:05-0:09"))
         default: return nil
         }
     }
@@ -344,25 +344,25 @@ public enum ActionID: String, CaseIterable, Codable, Sendable {
 
     public var title: String {
         switch self {
-        case .airDrop: return "AirDrop"
-        case .float: return "Float"
-        case .copy: return "Copy"
-        case .move: return "Move to…"
-        case .copyTo: return "Copy to…"
-        case .copyPath: return "Copy Path"
-        case .terminal: return "Terminal"
+        case .airDrop: return L("AirDrop")
+        case .float: return L("Float")
+        case .copy: return L("Copy")
+        case .move: return L("Move to…")
+        case .copyTo: return L("Copy to…")
+        case .copyPath: return L("Copy Path")
+        case .terminal: return L("Terminal")
         }
     }
 
     public var detail: String {
         switch self {
-        case .airDrop: return "Send with AirDrop"
-        case .float: return "Pin a preview above all windows"
-        case .copy: return "Copy the file to the clipboard"
-        case .move: return "Move to another folder"
-        case .copyTo: return "Duplicate into another folder"
-        case .copyPath: return "Copy the full path"
-        case .terminal: return "Open a Terminal in this folder"
+        case .airDrop: return L("Send with AirDrop")
+        case .float: return L("Pin a preview above all windows")
+        case .copy: return L("Copy the file to the clipboard")
+        case .move: return L("Move to another folder")
+        case .copyTo: return L("Duplicate into another folder")
+        case .copyPath: return L("Copy the full path")
+        case .terminal: return L("Open a Terminal in this folder")
         }
     }
 
@@ -464,7 +464,7 @@ public struct Catalog: Sendable {
             }
             return WheelItem(payload: .convert(target),
                              title: target.shortName,
-                             detail: "Convert to \(target.name)",
+                             detail: L("Convert to \(target.name)"),
                              symbol: target.kind.symbol,
                              unavailableReason: Self.reason(for: missing))
         }
@@ -492,7 +492,7 @@ public struct Catalog: Sendable {
             .map { tool in
                 var reason = Self.reason(for: tool.requirements.subtracting(available))
                 if let minimum = tool.minimumMacOS, macOSMajorVersion < minimum {
-                    reason = "Requires macOS \(minimum)"
+                    reason = L("Requires macOS \(minimum)")
                 }
                 return WheelItem(payload: .tool(tool), title: tool.title, detail: tool.detail,
                                  symbol: tool.symbol, unavailableReason: reason)
@@ -509,6 +509,7 @@ public struct Catalog: Sendable {
     static func reason(for missing: Set<Dependency>) -> String? {
         guard !missing.isEmpty else { return nil }
         let sorted = missing.sorted { $0.rawValue < $1.rawValue }
-        return "Needs " + sorted.map { "\($0.displayName) — \($0.installHint)" }.joined(separator: "; ")
+        let list = sorted.map { "\($0.displayName) — \($0.installHint)" }.joined(separator: "; ")
+        return L("Needs \(list)")
     }
 }

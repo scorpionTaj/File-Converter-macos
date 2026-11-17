@@ -34,7 +34,7 @@ final class UpdateController {
                 settings.lastUpdateCheck = Date()
                 guard let release = UpdateChecker.newest(in: releases, than: current, includePrereleases: includePrereleases) else {
                     if userInitiated {
-                        inform("Kumquat is up to date", "You have the newest version, \(current).")
+                        inform(L("Kumquat is up to date"), L("You have the newest version, \(current)."))
                     }
                     return
                 }
@@ -43,7 +43,7 @@ final class UpdateController {
                 offer(release, current: current)
             } catch {
                 AppLog.error("Update check failed: \(error.localizedDescription)")
-                if userInitiated { inform("Couldn't check for updates", error.localizedDescription) }
+                if userInitiated { inform(L("Couldn't check for updates"), error.localizedDescription) }
             }
         }
     }
@@ -51,15 +51,15 @@ final class UpdateController {
     private func offer(_ release: ReleaseInfo, current: String) {
         let version = release.version?.description ?? release.tagName
         let alert = NSAlert()
-        alert.messageText = "Kumquat \(version) is available"
+        alert.messageText = L("Kumquat \(version) is available")
         var notes = (release.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         // The install footer added by the release workflow isn't news.
         if let footer = notes.range(of: "\n---") { notes = String(notes[..<footer.lowerBound]) }
         if notes.count > 700 { notes = String(notes.prefix(700)) + "…" }
-        alert.informativeText = "You have \(current).\n\n\(notes)"
-        alert.addButton(withTitle: release.diskImage == nil ? "View Release" : "Download")
-        alert.addButton(withTitle: "Later")
-        alert.addButton(withTitle: "Skip This Version")
+        alert.informativeText = L("You have \(current).\n\n\(notes)")
+        alert.addButton(withTitle: release.diskImage == nil ? L("View Release") : L("Download"))
+        alert.addButton(withTitle: L("Later"))
+        alert.addButton(withTitle: L("Skip This Version"))
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertFirstButtonReturn:
@@ -76,7 +76,7 @@ final class UpdateController {
     }
 
     private func download(_ asset: ReleaseInfo.Asset, of release: ReleaseInfo, version: String) {
-        let job = hud?.begin("Downloading Kumquat \(version)", detail: asset.name)
+        let job = hud?.begin(L("Downloading Kumquat \(version)"), detail: asset.name)
         Task { [self] in
             let image: URL
             do {
@@ -99,11 +99,11 @@ final class UpdateController {
                 image = OutputNamer.uniqueURL(in: downloads, fileName: asset.name)
                 try FileManager.default.moveItem(at: temporary, to: image)
                 if let job { hud?.progress(1, job: job) }
-                hud?.success("Update downloaded", detail: image.lastPathComponent, reveal: [image])
+                hud?.success(L("Update downloaded"), detail: image.lastPathComponent, reveal: [image])
                 AppLog.info("Downloaded and verified update \(version) at \(image.path)")
             } catch {
                 AppLog.error("Update download failed: \(error.localizedDescription)")
-                hud?.failure("Download failed", detail: error.localizedDescription)
+                hud?.failure(L("Download failed"), detail: error.localizedDescription)
                 NSWorkspace.shared.open(release.htmlURL)
                 return
             }
@@ -125,10 +125,10 @@ final class UpdateController {
 
     private func offerInstall(_ image: URL, version: String) async {
         let alert = NSAlert()
-        alert.messageText = "Kumquat \(version) is ready to install"
-        alert.informativeText = "Kumquat will quit, replace itself with the new version and open again. Running conversions are stopped."
-        alert.addButton(withTitle: "Install and Relaunch")
-        alert.addButton(withTitle: "Later")
+        alert.messageText = L("Kumquat \(version) is ready to install")
+        alert.informativeText = L("Kumquat will quit, replace itself with the new version and open again. Running conversions are stopped.")
+        alert.addButton(withTitle: L("Install and Relaunch"))
+        alert.addButton(withTitle: L("Later"))
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
@@ -136,7 +136,7 @@ final class UpdateController {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         let staging = caches.appendingPathComponent("Kumquat/Update/\(version)", isDirectory: true)
-        let job = hud?.begin("Preparing Kumquat \(version)", detail: "Checking the new app")
+        let job = hud?.begin(L("Preparing Kumquat \(version)"), detail: L("Checking the new app"))
         do {
             try? FileManager.default.removeItem(at: staging)
             let staged = try await UpdateInstaller.stageApp(fromDiskImage: image, into: staging,
@@ -162,10 +162,10 @@ final class UpdateController {
 
     private func finishInstall(version: String) {
         let alert = NSAlert()
-        alert.messageText = "Install Kumquat \(version)"
-        alert.informativeText = "The disk image is open. Quit Kumquat, drag the new Kumquat onto Applications and choose Replace, then open it again."
-        alert.addButton(withTitle: "Quit Kumquat")
-        alert.addButton(withTitle: "Later")
+        alert.messageText = L("Install Kumquat \(version)")
+        alert.informativeText = L("The disk image is open. Quit Kumquat, drag the new Kumquat onto Applications and choose Replace, then open it again.")
+        alert.addButton(withTitle: L("Quit Kumquat"))
+        alert.addButton(withTitle: L("Later"))
         NSApp.activate(ignoringOtherApps: true)
         if alert.runModal() == .alertFirstButtonReturn { NSApp.terminate(nil) }
     }
@@ -222,11 +222,11 @@ enum CrashReporter {
     static func offerReportAfterCrash() {
         let report = latestCrashReport()
         let alert = NSAlert()
-        alert.messageText = "Kumquat quit unexpectedly last time"
-        alert.informativeText = "Reporting it helps fix the problem. A GitHub issue opens in your browser with details about your Mac and Kumquat's log; nothing is sent until you submit it."
-        alert.addButton(withTitle: "Report…")
-        alert.addButton(withTitle: "Not Now")
-        if report != nil { alert.addButton(withTitle: "Show Crash Report") }
+        alert.messageText = L("Kumquat quit unexpectedly last time")
+        alert.informativeText = L("Reporting it helps fix the problem. A GitHub issue opens in your browser with details about your Mac and Kumquat's log; nothing is sent until you submit it.")
+        alert.addButton(withTitle: L("Report…"))
+        alert.addButton(withTitle: L("Not Now"))
+        if report != nil { alert.addButton(withTitle: L("Show Crash Report")) }
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertFirstButtonReturn:

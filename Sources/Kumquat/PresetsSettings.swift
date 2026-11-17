@@ -27,7 +27,7 @@ struct PresetsSettings: View {
                     }
                 }
                 Button("Add Preset…") {
-                    editing = OutputPreset(name: "Web image", target: Format.webp.id,
+                    editing = OutputPreset(name: L("Web image"), target: Format.webp.id,
                                            overrides: OptionOverrides(quality: 0.8, maxImageDimension: 2048))
                 }
             } header: {
@@ -93,7 +93,7 @@ struct WatchFoldersSection: View {
             }
             Button("Add Watch Folder…") {
                 guard let preset = settings.presets.first,
-                      let url = Prompt.chooseFolder(title: "Watch Folder") else { return }
+                      let url = Prompt.chooseFolder(title: L("Watch Folder")) else { return }
                 guard !settings.watchFolders.contains(where: { $0.path == url.path }) else { return }
                 settings.watchFolders.append(WatchFolder(path: url.path, presetID: preset.id))
             }
@@ -102,15 +102,15 @@ struct WatchFoldersSection: View {
             Text("Watch folders")
         } footer: {
             Text(settings.presets.isEmpty
-                 ? "Make a preset first: a watch folder converts every new file with one."
-                 : "New files in a watch folder are converted with its preset while Kumquat runs, and files that arrived while it was closed are converted at the next launch. Files already there when you add the folder are left alone. Results follow your Output settings (“Ask each time” saves next to the file).")
+                 ? L("Make a preset first: a watch folder converts every new file with one.")
+                 : L("New files in a watch folder are converted with its preset while Kumquat runs, and files that arrived while it was closed are converted at the next launch. Files already there when you add the folder are left alone. Results follow your Output settings (“Ask each time” saves next to the file)."))
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
 
     private func status(of folder: WatchFolder) -> String {
-        if !FileManager.default.fileExists(atPath: folder.path) { return "Folder not found: \(folder.path)" }
-        if !settings.presets.contains(where: { $0.id == folder.presetID }) { return "Its preset was deleted; choose another" }
+        if !FileManager.default.fileExists(atPath: folder.path) { return L("Folder not found: \(folder.path)") }
+        if !settings.presets.contains(where: { $0.id == folder.presetID }) { return L("Its preset was deleted; choose another") }
         return folder.path
     }
 }

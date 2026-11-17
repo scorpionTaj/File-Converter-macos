@@ -13,11 +13,11 @@ final class PageArrangerWindowController: NSWindowController, NSWindowDelegate {
 
     static func present(url: URL, hud: HUDController, onDone: @escaping (String) -> Void) {
         guard let document = PDFDocument(url: url), !document.isLocked else {
-            hud.failure("Couldn't open the PDF", detail: "\(url.lastPathComponent) is unreadable or password-protected.")
+            hud.failure(L("Couldn't open the PDF"), detail: L("\(url.lastPathComponent) is unreadable or password-protected."))
             return
         }
         guard document.pageCount > 0 else {
-            hud.failure("Nothing to arrange", detail: "The PDF has no pages.")
+            hud.failure(L("Nothing to arrange"), detail: L("The PDF has no pages."))
             return
         }
         let controller = PageArrangerWindowController(url: url, document: document, onDone: onDone)
@@ -32,7 +32,7 @@ final class PageArrangerWindowController: NSWindowController, NSWindowDelegate {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
-        window.title = "Arrange Pages — \(url.lastPathComponent)"
+        window.title = L("Arrange Pages — \(url.lastPathComponent)")
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 520, height: 360)
         super.init(window: window)
@@ -141,7 +141,7 @@ struct PageArrangerView: View {
                 Button { model.reverse() } label: { Label("Reverse", systemImage: "arrow.left.arrow.right") }
                 Button { model.reset() } label: { Label("Reset", systemImage: "arrow.counterclockwise") }
                 Spacer()
-                Text(model.selection.isEmpty ? "Drag pages to reorder · ⌘-click to select several"
+                Text(model.selection.isEmpty ? L("Drag pages to reorder · ⌘-click to select several")
                      : "\(model.selection.count) selected")
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -199,13 +199,14 @@ private struct PageThumbnail: View {
                     .fill(selected ? Color.accentColor.opacity(0.25) : Color.clear))
                 .overlay(RoundedRectangle(cornerRadius: 8)
                     .stroke(selected ? Color.accentColor : Color.clear, lineWidth: 2))
-            Text(item.page + 1 == position ? "\(position)" : "\(position) (was \(item.page + 1))")
+            Text(item.page + 1 == position ? "\(position)" : L("\(position) (was \(item.page + 1))"))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Page \(item.page + 1), position \(position)\(item.rotation == 0 ? "" : ", turned \(item.rotation)°")")
+        .accessibilityLabel(item.rotation == 0 ? L("Page \(item.page + 1), position \(position)")
+                            : L("Page \(item.page + 1), position \(position), turned \(item.rotation)°"))
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 }

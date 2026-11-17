@@ -21,7 +21,7 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
 
     static func present(url: URL, outputDirectory: URL, hud: HUDController, onSaved: @escaping (URL) -> Void) {
         guard let document = PDFDocument(url: url), !document.isLocked else {
-            hud.failure("Couldn't open the PDF", detail: "\(url.lastPathComponent) is unreadable or password-protected. Use Tools → Unlock first.")
+            hud.failure(L("Couldn't open the PDF"), detail: L("\(url.lastPathComponent) is unreadable or password-protected. Use Tools → Unlock first."))
             return
         }
         let editor = PDFAnnotationWindowController(url: url, document: document, outputDirectory: outputDirectory,
@@ -40,7 +40,7 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 760),
                               styleMask: [.titled, .closable, .resizable, .miniaturizable],
                               backing: .buffered, defer: false)
-        window.title = "Annotate — \(url.lastPathComponent)"
+        window.title = L("Annotate — \(url.lastPathComponent)")
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 680, height: 420)
         super.init(window: window)
@@ -63,7 +63,7 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
         toolPicker.segmentCount = Self.tools.count
         toolPicker.trackingMode = .selectOne
         for (index, tool) in Self.tools.enumerated() {
-            let title = tool?.title ?? "Select"
+            let title = tool?.title ?? L("Select")
             toolPicker.setImage(NSImage(systemSymbolName: Self.symbol(for: tool), accessibilityDescription: title), forSegment: index)
             toolPicker.setToolTip(Self.hint(for: tool), forSegment: index)
             toolPicker.setWidth(34, forSegment: index)
@@ -74,19 +74,19 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
 
         colorWell.target = self
         colorWell.action = #selector(colorChanged)
-        colorWell.toolTip = "Colour"
+        colorWell.toolTip = L("Colour")
 
-        undoButton.image = NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: "Undo")
+        undoButton.image = NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: L("Undo"))
         undoButton.bezelStyle = .texturedRounded
-        undoButton.toolTip = "Undo (⌘Z)"
+        undoButton.toolTip = L("Undo (⌘Z)")
         undoButton.keyEquivalent = "z"
         undoButton.keyEquivalentModifierMask = .command
         undoButton.target = self
         undoButton.action = #selector(undo)
 
-        let cancel = NSButton(title: "Cancel", target: self, action: #selector(cancel))
+        let cancel = NSButton(title: L("Cancel"), target: self, action: #selector(cancel))
         cancel.keyEquivalent = "\u{1b}"
-        let save = NSButton(title: "Save Copy", target: self, action: #selector(save))
+        let save = NSButton(title: L("Save Copy"), target: self, action: #selector(save))
         save.keyEquivalent = "\r"
         save.bezelColor = .systemOrange
 
@@ -131,11 +131,11 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
     }
 
     private static func hint(for tool: PDFMarkup.Kind?) -> String {
-        guard let tool else { return "Select text and scroll without marking" }
-        if tool.marksSelection { return "\(tool.title): select text to mark it" }
+        guard let tool else { return L("Select text and scroll without marking") }
+        if tool.marksSelection { return L("\(tool.title): select text to mark it") }
         switch tool {
-        case .text, .note: return "\(tool.title): click where it goes"
-        default: return "\(tool.title): drag on the page"
+        case .text, .note: return L("\(tool.title): click where it goes")
+        default: return L("\(tool.title): drag on the page")
         }
     }
 
@@ -162,9 +162,9 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
     @objc private func cancel() {
         if !pdfView.markups.isEmpty {
             let alert = NSAlert()
-            alert.messageText = "Discard your annotations?"
-            alert.addButton(withTitle: "Discard")
-            alert.addButton(withTitle: "Keep Editing")
+            alert.messageText = L("Discard your annotations?")
+            alert.addButton(withTitle: L("Discard"))
+            alert.addButton(withTitle: L("Keep Editing"))
             guard alert.runModal() == .alertFirstButtonReturn else { return }
         }
         window?.close()
@@ -182,11 +182,11 @@ final class PDFAnnotationWindowController: NSWindowController, NSWindowDelegate 
         do {
             // Applied to a fresh copy of the original, so only the marks made here are added.
             try PDFEngine.annotate(sourceURL, markups: markups, output: destination)
-            hud.success("Saved", detail: destination.lastPathComponent, reveal: [destination])
+            hud.success(L("Saved"), detail: destination.lastPathComponent, reveal: [destination])
             onSaved(destination)
             window?.close()
         } catch {
-            hud.failure("Couldn't save", detail: error.localizedDescription)
+            hud.failure(L("Couldn't save"), detail: error.localizedDescription)
         }
     }
 
@@ -236,7 +236,7 @@ final class MarkupPDFView: PDFView {
         }
         switch tool {
         case .text, .note:
-            guard let text = askForText?(tool == .text ? "Text to add" : "Note"), !text.isEmpty else { return }
+            guard let text = askForText?(tool == .text ? L("Text to add") : L("Note")), !text.isEmpty else { return }
             let size = tool == .text ? Self.textSize(text) : CGSize(width: 20, height: 20)
             let rect = CGRect(origin: CGPoint(x: start.point.x, y: start.point.y - size.height), size: size)
             add(PDFMarkup(page: index(of: start.page), kind: tool, rects: [rect], text: text, color: color), on: start.page)

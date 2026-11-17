@@ -80,7 +80,8 @@ final class ConversionQueue: ObservableObject {
             }
         }
         guard !retriable.isEmpty, let makeJob else { return }
-        let title = retriable.count == 1 ? "Retry \(state.item(retriable[0])?.title ?? "")" : "Retry \(retriable.count) files"
+        let first = state.item(retriable[0])?.title ?? ""
+        let title = retriable.count == 1 ? L("Retry \(first)") : L("Retry \(retriable.count) files")
         let (job, journal) = makeJob(title)
         journals[job] = journal
         retriable.forEach { state.retry($0, job: job) }
@@ -176,7 +177,7 @@ final class QueueWindowController {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 460),
                                   styleMask: [.titled, .closable, .resizable, .miniaturizable],
                                   backing: .buffered, defer: false)
-            window.title = "Kumquat Queue"
+            window.title = L("Kumquat Queue")
             window.isReleasedWhenClosed = false
             window.minSize = NSSize(width: 460, height: 260)
             window.contentViewController = NSHostingController(rootView: QueueView(queue: queue))
@@ -201,7 +202,7 @@ struct QueueView: View {
                 } label: {
                     Label(state.isPaused ? "Resume" : "Pause", systemImage: state.isPaused ? "play.fill" : "pause.fill")
                 }
-                .help(state.isPaused ? "Start waiting files again" : "Finish what's running, then wait")
+                .help(state.isPaused ? L("Start waiting files again") : L("Finish what's running, then wait"))
                 Button {
                     queue.retryAllFailed()
                 } label: {

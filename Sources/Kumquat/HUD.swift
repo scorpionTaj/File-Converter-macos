@@ -1,4 +1,5 @@
 import AppKit
+import KumquatCore
 
 /// Small toast in the top-right corner showing progress and results. Click it to reveal the output.
 @MainActor
@@ -54,11 +55,11 @@ final class HUDController {
         progressBar.maxValue = 1
         progressBar.controlSize = .small
 
-        cancelButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Cancel")
+        cancelButton.image = NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: L("Cancel"))
         cancelButton.isBordered = false
         cancelButton.imagePosition = .imageOnly
         cancelButton.contentTintColor = .secondaryLabelColor
-        cancelButton.toolTip = "Cancel"
+        cancelButton.toolTip = L("Cancel")
         cancelButton.target = self
         cancelButton.action = #selector(cancelPressed)
         cancelButton.isHidden = true
@@ -90,7 +91,7 @@ final class HUDController {
 
     /// Starts a job; returns its id for progress updates.
     @discardableResult
-    func begin(_ title: String, detail: String = "Working…") -> Int {
+    func begin(_ title: String, detail: String = L("Working…")) -> Int {
         activeJob += 1
         dismissTask?.cancel()
         revealURLs = []
@@ -207,7 +208,7 @@ final class HUDController {
         cancelButton.isHidden = true
         progressBar.isHidden = true
         detailLabel.isHidden = false
-        detailLabel.stringValue = "Cancelling…"
+        detailLabel.stringValue = L("Cancelling…")
         onCancel?(activeJob)
     }
 

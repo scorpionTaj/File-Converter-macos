@@ -135,13 +135,13 @@ public struct PDFMarkup: Equatable, Sendable {
 
         public var title: String {
             switch self {
-            case .highlight: return "Highlight"
-            case .underline: return "Underline"
-            case .strikeOut: return "Strike Out"
-            case .text: return "Text"
-            case .note: return "Note"
-            case .rectangle: return "Box"
-            case .ink: return "Draw"
+            case .highlight: return L("Highlight")
+            case .underline: return L("Underline")
+            case .strikeOut: return L("Strike Out")
+            case .text: return L("Text")
+            case .note: return L("Note")
+            case .rectangle: return L("Box")
+            case .ink: return L("Draw")
             }
         }
 

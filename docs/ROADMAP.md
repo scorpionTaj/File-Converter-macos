@@ -67,6 +67,16 @@ Ground rules:
 | User recipes: shell-command edges in `~/Library/Application Support/Kumquat/recipes` added to the graph | ✅ JSON per recipe: formats, an argument list (no shell), `{input}`/`{output}`, timeout ≤ 1 h. Only your own, not-group/world-writable regular files load; problems show in Settings ▸ Engines and `kumquat-cli recipes`. Formats must be ones Kumquat knows (new extensions ⏳) |
 | Conversion queue window: pause/resume, reorder, retry failed, per-file progress | ✅ Menu bar ▸ Queue… (⌘J). Pause lets running files finish; tools are one queue item per drop |
 
+## 0.8 — Localisation (built, unreleased)
+
+| Item | Status |
+|---|---|
+| English, French, Spanish, German, Arabic | ✅ All menus, settings, wheels (tool and action names and descriptions), prompts, notices, notifications and editors: 570 strings in each language |
+| String Catalog | ✅ `Resources/Localization/Localizable.xcstrings` (editable in Xcode) is the source; `scripts/strings.py` keeps it in step with the code and compiles it into `.lproj` tables when building, so no Xcode is needed. CI fails if a string is missing in any language or a placeholder differs |
+| Arabic right-to-left | ✅ SwiftUI windows (Settings, queue, page arranger) mirror automatically; checked by rendering Settings in Arabic. The radial wheel and HUD are drawn by hand and weren't checked by eye ⏳ |
+| Error messages from the engines (e.g. "isn't a readable PDF") | ⏳ Still English: they're built deep in KumquatCore and shared with the CLI; next after 1.0's polish |
+| Result names ("photo (compressed).jpg") | Kept in English on purpose, so file names stay predictable across languages and scripts |
+
 ## 0.9 — Packaging
 
 | Item | Why |
@@ -79,7 +89,7 @@ Ground rules:
 
 | Item | Why |
 |---|---|
-| Localisation (String Catalogs): English, French, Arabic (RTL check), Spanish, German | Wider audience |
+| ✅ Localisation (String Catalogs): English, French, Arabic (RTL check), Spanish, German | Built in 0.8 |
 | Accessibility pass: VoiceOver labels on wheel slices, keyboard navigation of the wheel, Reduce Motion, contrast in every theme | Required for a 1.0 |
 | Onboarding window on first launch (how the drag-and-tap works, engine setup, permissions) | Core gesture isn't discoverable |
 | Settings redesign with search; import/export settings & presets | Settings have grown |

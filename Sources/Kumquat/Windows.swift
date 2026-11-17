@@ -12,7 +12,7 @@ final class WindowManager {
 
     func showSettings(app: AppDelegate) {
         if settingsWindow == nil {
-            settingsWindow = makeWindow(title: "Kumquat Settings", size: NSSize(width: 860, height: 640),
+            settingsWindow = makeWindow(title: L("Kumquat Settings"), size: NSSize(width: 860, height: 640),
                                         view: SettingsView(settings: app.settings,
                                                            isBusy: { [weak app] in app?.hasRunningJobs ?? false }),
                                         resizable: true)
@@ -22,7 +22,7 @@ final class WindowManager {
 
     func showWelcome(app: AppDelegate) {
         if welcomeWindow == nil {
-            welcomeWindow = makeWindow(title: "Welcome to Kumquat", size: NSSize(width: 520, height: 620),
+            welcomeWindow = makeWindow(title: L("Welcome to Kumquat"), size: NSSize(width: 520, height: 620),
                                        view: WelcomeView(settings: app.settings,
                                                          openSettings: { [weak self, weak app] in
                                                              guard let app else { return }
@@ -112,11 +112,11 @@ struct OutputSettings: View {
 
     private static func kindTitle(_ kind: FileKind) -> String {
         switch kind {
-        case .image: return "Images"
-        case .video: return "Videos"
-        case .audio: return "Audio"
-        case .pdf: return "PDFs"
-        default: return "Documents"
+        case .image: return L("Images")
+        case .video: return L("Videos")
+        case .audio: return L("Audio")
+        case .pdf: return L("PDFs")
+        default: return L("Documents")
         }
     }
 
@@ -130,7 +130,7 @@ struct OutputSettings: View {
                     HStack {
                         TextField("Folder", text: $settings.customFolder)
                         Button("Choose…") {
-                            if let url = Prompt.chooseFolder(title: "Save results to") { settings.customFolder = url.path }
+                            if let url = Prompt.chooseFolder(title: L("Save results to")) { settings.customFolder = url.path }
                         }
                     }
                 }
@@ -142,12 +142,12 @@ struct OutputSettings: View {
                         Text(Self.kindTitle(kind))
                         Spacer()
                         let path = settings.kindFolders[kind.rawValue] ?? ""
-                        Text(path.isEmpty ? "Same as above" : (path as NSString).abbreviatingWithTildeInPath)
+                        Text(path.isEmpty ? L("Same as above") : (path as NSString).abbreviatingWithTildeInPath)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
                         Button("Choose…") {
-                            if let url = Prompt.chooseFolder(title: "Save \(Self.kindTitle(kind).lowercased()) to") {
+                            if let url = Prompt.chooseFolder(title: L("Save \(Self.kindTitle(kind)) to")) {
                                 settings.kindFolders[kind.rawValue] = url.path
                             }
                         }
@@ -237,7 +237,8 @@ struct ConversionSettings: View {
                 ForEach(settings.formatDefaults.keys.sorted(), id: \.self) { id in
                     HStack {
                         let name = FormatRegistry.all.first { $0.id == id }?.shortName ?? id.uppercased()
-                        Text("\(name): \(settings.formatDefaults[id]?.summary ?? "")")
+                        let summary = settings.formatDefaults[id]?.summary ?? ""
+                        Text(verbatim: "\(name): \(summary)")
                         Spacer()
                         Button("Forget") { settings.formatDefaults[id] = nil }
                     }
@@ -307,7 +308,7 @@ struct ConversionSettings: View {
                 Toggle("Normalise loudness (−16 LUFS)", isOn: $settings.normalizeAudio)
             }
             Section {
-                Stepper("Convert \(settings.parallelJobs) file\(settings.parallelJobs == 1 ? "" : "s") at a time",
+                Stepper(settings.parallelJobs == 1 ? L("Convert 1 file at a time") : L("Convert \(settings.parallelJobs) files at a time"),
                         value: $settings.parallelJobs, in: 1...8)
             } header: {
                 Text("Speed")
@@ -329,7 +330,7 @@ struct FormatQualityRow: View {
     var body: some View {
         let custom = (0...1).contains(value)
         VStack(alignment: .leading, spacing: 4) {
-            Toggle("\(title): \(custom ? "\(Int(value * 100))%" : "default")",
+            Toggle(custom ? L("\(title): \(Int(value * 100))%") : L("\(title): default"),
                    isOn: Binding(get: { custom }, set: { value = $0 ? fallback : -1 }))
             if custom {
                 Slider(value: $value, in: 0.3...1, step: 0.05)
@@ -354,7 +355,7 @@ struct AdvancedSettings: View {
                     case .notLinked: Text("Not installed")
                     }
                     Spacer()
-                    Button(cliStatus == .notLinked ? "Install…" : "Reinstall") { installCommandLineTool() }
+                    Button(cliStatus == .notLinked ? L("Install…") : L("Reinstall")) { installCommandLineTool() }
                 }
                 if let cliMessage {
                     Text(cliMessage).font(.caption).foregroundStyle(.secondary)
@@ -388,11 +389,11 @@ struct AdvancedSettings: View {
                     Button("Copy Diagnostics") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(Self.diagnostics(), forType: .string)
-                        status = "Diagnostics copied. Paste them into a GitHub issue."
+                        status = L("Diagnostics copied. Paste them into a GitHub issue.")
                     }
                     Button("Clear Temporary Files") {
                         guard !isBusy() else {
-                            status = "Wait for running conversions to finish first."
+                            status = L("Wait for running conversions to finish first.")
                             return
                         }
                         status = Self.clearTemporaryFiles()
@@ -420,7 +421,7 @@ struct AdvancedSettings: View {
                     link = try await CommandLineTool.installAsAdministrator(app: app)
                 }
                 cliStatus = CommandLineTool.status(app: app)
-                cliMessage = "kumquat-cli is ready: \(link.path)"
+                cliMessage = L("kumquat-cli is ready: \(link.path)")
             } catch {
                 cliMessage = error.localizedDescription
             }
@@ -429,10 +430,10 @@ struct AdvancedSettings: View {
 
     private func confirmReset() {
         let alert = NSAlert()
-        alert.messageText = "Reset all Kumquat settings?"
-        alert.informativeText = "Keys, quality, output, theme and recent files go back to their defaults. Kumquat will relaunch."
-        alert.addButton(withTitle: "Reset and Relaunch")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = L("Reset all Kumquat settings?")
+        alert.informativeText = L("Keys, quality, output, theme and recent files go back to their defaults. Kumquat will relaunch.")
+        alert.addButton(withTitle: L("Reset and Relaunch"))
+        alert.addButton(withTitle: L("Cancel"))
         alert.alertStyle = .warning
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         settings.resetAll()
@@ -460,8 +461,9 @@ struct AdvancedSettings: View {
             bytes += Self.size(of: item)
             if (try? fm.removeItem(at: item)) != nil { removed += 1 }
         }
-        guard removed > 0 else { return "Nothing to clear." }
-        return "Removed \(removed) item\(removed == 1 ? "" : "s") (\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)))."
+        guard removed > 0 else { return L("Nothing to clear.") }
+        let size = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+        return removed == 1 ? L("Removed 1 item (\(size)).") : L("Removed \(removed) items (\(size)).")
     }
 
     private static func size(of url: URL) -> Int64 {
@@ -597,7 +599,7 @@ struct DependencyRow: View {
             }
             Spacer()
             if status != nil, !installed {
-                Button(dependency.appStoreURL == nil ? "Install" : "App Store") {
+                Button(dependency.appStoreURL == nil ? L("Install") : L("App Store")) {
                     HelperInstaller.install(dependency)
                 }
                 .help(dependency.installHint)
@@ -614,9 +616,11 @@ struct AboutView: View {
                 .resizable()
                 .frame(width: 96, height: 96)
             Text("Kumquat").font(.largeTitle.bold())
-            Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+            let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+            Text(L("Version \(version)"))
                 .foregroundStyle(.secondary)
-            Text("\(converter.graph.conversionCount(engines: converter.availableEngines)) conversions · \(ToolID.allCases.count) tools · \(ActionID.allCases.count) actions")
+            let conversions = converter.graph.conversionCount(engines: converter.availableEngines)
+            Text(L("\(conversions) conversions · \(ToolID.allCases.count) tools · \(ActionID.allCases.count) actions"))
             Text("Free and open source (MIT). Everything runs on your Mac — files are never uploaded.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)

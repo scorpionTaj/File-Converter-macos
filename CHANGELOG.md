@@ -5,6 +5,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Kumquat speaks French, Spanish, German and Arabic.** Menus, settings, the wheels (tool and action names
+  and descriptions), prompts, progress notices, notifications and the editors are translated, and Arabic
+  lays out right to left. Kumquat follows your Mac's language, or pick one for Kumquat alone in System
+  Settings ▸ General ▸ Language & Region ▸ Applications. Some error messages are still in English.
+- Translations live in a String Catalog; `scripts/strings.py` keeps it in step with the code, and CI checks
+  that every language is complete.
+
 ## [0.7.1] - 2026-11-17
 
 ### Changed

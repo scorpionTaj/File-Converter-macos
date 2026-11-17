@@ -20,7 +20,7 @@ final class FileActions {
         case .airDrop:
             NSApp.activate(ignoringOtherApps: true)
             guard let service = NSSharingService(named: .sendViaAirDrop), service.canPerform(withItems: urls) else {
-                hud.failure("AirDrop unavailable", detail: "Turn on Wi-Fi and Bluetooth, then try again.")
+                hud.failure(L("AirDrop unavailable"), detail: L("Turn on Wi-Fi and Bluetooth, then try again."))
                 return
             }
             service.perform(withItems: urls)
@@ -39,11 +39,11 @@ final class FileActions {
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.writeObjects(urls.map { $0 as NSURL })
-            hud.info("Copied", detail: urls.count == 1 ? urls[0].lastPathComponent : "\(urls.count) items")
+            hud.info(L("Copied"), detail: urls.count == 1 ? urls[0].lastPathComponent : L("\(urls.count) items"))
 
         case .move, .copyTo:
             let isMove = action == .move
-            guard let folder = Prompt.chooseFolder(title: isMove ? "Move to" : "Copy to") else { return }
+            guard let folder = Prompt.chooseFolder(title: isMove ? L("Move to") : L("Copy to")) else { return }
             var results: [URL] = []
             do {
                 for url in urls {
@@ -55,16 +55,16 @@ final class FileActions {
                     }
                     results.append(destination)
                 }
-                hud.success(isMove ? "Moved" : "Copied", detail: "\(results.count) item(s) to \(folder.lastPathComponent)", reveal: results)
+                hud.success(isMove ? L("Moved") : L("Copied"), detail: L("\(results.count) item(s) to \(folder.lastPathComponent)"), reveal: results)
             } catch {
-                hud.failure(isMove ? "Move failed" : "Copy failed", detail: error.localizedDescription)
+                hud.failure(isMove ? L("Move failed") : L("Copy failed"), detail: error.localizedDescription)
             }
 
         case .copyPath:
             let pasteboard = NSPasteboard.general
             pasteboard.clearContents()
             pasteboard.setString(urls.map(\.path).joined(separator: "\n"), forType: .string)
-            hud.info("Path copied", detail: urls.count == 1 ? urls[0].path : "\(urls.count) paths")
+            hud.info(L("Path copied"), detail: urls.count == 1 ? urls[0].path : L("\(urls.count) paths"))
 
         case .terminal:
             var isDirectory: ObjCBool = false
@@ -75,7 +75,7 @@ final class FileActions {
             let terminal = workspace.urlForApplication(withBundleIdentifier: settings.terminalBundleID)
                 ?? workspace.urlForApplication(withBundleIdentifier: "com.apple.Terminal")
             guard let terminal else {
-                hud.failure("Terminal not found", detail: settings.terminalBundleID)
+                hud.failure(L("Terminal not found"), detail: settings.terminalBundleID)
                 return
             }
             workspace.open([folder], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration()) { _, error in
@@ -134,8 +134,8 @@ enum Prompt {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = message
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L("OK"))
+        alert.addButton(withTitle: L("Cancel"))
         let frame = NSRect(x: 0, y: 0, width: 280, height: 24)
         let field: NSTextField = secure ? NSSecureTextField(frame: frame) : NSTextField(frame: frame)
         alert.accessoryView = field
@@ -159,7 +159,7 @@ enum Prompt {
     static func chooseFiles() -> [URL] {
         NSApp.activate(ignoringOtherApps: true)
         let panel = NSOpenPanel()
-        panel.title = "Choose files for Kumquat"
+        panel.title = L("Choose files for Kumquat")
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true

@@ -20,14 +20,14 @@ public enum Dependency: String, CaseIterable, Codable, Sendable {
     /// What it unlocks, shown in Settings.
     public var purpose: String {
         switch self {
-        case .ffmpeg: return "Audio, video, GIF, subtitle (ASS) conversions and WebP/AVIF fallback"
-        case .libreOffice: return "High-fidelity Office ↔ PDF, PowerPoint and Excel conversions"
-        case .pandoc: return "EPUB and high-quality Markdown conversions"
-        case .pages: return "Pages documents"
-        case .keynote: return "Keynote presentations"
-        case .numbers: return "Numbers spreadsheets"
-        case .pngquant: return "Much smaller PNGs when compressing"
-        case .ghostscript: return "Smaller text-heavy PDFs when compressing"
+        case .ffmpeg: return L("Audio, video, GIF, subtitle (ASS) conversions and WebP/AVIF fallback")
+        case .libreOffice: return L("High-fidelity Office ↔ PDF, PowerPoint and Excel conversions")
+        case .pandoc: return L("EPUB and high-quality Markdown conversions")
+        case .pages: return L("Pages documents")
+        case .keynote: return L("Keynote presentations")
+        case .numbers: return L("Numbers spreadsheets")
+        case .pngquant: return L("Much smaller PNGs when compressing")
+        case .ghostscript: return L("Smaller text-heavy PDFs when compressing")
         }
     }
 
@@ -126,9 +126,9 @@ public enum PDFCompression: String, Codable, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .light: return "Light (best quality)"
-        case .balanced: return "Balanced"
-        case .strong: return "Strong (smallest file)"
+        case .light: return L("Light (best quality)")
+        case .balanced: return L("Balanced")
+        case .strong: return L("Strong (smallest file)")
         }
     }
 

@@ -179,7 +179,7 @@ final class RadialMenuView: NSView {
 
     private func drawPin(at point: CGPoint, color: NSColor) {
         let configuration = NSImage.SymbolConfiguration(pointSize: 8 * scale, weight: .bold)
-        guard let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Pinned")?
+        guard let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: L("Pinned"))?
             .withSymbolConfiguration(configuration)?.tinted(color.withAlphaComponent(0.8)) else { return }
         pin.draw(in: NSRect(x: point.x - pin.size.width / 2, y: point.y - pin.size.height / 2,
                             width: pin.size.width, height: pin.size.height))
@@ -283,7 +283,7 @@ final class RadialMenuView: NSView {
             PromiseInbox.receive(from: pasteboard) { [weak self] received, message in
                 self?.isPerformingDrop = false
                 if received.isEmpty {
-                    self?.onDropFailed?(message ?? "The file couldn't be received.")
+                    self?.onDropFailed?(message ?? L("The file couldn't be received."))
                 } else {
                     self?.onSelect?(item, received)
                 }

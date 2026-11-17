@@ -34,7 +34,7 @@ enum ModifierKey: String, CaseIterable, Identifiable {
         case .command: return "⌘ Command"
         case .control: return "⌃ Control"
         case .option: return "⌥ Option"
-        case .none: return "Off"
+        case .none: return L("Off")
         }
     }
 }
@@ -44,10 +44,10 @@ enum OutputMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .beside: return "Next to the original"
-        case .downloads: return "Downloads folder"
-        case .custom: return "Custom folder"
-        case .ask: return "Ask each time"
+        case .beside: return L("Next to the original")
+        case .downloads: return L("Downloads folder")
+        case .custom: return L("Custom folder")
+        case .ask: return L("Ask each time")
         }
     }
 }
@@ -58,11 +58,11 @@ enum HUDPosition: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .topRight: return "Top right"
-        case .topCenter: return "Top centre"
-        case .topLeft: return "Top left"
-        case .bottomRight: return "Bottom right"
-        case .bottomLeft: return "Bottom left"
+        case .topRight: return L("Top right")
+        case .topCenter: return L("Top centre")
+        case .topLeft: return L("Top left")
+        case .bottomRight: return L("Bottom right")
+        case .bottomLeft: return L("Bottom left")
         }
     }
 }
@@ -70,7 +70,7 @@ enum HUDPosition: String, CaseIterable, Identifiable {
 enum WheelPosition: String, CaseIterable, Identifiable {
     case cursor, screenCenter
     var id: String { rawValue }
-    var title: String { self == .cursor ? "Under the pointer" : "Centre of the screen" }
+    var title: String { self == .cursor ? L("Under the pointer") : L("Centre of the screen") }
 }
 
 enum MenuBarIconStyle: String, CaseIterable, Identifiable {
@@ -78,10 +78,10 @@ enum MenuBarIconStyle: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .kumquat: return "Kumquat"
-        case .arrows: return "Arrows"
-        case .wand: return "Magic wand"
-        case .document: return "Document"
+        case .kumquat: return L("Kumquat")
+        case .arrows: return L("Arrows")
+        case .wand: return L("Magic wand")
+        case .document: return L("Document")
         }
     }
     /// SF Symbol, or nil for the drawn kumquat.
@@ -385,7 +385,7 @@ final class SettingsStore: ObservableObject {
                 AppLog.error("Launch at login: \(error.localizedDescription)")
                 let path = Bundle.main.bundleURL.path
                 launchAtLoginError = path.hasPrefix("/Volumes/") || path.contains("/AppTranslocation/")
-                    ? "Move Kumquat to Applications first, then turn this on."
+                    ? L("Move Kumquat to Applications first, then turn this on.")
                     : error.localizedDescription
             }
         }
