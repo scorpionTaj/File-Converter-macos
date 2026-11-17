@@ -74,6 +74,11 @@ final class StatusBarController: NSObject, NSMenuDelegate {
         open.target = self
         menu.addItem(open)
 
+        let queueItem = NSMenuItem(title: app.hasRunningJobs ? "Queue (\(app.queue.state.running.count + app.queue.state.waiting.count) left)…" : "Queue…",
+                                   action: #selector(showQueue), keyEquivalent: "j")
+        queueItem.target = self
+        menu.addItem(queueItem)
+
         let shelf = NSMenuItem(title: "Drop Shelf", action: #selector(toggleShelf), keyEquivalent: "")
         shelf.state = settings.showShelf ? .on : .off
         shelf.target = self
@@ -133,6 +138,10 @@ final class StatusBarController: NSObject, NSMenuDelegate {
     @objc private func toggleEnabled() {
         guard let app else { return }
         app.setEnabled(!app.settings.isEnabled)
+    }
+
+    @objc private func showQueue() {
+        app?.showQueue()
     }
 
     @objc private func toggleShelf() {

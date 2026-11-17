@@ -3,6 +3,8 @@ import Foundation
 /// Identifies the engine responsible for one conversion hop.
 public enum EngineID: String, CaseIterable, Codable, Sendable {
     case image, pdf, document, media, archive, data, subtitle, iwork, office, pandoc
+    /// The user's own recipes (`UserRecipes`).
+    case recipe
 }
 
 /// A single direct conversion an engine can perform.
@@ -88,10 +90,13 @@ public struct ConversionGraph: Sendable {
         return route(from: source, to: target, where: { engines.contains($0.engine) })
     }
 
-    /// Every format `source` can sensibly be converted to, in wheel order.
+    /// Every format `source` can sensibly be converted to, in wheel order. A user recipe's target is always
+    /// offered: the user asked for exactly that conversion.
     public func targets(for source: Format, engines: Set<EngineID> = Set(EngineID.allCases)) -> [Format] {
-        FormatRegistry.all
-            .filter { TargetPolicy.allows(source: source, target: $0) }
+        let recipeTargets = engines.contains(.recipe)
+            ? Set((outgoing[source.id] ?? []).filter { $0.engine == .recipe }.map(\.to)) : []
+        return FormatRegistry.all
+            .filter { TargetPolicy.allows(source: source, target: $0) || recipeTargets.contains($0) }
             .filter { route(from: source, to: $0, where: { engines.contains($0.engine) }) != nil }
     }
 

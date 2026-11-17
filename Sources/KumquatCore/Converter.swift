@@ -7,6 +7,9 @@ public struct EngineContext: Sendable {
     /// Scratch space, deleted when the job ends.
     public var workDirectory: URL
     public var progress: (@Sendable (Double) -> Void)?
+    /// Position of this file in the drop, and how many files were dropped (for numbering, e.g. Rename).
+    public var itemIndex = 0
+    public var itemCount = 1
 
     public init(options: ConversionOptions, tools: ToolLocator, workDirectory: URL, progress: (@Sendable (Double) -> Void)? = nil) {
         self.options = options
@@ -54,6 +57,8 @@ struct ToolArtifact {
     var clipboardText: String?
     /// Overrides the default "<name> (<suffix>)" naming.
     var preferredBaseName: String?
+    /// For combined tools: the dropped file the result belongs with (saved beside it). Defaults to the first.
+    var original: URL?
 }
 
 /// Front door to every conversion and tool.
@@ -62,10 +67,14 @@ public final class Converter: @unchecked Sendable {
     public let tools: ToolLocator
     let engines: [EngineID: any ConversionEngine]
 
-    public init(graph: ConversionGraph = .standard, tools: ToolLocator = ToolLocator()) {
-        self.graph = graph
+    /// - Parameter recipes: the user's recipes (`UserRecipes.load()`), added to the graph.
+    public init(graph: ConversionGraph = .standard, tools: ToolLocator = ToolLocator(), recipes: [UserRecipe] = []) {
+        self.graph = recipes.isEmpty ? graph
+            : ConversionGraph(edges: graph.edges + UserRecipes.edges(for: recipes), maxHops: graph.maxHops)
         self.tools = tools
-        self.engines = Self.makeEngines()
+        var engines = Self.makeEngines()
+        if !recipes.isEmpty { engines[.recipe] = RecipeEngine(recipes) }
+        self.engines = engines
     }
 
     static func makeEngines() -> [EngineID: any ConversionEngine] {
@@ -215,7 +224,7 @@ public final class Converter: @unchecked Sendable {
 
         if tool.combinesInputs {
             let artifact = try await ToolRunner.runCombined(tool, inputs: inputs, context: context)
-            return try finalize([artifact], for: [inputs[0]], tool: tool, options: options, combined: true)
+            return try finalize([artifact], for: [artifact.original ?? inputs[0]], tool: tool, options: options, combined: true)
         }
 
         let tracker = BatchProgress(count: inputs.count, report: progress)
@@ -232,6 +241,8 @@ public final class Converter: @unchecked Sendable {
                 itemContext.workDirectory = work.appendingPathComponent("item\(index)", isDirectory: true)
                 try fm.createDirectory(at: itemContext.workDirectory, withIntermediateDirectories: true)
                 itemContext.progress = { tracker.update(index, $0) }
+                itemContext.itemIndex = index
+                itemContext.itemCount = inputs.count
                 group.addTask {
                     do {
                         return (index, .success(try await ToolRunner.run(tool, input: inputs[index], parameter: parameter,
@@ -357,6 +368,13 @@ enum ToolRunner {
         case .checksum:
             let digest = try await Checksum.sha256(of: input)
             return ToolArtifact(message: "SHA-256 copied", clipboardText: "\(digest)  \(input.lastPathComponent)")
+        case .batchRename:
+            let name = try RenamePattern.render(parameter ?? "", original: input, index: context.itemIndex,
+                                                count: context.itemCount, date: RenamePattern.date(of: input))
+            // A clone (instant on APFS); "Originals: move to Trash" turns this into a rename.
+            let copy = context.workDirectory.appendingPathComponent(input.lastPathComponent)
+            try FileManager.default.copyItem(at: input, to: copy)
+            return ToolArtifact(url: copy, preferredBaseName: name)
         case .wordCount:
             let text = try await TextExtraction.text(of: input, format: format)
             let words = text.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
@@ -390,6 +408,8 @@ enum ToolRunner {
             let output = context.scratchURL("gif")
             try await ImageEngine.makeAnimatedGIF(from: inputs, output: output, context: context)
             return ToolArtifact(url: output, preferredBaseName: FormatRegistry.baseName(of: inputs[0]))
+        case .videoBurnSubtitles:
+            return try await MediaEngine.burnSubtitles(inputs, context: context)
         case .imagesToPDF, .pdfMerge:
             let output = context.scratchURL("pdf")
             if tool == .pdfMerge {
